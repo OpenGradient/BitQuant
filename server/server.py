@@ -4,6 +4,7 @@ from server.types import AgentRequest, AgentOutput
 from agent import create_agent_executor
 
 def create_flask_app():
+
     app = Flask(__name__)
     agent = create_agent_executor()
 
@@ -21,3 +22,5 @@ def create_flask_app():
 
         except Exception as e:
             return jsonify({"error": str(e)}), 400
+    
+    return app
