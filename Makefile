@@ -11,18 +11,19 @@ check:
 
 define JSON_DATA
 {
-	"userInput": "deposit into the best pool",
+	"userInput": "analyze my portfolio",
 	"context": {
 		"conversationHistory": [],
 		"tokens": [
 			{"amount": 100, "symbol": "SUI"},
 			{"amount": 45333, "symbol": "USDC"}
 		],
-		"poolPositions": [],
+		"poolPositions": [
+			{"poolSymbol": "SUI/USDC", "amountDeposited": 10000}
+		],
 		"availablePools": [{
 			"address": "0x123",
 			"symbol": "SUI/USDC",
-			"tvl": "100M USD",
 			"tokenA": "SUI",
 			"tokenB": "USDC",
 			"APRLastDay": 12,
