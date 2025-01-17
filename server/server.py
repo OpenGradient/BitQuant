@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from pydantic import ValidationError
+from langgraph.graph.graph import CompiledGraph
 
 from server.types import AgentRequest, AgentOutput
 from agent import create_agent_executor
@@ -23,13 +24,13 @@ def create_flask_app():
         request_data = request.get_json()
         agent_request = AgentRequest(**request_data)
 
-        response = handle_agent_request(agent_request)
+        response = handle_agent_request(agent_request, agent)
 
         return jsonify(response.model_dump())
 
     return app
 
 
-def handle_agent_request(request: AgentRequest) -> AgentOutput:
+def handle_agent_request(request: AgentRequest, agent: CompiledGraph) -> AgentOutput:
     response = AgentOutput(message="Placeholder response", recommendedAction=None)
     return response
