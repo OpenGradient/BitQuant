@@ -2,8 +2,8 @@ from flask import Flask, request, jsonify
 from pydantic import ValidationError
 from langgraph.graph.graph import CompiledGraph
 
-from server.types import AgentRequest, AgentOutput
-from agent import create_agent_executor
+from types.types import AgentRequest, AgentOutput
+from agent import create_agent_executor, get_agent_prompt
 
 
 def create_flask_app():
@@ -32,8 +32,13 @@ def create_flask_app():
 
 
 def handle_agent_request(request: AgentRequest, agent: CompiledGraph) -> AgentOutput:
+    # Build system prompt
+    system_prompt = get_agent_prompt(
+        tokens=None, poolDeposits=None, availablePools=None
+    )
+
     events = agent.stream(
-        {"messages": [("user", request.userInput)]},
+        {"messages": [("system", system_prompt), ("user", request.userInput)]},
         stream_mode="values",
         debug=False,  # Set to True for debugging
     )

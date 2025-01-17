@@ -6,7 +6,6 @@ from langgraph.graph.graph import CompiledGraph
 
 from opengradient.llm import langchain_adapter
 
-from agent.prompts import get_agent_prompt
 from agent.tools import create_agent_toolkit
 
 MODEL = "Qwen/Qwen2.5-72B-Instruct"
@@ -20,12 +19,7 @@ def create_agent_executor() -> CompiledGraph:
     # Initialize LLM
     llm = langchain_adapter(private_key=private_key, model_cid=MODEL)
 
-    # Build system prompt
-    system_prompt = get_agent_prompt()
-
     # Create agent
-    agent_executor = create_react_agent(
-        model=llm, tools=create_agent_toolkit(), messages_modifier=system_prompt
-    )
+    agent_executor = create_react_agent(model=llm, tools=create_agent_toolkit())
 
     return agent_executor
