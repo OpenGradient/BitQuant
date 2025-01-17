@@ -8,7 +8,7 @@ from agent import create_agent_executor
 # Load environment variables from .env file
 load_dotenv("../.env.sh")
 
-og.init(private_key=os.environ.get('PRIVATE_KEY'), email=None, password=None)
+og.init(private_key=os.environ.get("PRIVATE_KEY"), email=None, password=None)
 
 # Check argument
 if len(sys.argv) != 2:
@@ -20,11 +20,9 @@ agent = create_agent_executor()
 
 # Execute agent
 events = agent.stream(
-    {"messages": [
-        ("user", user_prompt)
-    ]},
+    {"messages": [("user", user_prompt)]},
     stream_mode="values",
-    debug=False # Set to True for debugging
+    debug=False,  # Set to True for debugging
 )
 
 # Print reasoning and result

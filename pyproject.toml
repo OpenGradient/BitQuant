@@ -1,0 +1,9 @@
+[project]
+name = "bluefin-agent"
+version = "0.1.0"
+description = "Bluefin Agent"
+requires-python = ">=3.8"
+
+[tool.black]
+line-length = 88
+target-version = ['py38']

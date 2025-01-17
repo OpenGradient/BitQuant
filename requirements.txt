@@ -2,3 +2,4 @@ opengradient>=0.3.26
 langgraph>=0.2.60
 langchain-community>=0.3.14
 flask>=3.1.0
+pydantic>=2.10.0
