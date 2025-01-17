@@ -5,6 +5,7 @@ import jinja2
 from bftypes.types import TokenBalance, Pool, PoolPosition
 
 env = jinja2.Environment(loader=jinja2.FileSystemLoader("templates/"))
+template = env.get_template("prompt.jinja2")
 
 
 def get_agent_prompt(
@@ -12,7 +13,8 @@ def get_agent_prompt(
     poolDeposits: List[PoolPosition],
     availablePools: List[Pool],
 ) -> str:
-    template = env.get_template("prompt.jinja2")
-    agent_prompt = template.render()
+    agent_prompt = template.render(
+        tokens=tokens, poolDeposits=poolDeposits, availablePools=availablePools
+    )
 
     return agent_prompt
