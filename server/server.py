@@ -4,6 +4,7 @@ from pydantic import ValidationError
 from server.types import AgentRequest, AgentOutput
 from agent import create_agent_executor
 
+
 def create_flask_app():
 
     app = Flask(__name__)
@@ -19,13 +20,16 @@ def create_flask_app():
 
     @app.route("/api/agent/run", methods=["POST"])
     def run_agent():
-        # Parse and validate request
         request_data = request.get_json()
         agent_request = AgentRequest(**request_data)
 
-        # Placeholder response
-        response = AgentOutput(message="Placeholder response", recommendedAction=None)
+        response = handle_agent_request(agent_request)
 
         return jsonify(response.model_dump())
-    
+
     return app
+
+
+def handle_agent_request(request: AgentRequest) -> AgentOutput:
+    response = AgentOutput(message="Placeholder response", recommendedAction=None)
+    return response
