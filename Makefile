@@ -11,7 +11,7 @@ check:
 
 define JSON_DATA
 {
-	"userInput": "what pool can i deposit into?",
+	"userInput": "deposit into the best pool",
 	"context": {
 		"conversationHistory": [],
 		"tokens": [
