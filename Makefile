@@ -11,7 +11,7 @@ check:
 
 define JSON_DATA
 {
-	"userInput": "what can i do?",
+	"userInput": "who are you?",
 	"context": {
 		"conversationHistory": [],
 		"tokens": [],

@@ -9,6 +9,8 @@ from opengradient.llm import langchain_adapter
 from agent.prompts import AGENT_SYSTEM_PROMPT
 from agent.tools import create_agent_toolkit
 
+MODEL = "Qwen/Qwen2.5-72B-Instruct"
+
 
 def create_agent_executor() -> CompiledGraph:
     private_key = os.environ.get("PRIVATE_KEY")
@@ -16,9 +18,7 @@ def create_agent_executor() -> CompiledGraph:
         raise Exception("Must set PRIVATE_KEY env var")
 
     # Initialize LLM
-    llm = langchain_adapter(
-        private_key=private_key, model_cid="meta-llama/Llama-3.1-70B-Instruct"
-    )
+    llm = langchain_adapter(private_key=private_key, model_cid=MODEL)
 
     # Create agent
     agent_executor = create_react_agent(

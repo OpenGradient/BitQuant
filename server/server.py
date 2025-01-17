@@ -32,6 +32,13 @@ def create_flask_app():
 
 
 def handle_agent_request(request: AgentRequest, agent: CompiledGraph) -> AgentOutput:
-    response = AgentOutput(message="Placeholder response", recommendedAction=None)
+    events = agent.stream(
+        {"messages": [("user", request.userInput)]},
+        stream_mode="values",
+        debug=False,  # Set to True for debugging
+    )
+
+    answer = list(events)[-1]["messages"][-1].content
+    response = AgentOutput(message=answer, recommendedAction=None)
 
     return response
