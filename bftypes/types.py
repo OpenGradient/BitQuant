@@ -3,10 +3,6 @@ from typing import List, Union, Optional, Dict, Any
 from enum import Enum
 
 
-class Token(BaseModel):
-    name: str
-
-
 class Pool(BaseModel):
     # Placeholder for Bluefin API JSON object
     pass
@@ -14,7 +10,7 @@ class Pool(BaseModel):
 
 class TokenBalance(BaseModel):
     amount: float
-    asset: Token
+    symbol: str
 
 
 class PoolPosition(BaseModel):
