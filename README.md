@@ -3,7 +3,7 @@
 ## Structure
 
 - `agent`: contains the agent logic
-- `apitypes`: API type definitions
+- `api_types`: API type definitions
 - `server`: contains Flask server that exposes API to interact with agent
 - `templates`: LLM prompt templates for agent
 
