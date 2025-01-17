@@ -6,7 +6,7 @@ from api_types.types import AgentRequest, AgentOutput
 from agent import create_agent_executor, get_agent_prompt
 
 
-def create_flask_app():
+def create_flask_app() -> Flask:
 
     app = Flask(__name__)
     agent = create_agent_executor()
