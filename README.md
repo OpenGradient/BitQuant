@@ -12,3 +12,4 @@
 1. `make install`
 2. Create `.env` file and add `PRIVATE_KEY` set to your OpenGradient private key
 3. `make run`
+4. (Optional) Run `make test` for a sample query
