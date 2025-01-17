@@ -6,8 +6,8 @@ from langgraph.graph.graph import CompiledGraph
 
 from opengradient.llm import langchain_adapter
 
-from prompts import AGENT_SYSTEM_PROMPT
-from tools import create_agent_toolkit
+from agent.prompts import AGENT_SYSTEM_PROMPT
+from agent.tools import create_agent_toolkit
 
 
 def create_agent_executor() -> CompiledGraph:

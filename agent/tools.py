@@ -1,7 +1,5 @@
 from typing import List
 
-from langchain_community.tools import WikipediaQueryRun
-from langchain_community.utilities import WikipediaAPIWrapper
 from langchain_core.tools import BaseTool
 from opengradient.mltools import create_og_model_tool, ToolType
 
@@ -9,9 +7,6 @@ from opengradient.mltools import create_og_model_tool, ToolType
 # Define the tools the agent can use
 def create_agent_toolkit() -> List[BaseTool]:
     tools = []
-
-    wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
-    tools.append(wikipedia)
 
     # Add Spot Forecast model
     tools.append(
