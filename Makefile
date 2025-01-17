@@ -4,8 +4,9 @@ install:
 run:
 	python main.py
 
-format:
+check:
 	black .
+	mypy .
 
 test:
 	curl -XPOST http://127.0.0.1:5000/api/agent/run \
