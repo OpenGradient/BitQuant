@@ -33,4 +33,5 @@ def create_flask_app():
 
 def handle_agent_request(request: AgentRequest, agent: CompiledGraph) -> AgentOutput:
     response = AgentOutput(message="Placeholder response", recommendedAction=None)
+
     return response
