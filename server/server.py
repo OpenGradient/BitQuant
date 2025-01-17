@@ -1,8 +1,11 @@
 from flask import Flask, request, jsonify
+from dotenv import load_dotenv
 
 from server.types import AgentRequest, AgentOutput
+from agent import create_agent_executor
 
 app = Flask(__name__)
+agent = create_agent_executor()
 
 
 @app.route("/api/agent/run", methods=["POST"])
@@ -12,17 +15,10 @@ def run_agent():
         request_data = request.get_json()
         agent_request = AgentRequest(**request_data)
 
-        # TODO: Implement agent logic here
-        # This would include:
-        # 1. Processing the conversation history
-        # 2. Analyzing token holdings and pool data
-        # 3. Making recommendations based on user input
-        # 4. Generating appropriate actions or messages
-
         # Placeholder response
         response = AgentOutput(message="Placeholder response", recommendedAction=None)
 
-        return jsonify(response.dict())
+        return jsonify(response.model_dump())
 
     except Exception as e:
         return jsonify({"error": str(e)}), 400

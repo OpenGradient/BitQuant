@@ -3,3 +3,4 @@ langgraph>=0.2.60
 langchain-community>=0.3.14
 flask>=3.1.0
 pydantic>=2.10.0
+python-dotenv>=1.0.1

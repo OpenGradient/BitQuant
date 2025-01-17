@@ -2,6 +2,7 @@ import os
 
 from langchain_core.messages import HumanMessage
 from langgraph.prebuilt import create_react_agent
+from langgraph.graph.graph import CompiledGraph
 
 from opengradient.llm import langchain_adapter
 
@@ -9,7 +10,7 @@ from prompts import AGENT_SYSTEM_PROMPT
 from tools import create_agent_toolkit
 
 
-def create_agent_executor():
+def create_agent_executor() -> CompiledGraph:
     private_key = os.environ.get("PRIVATE_KEY")
     if not private_key:
         raise Exception("Must set PRIVATE_KEY env var")
