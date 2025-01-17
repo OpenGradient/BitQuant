@@ -1,2 +1,2 @@
 run:
-	python server/main.py
+	python main.py

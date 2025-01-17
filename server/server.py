@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 
-from .types import AgentRequest, AgentOutput
+from server.types import AgentRequest, AgentOutput
 
 app = Flask(__name__)
 
