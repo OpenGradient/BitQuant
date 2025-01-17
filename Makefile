@@ -14,7 +14,7 @@ define JSON_DATA
 	"userInput": "who are you?",
 	"context": {
 		"conversationHistory": [],
-		"tokens": [],
+		"tokens": [{"amount": 100, "asset", {"name": "SUI"}}],
 		"poolPositions": [],
 		"availablePools": []
 	}

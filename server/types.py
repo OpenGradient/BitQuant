@@ -4,8 +4,7 @@ from enum import Enum
 
 
 class Token(BaseModel):
-    # Placeholder for token details
-    pass
+    name: str
 
 
 class Pool(BaseModel):
