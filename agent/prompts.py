@@ -1,4 +1,5 @@
 from typing import List
+import logging
 
 import jinja2
 
@@ -16,5 +17,6 @@ def get_agent_prompt(
     agent_prompt = template.render(
         tokens=tokens, poolDeposits=poolDeposits, availablePools=availablePools
     )
+    logging.debug("Built prompt:\n=======\n%s\n=======", agent_prompt)
 
     return agent_prompt
