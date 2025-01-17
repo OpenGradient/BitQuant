@@ -11,12 +11,24 @@ check:
 
 define JSON_DATA
 {
-	"userInput": "what tokens do i have?",
+	"userInput": "what pool can i deposit into?",
 	"context": {
 		"conversationHistory": [],
-		"tokens": [{"amount": 100.3, "symbol": "SUI"}],
+		"tokens": [
+			{"amount": 100.3, "symbol": "SUI"},
+			{"amount": 1000, "symbol": "USDC"}
+		],
 		"poolPositions": [],
-		"availablePools": []
+		"availablePools": [{
+			"address": "0x123",
+			"symbol": "SUI/USDC",
+			"tvl": "100M USD",
+			"tokenA": "SUI",
+			"tokenB": "USDC",
+			"APRLastDay": 12,
+			"APRLastWeek": 8,
+			"APRLastMonth": 4
+		}]
 	}
 }
 endef

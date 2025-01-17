@@ -4,8 +4,14 @@ from enum import Enum
 
 
 class Pool(BaseModel):
-    # Placeholder for Bluefin API JSON object
-    pass
+    address: str
+    symbol: str
+    tvl: str
+    tokenA: str
+    tokenB: str
+    APRLastDay: float
+    APRLastWeek: float
+    APRLastMonth: float
 
 
 class TokenBalance(BaseModel):
@@ -50,10 +56,10 @@ Action = Union[DepositAction, WithdrawAction, SwapAction]
 
 class AgentOutput(BaseModel):
     message: str
-    recommendedAction: Optional[Action]
+    recommendedAction: List[Action]
 
 
-Message = Union[str, AgentOutput]  # UserInput | AgentOutput
+Message = Union[str, AgentOutput]  
 
 
 class Context(BaseModel):

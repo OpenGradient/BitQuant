@@ -46,6 +46,6 @@ def handle_agent_request(request: AgentRequest, agent: CompiledGraph) -> AgentOu
     )
 
     answer = list(events)[-1]["messages"][-1].content
-    response = AgentOutput(message=answer, recommendedAction=None)
+    response = AgentOutput(message=answer, recommendedAction=[])
 
     return response
