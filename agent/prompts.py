@@ -1,5 +1,9 @@
-# Define your agent's core instructions and guidelines here
+import jinja2
 
-AGENT_SYSTEM_PROMPT = """
-Answer the user's question as best you can. 
-"""
+env = jinja2.Environment(loader=jinja2.FileSystemLoader("templates/"))
+
+def get_agent_prompt() -> str:
+    template = env.get_template("prompt.jinja2")
+    agent_prompt = template.render()
+
+    return agent_prompt
