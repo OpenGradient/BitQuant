@@ -59,7 +59,7 @@ class AgentOutput(BaseModel):
     recommendedAction: List[Action]
 
 
-Message = Union[str, AgentOutput]  
+Message = Union[str, AgentOutput]
 
 
 class Context(BaseModel):
