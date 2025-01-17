@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from pydantic import ValidationError
 from langgraph.graph.graph import CompiledGraph
 
-from apitypes.types import AgentRequest, AgentOutput
+from api_types.types import AgentRequest, AgentOutput
 from agent import create_agent_executor, get_agent_prompt
 
 
