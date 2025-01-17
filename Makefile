@@ -15,8 +15,8 @@ define JSON_DATA
 	"context": {
 		"conversationHistory": [],
 		"tokens": [
-			{"amount": 100.3, "symbol": "SUI"},
-			{"amount": 1000, "symbol": "USDC"}
+			{"amount": 100, "symbol": "SUI"},
+			{"amount": 45333, "symbol": "USDC"}
 		],
 		"poolPositions": [],
 		"availablePools": [{
