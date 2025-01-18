@@ -8,6 +8,7 @@ class Pool(BaseModel):
     symbol: str
     tokenA: str
     tokenB: str
+    TVL: str
     APRLastDay: float
     APRLastWeek: float
     APRLastMonth: float

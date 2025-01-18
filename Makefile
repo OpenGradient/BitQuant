@@ -11,7 +11,7 @@ check:
 
 define JSON_DATA
 {
-	"userInput": "analyze my portfolio",
+	"userInput": "what should i do with my idle assets?",
 	"context": {
 		"conversationHistory": [],
 		"tokens": [
@@ -26,6 +26,7 @@ define JSON_DATA
 			"symbol": "SUI/USDC",
 			"tokenA": "SUI",
 			"tokenB": "USDC",
+			"TVL": "100M USD"
 			"APRLastDay": 12,
 			"APRLastWeek": 8,
 			"APRLastMonth": 4
