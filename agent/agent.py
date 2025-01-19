@@ -24,7 +24,8 @@ def create_agent_executor() -> CompiledGraph:
 
     # Create agent
     agent_executor = create_react_agent(
-        model=llm, tools=create_agent_toolkit(), 
+        model=llm,
+        tools=create_agent_toolkit(),
     )
 
     return agent_executor

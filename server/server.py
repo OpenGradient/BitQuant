@@ -41,7 +41,6 @@ def handle_agent_request(request: AgentRequest, agent: CompiledGraph) -> AgentOu
 
     events = agent.stream(
         {"messages": [("system", system_prompt), ("user", request.userInput)]},
-        {"recommended_actions": []},
         stream_mode="values",
         debug=False,  # Set to True for debugging
     )
