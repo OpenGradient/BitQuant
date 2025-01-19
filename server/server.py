@@ -50,13 +50,10 @@ def handle_agent_request(request: AgentRequest, agent: CompiledGraph) -> AgentOu
     all_events = list(events)
     final_state = all_events[-1]
 
-    answer = final_state["messages"][-1].content
-    response = AgentOutput(
-        message=answer,
+    return AgentOutput(
+        message=final_state["messages"][-1].content,
         recommendedAction=extract_recommendations(final_state["messages"]),
     )
-
-    return response
 
 
 def extract_recommendations(messages: List[Any]) -> List[Action]:
