@@ -60,10 +60,4 @@ def handle_agent_request(request: AgentRequest, agent: CompiledGraph) -> AgentOu
 
 
 def extract_recommendations(messages: List[Any]) -> List[Action]:
-    actions = []
-
-    for msg in messages:
-        if hasattr(msg, 'artifact'):
-            actions.append(msg.artifact)
-
-    return actions
+    return [msg.artifact for msg in messages if hasattr(msg, "artifact")]
