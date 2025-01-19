@@ -10,17 +10,23 @@ from langchain_core.runnables import RunnableConfig
 
 
 @tool(response_format="content_and_artifact")
-def recommend_deposit_to_pool(pool_address: str) -> Tuple[str, Dict]:
+def recommend_deposit_to_pool(
+    pool_address: str, token: str, amount: float
+) -> Tuple[str, Dict]:
     """Recommends depositing into the given pool"""
-    action = DepositAction(poolId=pool_address, amount=100, asset="USDC").model_dump()
+    action = DepositAction(poolId=pool_address, amount=amount, asset=token).model_dump()
 
     return "Recommendation recorded for user", action
 
 
 @tool(response_format="content_and_artifact")
-def recommend_withdraw_from_pool(pool_address: str) -> Tuple[str, Dict]:
+def recommend_withdraw_from_pool(
+    pool_address: str, token: str, amount: float
+) -> Tuple[str, Dict]:
     """Recommends withdrawal from the given pool"""
-    action = WithdrawAction(poolId=pool_address, amount=100, asset="USDC").model_dump()
+    action = WithdrawAction(
+        poolId=pool_address, amount=amount, asset=token
+    ).model_dump()
 
     return "Recommendation recorded for user", action
 
