@@ -65,6 +65,42 @@ class TestAgentAPI(unittest.TestCase):
         self.test_cases = [
             {
                 "input": {
+                    "userInput": "make my tokens work",
+                    "context": DEFAULT_CONTEXT,
+                },
+                "expected": {
+                    "status_code": 200,
+                    "content_checks": [
+                        lambda x: isinstance(x, dict),
+                    ],
+                },
+            },
+            {
+                "input": {
+                    "userInput": "allocate my USDC",
+                    "context": DEFAULT_CONTEXT,
+                },
+                "expected": {
+                    "status_code": 200,
+                    "content_checks": [
+                        lambda x: isinstance(x, dict),
+                    ],
+                },
+            },
+            {
+                "input": {
+                    "userInput": "spread my USDC evenly",
+                    "context": DEFAULT_CONTEXT,
+                },
+                "expected": {
+                    "status_code": 200,
+                    "content_checks": [
+                        lambda x: isinstance(x, dict),
+                    ],
+                },
+            },
+            {
+                "input": {
                     "userInput": "i want to withdraw everything",
                     "context": DEFAULT_CONTEXT,
                 },
