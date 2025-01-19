@@ -18,7 +18,7 @@ DEFAULT_CONTEXT = {
         {"amount": 900, "symbol": "suiUSDT"},
         {"amount": 5, "symbol": "wUSDT"},
     ],
-    "poolPositions": [{"poolName": "SUI-USDC", "amountDeposited": 5000}],
+    "poolPositions": [{"poolName": "SUI-USDC", "depositedValue": 5000}],
     "availablePools": [
         {
             "name": "suiUSDT-USDC",
@@ -65,7 +65,7 @@ class TestAgentAPI(unittest.TestCase):
         self.test_cases = [
             {
                 "input": {
-                    "userInput": "i wanna withdraw everything",
+                    "userInput": "i want to withdraw everything",
                     "context": DEFAULT_CONTEXT,
                 },
                 "expected": {
@@ -77,7 +77,7 @@ class TestAgentAPI(unittest.TestCase):
             },
             {
                 "input": {
-                    "userInput": "what's my balance?",
+                    "userInput": "what positions do i have?",
                     "context": DEFAULT_CONTEXT,
                 },
                 "expected": {

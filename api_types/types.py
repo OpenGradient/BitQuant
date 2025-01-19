@@ -5,6 +5,7 @@ from enum import Enum
 
 class Pool(BaseModel):
     name: str
+    price: float
     TVL: str
     APRLastDay: float
     APRLastWeek: float
@@ -17,8 +18,11 @@ class TokenBalance(BaseModel):
 
 
 class PoolPosition(BaseModel):
+    # Unique name of pool
     poolName: str
-    amountDeposited: float
+
+    # User's deposit in USD 
+    depositedValue: float
 
 
 class ActionType(str, Enum):
