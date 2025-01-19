@@ -15,19 +15,38 @@ DEFAULT_CONTEXT = {
     "tokens": [
         {"amount": 100, "symbol": "SUI"},
         {"amount": 45333, "symbol": "USDC"},
+        {"amount": 900, "symbol": "suiUSDT"},
+        {"amount": 5, "symbol": "wUSDT"},
     ],
-    "poolPositions": [{"poolSymbol": "SUI/USDC", "amountDeposited": 10000}],
+    "poolPositions": [{"poolName": "SUI-USDC", "amountDeposited": 5000}],
     "availablePools": [
         {
-            "address": "0x123",
-            "symbol": "SUI/USDC",
+            "name": "suiUSDT-USDC",
+            "tokenA": "suiUSDT",
+            "tokenB": "USDC",
+            "TVL": "$19.64M",
+            "APRLastDay": 2.64,
+            "APRLastWeek": 33.45,
+            "APRLastMonth": 81.06,
+        },
+        {
+            "name": "SUI-USDC",
             "tokenA": "SUI",
             "tokenB": "USDC",
-            "TVL": "100M USD",
-            "APRLastDay": 12,
-            "APRLastWeek": 8,
-            "APRLastMonth": 4,
-        }
+            "TVL": "$10.14M",
+            "APRLastDay": 103.11,
+            "APRLastWeek": 118.33,
+            "APRLastMonth": 102.79,
+        },
+        {
+            "name": "wUSDT-USDC",
+            "tokenA": "wUSDT",
+            "tokenB": "USDC",
+            "TVL": "$6.16M",
+            "APRLastDay": 8.76,
+            "APRLastWeek": 40.71,
+            "APRLastMonth": 39.09,
+        },
     ],
 }
 
@@ -40,7 +59,6 @@ class TestAgentAPI(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Set up Flask test client once for all tests"""
-        logging.getLogger().setLevel(logging.INFO)
         load_dotenv()
         cls.app = create_flask_app()
         cls.app.config["TESTING"] = True

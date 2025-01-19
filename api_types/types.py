@@ -4,8 +4,7 @@ from enum import Enum
 
 
 class Pool(BaseModel):
-    address: str
-    symbol: str
+    name: str
     tokenA: str
     tokenB: str
     TVL: str
@@ -20,7 +19,7 @@ class TokenBalance(BaseModel):
 
 
 class PoolPosition(BaseModel):
-    poolSymbol: str
+    poolName: str
     amountDeposited: float
 
 
