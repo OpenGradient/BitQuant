@@ -22,8 +22,6 @@ DEFAULT_CONTEXT = {
     "availablePools": [
         {
             "name": "suiUSDT-USDC",
-            "tokenA": "suiUSDT",
-            "tokenB": "USDC",
             "TVL": "$19.64M",
             "APRLastDay": 2.64,
             "APRLastWeek": 33.45,
@@ -31,8 +29,6 @@ DEFAULT_CONTEXT = {
         },
         {
             "name": "SUI-USDC",
-            "tokenA": "SUI",
-            "tokenB": "USDC",
             "TVL": "$10.14M",
             "APRLastDay": 103.11,
             "APRLastWeek": 118.33,
@@ -40,8 +36,6 @@ DEFAULT_CONTEXT = {
         },
         {
             "name": "wUSDT-USDC",
-            "tokenA": "wUSDT",
-            "tokenB": "USDC",
             "TVL": "$6.16M",
             "APRLastDay": 8.76,
             "APRLastWeek": 40.71,
@@ -110,8 +104,7 @@ class TestAgentAPI(unittest.TestCase):
                 self.assertEqual(
                     response.status_code,
                     test_case["expected"]["status_code"],
-                    f"Expected status code {test_case['expected']['status_code']}, "
-                    f"got {response.status_code}",
+                    f"Expected status code {test_case['expected']['status_code']}, got {response.status_code}. Content: {response.text}",
                 )
 
                 # Parse response content

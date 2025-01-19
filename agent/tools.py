@@ -6,23 +6,19 @@ from langchain_core.tools import BaseTool, tool
 
 
 @tool(response_format="content_and_artifact")
-def recommend_deposit_to_pool(
-    pool_address: str, token: str, amount: float
-) -> Tuple[str, Dict]:
+def recommend_deposit_to_pool(pool: str, token: str, amount: float) -> Tuple[str, Dict]:
     """Recommends depositing into the given pool"""
-    action = DepositAction(poolId=pool_address, amount=amount, asset=token).model_dump()
+    action = DepositAction(pool=pool, amount=amount, asset=token).model_dump()
 
     return "Recommendation recorded for user", action
 
 
 @tool(response_format="content_and_artifact")
 def recommend_withdraw_from_pool(
-    pool_address: str, token: str, amount: float
+    pool: str, token: str, amount: float
 ) -> Tuple[str, Dict]:
     """Recommends withdrawal from the given pool"""
-    action = WithdrawAction(
-        poolId=pool_address, amount=amount, asset=token
-    ).model_dump()
+    action = WithdrawAction(pool=pool, amount=amount, asset=token).model_dump()
 
     return "Recommendation recorded for user", action
 
