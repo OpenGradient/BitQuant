@@ -20,7 +20,7 @@ def create_agent_executor() -> CompiledGraph:
         raise Exception("Must set PRIVATE_KEY env var")
 
     # Initialize LLM
-    llm = langchain_adapter(private_key=private_key, model_cid=MODEL)
+    llm = langchain_adapter(private_key=private_key, model_cid=MODEL, max_tokens=400)
 
     # Create agent
     agent_executor = create_react_agent(

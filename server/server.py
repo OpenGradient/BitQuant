@@ -14,6 +14,7 @@ def create_flask_app() -> Flask:
     agent = create_agent_executor()
 
     if not app.config.get("TESTING"):
+
         @app.errorhandler(ValidationError)
         def handle_validation_error(e):
             return jsonify({"error": str(e)}), 400

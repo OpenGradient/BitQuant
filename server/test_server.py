@@ -16,7 +16,7 @@ DEFAULT_CONTEXT = {
         {"amount": 100, "symbol": "SUI"},
         {"amount": 45333, "symbol": "USDC"},
         {"amount": 900, "symbol": "suiUSDT"},
-        {"amount": 5, "symbol": "wUSDT"}
+        {"amount": 5, "symbol": "wUSDT"},
     ],
     "poolPositions": [{"poolName": "SUI-USDC", "amountDeposited": 5000}],
     "availablePools": [
@@ -40,8 +40,8 @@ DEFAULT_CONTEXT = {
             "APRLastDay": 8.76,
             "APRLastWeek": 40.71,
             "APRLastMonth": 39.09,
-        }
-    ]
+        },
+    ],
 }
 
 
