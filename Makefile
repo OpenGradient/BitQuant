@@ -11,7 +11,7 @@ check:
 
 define JSON_DATA
 {
-	"userInput": "what should i do with my idle assets?",
+	"userInput": "what should i do with my assets?",
 	"context": {
 		"conversationHistory": [],
 		"tokens": [

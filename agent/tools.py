@@ -13,18 +13,16 @@ from langchain_core.runnables import RunnableConfig
 def recommend_deposit_to_pool(pool_address: str) -> Tuple[str, Dict]:
     """Recommends depositing into the given pool"""
     action = DepositAction(poolId=pool_address, amount=100, asset="USDC").model_dump()
-    logging.info(action)
 
-    return "Recommendation recorded", action
+    return "Recommendation recorded for user", action
 
 
 @tool(response_format="content_and_artifact")
 def recommend_withdraw_from_pool(pool_address: str) -> Tuple[str, Dict]:
     """Recommends withdrawal from the given pool"""
     action = WithdrawAction(poolId=pool_address, amount=100, asset="USDC").model_dump()
-    logging.info(action)
 
-    return "Recommendation recorded", action
+    return "Recommendation recorded for user", action
 
 
 # Define the tools the agent can use
