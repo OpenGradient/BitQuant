@@ -41,11 +41,15 @@ def handle_agent_request(request: AgentRequest, agent: CompiledGraph) -> AgentOu
 
     events = agent.stream(
         {"messages": [("system", system_prompt), ("user", request.userInput)]},
+        {"recommended_actions": []},
         stream_mode="values",
         debug=False,  # Set to True for debugging
     )
 
-    answer = list(events)[-1]["messages"][-1].content
+    all_events = list(events)
+    final_state = all_events[-1]
+
+    answer = final_state["messages"][-1].content
     response = AgentOutput(message=answer, recommendedAction=[])
 
     return response

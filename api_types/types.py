@@ -27,7 +27,6 @@ class PoolPosition(BaseModel):
 class ActionType(str, Enum):
     DEPOSIT = "depositToPool"
     WITHDRAW = "withdrawFromPool"
-    SWAP = "swapTokens"
 
 
 class DepositAction(BaseModel):
@@ -44,14 +43,7 @@ class WithdrawAction(BaseModel):
     asset: str
 
 
-class SwapAction(BaseModel):
-    type: ActionType = ActionType.SWAP
-    fromToken: str
-    toToken: str
-    amount: float
-
-
-Action = Union[DepositAction, WithdrawAction, SwapAction]
+Action = Union[DepositAction, WithdrawAction]
 
 
 class AgentOutput(BaseModel):
