@@ -1,8 +1,10 @@
+from typing import List, Any
+
 from flask import Flask, request, jsonify
 from pydantic import ValidationError
 from langgraph.graph.graph import CompiledGraph
 
-from api_types.types import AgentRequest, AgentOutput
+from api_types.types import AgentRequest, AgentOutput, Action
 from agent import create_agent_executor, get_agent_prompt
 
 
@@ -49,6 +51,19 @@ def handle_agent_request(request: AgentRequest, agent: CompiledGraph) -> AgentOu
     final_state = all_events[-1]
 
     answer = final_state["messages"][-1].content
-    response = AgentOutput(message=answer, recommendedAction=[])
+    response = AgentOutput(
+        message=answer,
+        recommendedAction=extract_recommendations(final_state["messages"]),
+    )
 
     return response
+
+
+def extract_recommendations(messages: List[Any]) -> List[Action]:
+    actions = []
+
+    for msg in messages:
+        if hasattr(msg, 'artifact'):
+            actions.append(msg.artifact)
+
+    return actions
