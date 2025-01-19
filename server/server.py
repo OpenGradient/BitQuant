@@ -13,13 +13,14 @@ def create_flask_app() -> Flask:
     app = Flask(__name__)
     agent = create_agent_executor()
 
-    @app.errorhandler(ValidationError)
-    def handle_validation_error(e):
-        return jsonify({"error": str(e)}), 400
+    if not app.config.get("TESTING"):
+        @app.errorhandler(ValidationError)
+        def handle_validation_error(e):
+            return jsonify({"error": str(e)}), 400
 
-    @app.errorhandler(Exception)
-    def handle_generic_error(e):
-        return jsonify({"error": str(e)}), 500
+        @app.errorhandler(Exception)
+        def handle_generic_error(e):
+            return jsonify({"error": str(e)}), 500
 
     @app.route("/api/agent/run", methods=["POST"])
     def run_agent():
