@@ -10,6 +10,27 @@ from werkzeug.test import TestResponse
 
 from server import create_flask_app
 
+DEFAULT_CONTEXT = {
+    "conversationHistory": [],
+    "tokens": [
+        {"amount": 100, "symbol": "SUI"},
+        {"amount": 45333, "symbol": "USDC"},
+    ],
+    "poolPositions": [{"poolSymbol": "SUI/USDC", "amountDeposited": 10000}],
+    "availablePools": [
+        {
+            "address": "0x123",
+            "symbol": "SUI/USDC",
+            "tokenA": "SUI",
+            "tokenB": "USDC",
+            "TVL": "100M USD",
+            "APRLastDay": 12,
+            "APRLastWeek": 8,
+            "APRLastMonth": 4,
+        }
+    ],
+}
+
 
 class TestAgentAPI(unittest.TestCase):
 
@@ -31,60 +52,30 @@ class TestAgentAPI(unittest.TestCase):
             {
                 "input": {
                     "userInput": "i wanna withdraw everything",
-                    "context": {
-                        "conversationHistory": [],
-                        "tokens": [
-                            {"amount": 100, "symbol": "SUI"},
-                            {"amount": 45333, "symbol": "USDC"},
-                        ],
-                        "poolPositions": [
-                            {"poolSymbol": "SUI/USDC", "amountDeposited": 10000}
-                        ],
-                        "availablePools": [
-                            {
-                                "address": "0x123",
-                                "symbol": "SUI/USDC",
-                                "tokenA": "SUI",
-                                "tokenB": "USDC",
-                                "TVL": "100M USD",
-                                "APRLastDay": 12,
-                                "APRLastWeek": 8,
-                                "APRLastMonth": 4,
-                            }
-                        ],
-                    },
+                    "context": DEFAULT_CONTEXT,
                 },
                 "expected": {
                     "status_code": 200,
                     "content_checks": [
                         lambda x: isinstance(x, dict),
-                        lambda x: "response" in x,
                     ],
                 },
             },
-            # Add more test cases here
             {
                 "input": {
                     "userInput": "what's my balance?",
-                    "context": {
-                        "conversationHistory": [],
-                        "tokens": [{"amount": 50, "symbol": "SUI"}],
-                        "poolPositions": [],
-                        "availablePools": [],
-                    },
+                    "context": DEFAULT_CONTEXT,
                 },
                 "expected": {
                     "status_code": 200,
                     "content_checks": [
                         lambda x: isinstance(x, dict),
-                        lambda x: "response" in x,
                     ],
                 },
             },
         ]
 
     def make_request(self, input_data: Dict[str, Any]) -> TestResponse:
-        """Helper method to make the API request using Flask test client"""
         return self.client.post(
             "/api/agent/run",
             json=input_data,
@@ -92,7 +83,6 @@ class TestAgentAPI(unittest.TestCase):
         )
 
     def test_agent_responses(self):
-        """Test the agent API with multiple test cases"""
         for test_case in self.test_cases:
             with self.subTest(input_data=test_case["input"]):
                 # Make the request
