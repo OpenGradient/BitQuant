@@ -5,7 +5,6 @@ from enum import Enum
 
 class Pool(BaseModel):
     name: str
-    price: float
     TVL: str
     APRLastDay: float
     APRLastWeek: float
