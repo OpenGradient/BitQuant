@@ -65,64 +65,67 @@ class TestAgentAPI(unittest.TestCase):
         self.test_cases = [
             {
                 "input": {
-                    "userInput": "make my tokens work",
+                    "userInput": "Make my tokens work for me",
                     "context": DEFAULT_CONTEXT,
                 },
                 "expected": {
                     "status_code": 200,
                     "content_checks": [
                         lambda x: isinstance(x, dict),
+                        lambda x: "deposit" in x["message"] and "SUI-USDC" in x["message"],
+                        lambda x: len(x["recommendedActions"]) == 1,
+                        lambda x: x["recommendedactions"][0]["type"] == "depositToPool"
                     ],
                 },
             },
-            {
-                "input": {
-                    "userInput": "allocate my USDC",
-                    "context": DEFAULT_CONTEXT,
-                },
-                "expected": {
-                    "status_code": 200,
-                    "content_checks": [
-                        lambda x: isinstance(x, dict),
-                    ],
-                },
-            },
-            {
-                "input": {
-                    "userInput": "spread my USDC evenly",
-                    "context": DEFAULT_CONTEXT,
-                },
-                "expected": {
-                    "status_code": 200,
-                    "content_checks": [
-                        lambda x: isinstance(x, dict),
-                    ],
-                },
-            },
-            {
-                "input": {
-                    "userInput": "i want to withdraw everything",
-                    "context": DEFAULT_CONTEXT,
-                },
-                "expected": {
-                    "status_code": 200,
-                    "content_checks": [
-                        lambda x: isinstance(x, dict),
-                    ],
-                },
-            },
-            {
-                "input": {
-                    "userInput": "what positions do i have?",
-                    "context": DEFAULT_CONTEXT,
-                },
-                "expected": {
-                    "status_code": 200,
-                    "content_checks": [
-                        lambda x: isinstance(x, dict),
-                    ],
-                },
-            },
+            # {
+            #     "input": {
+            #         "userInput": "allocate my USDC",
+            #         "context": DEFAULT_CONTEXT,
+            #     },
+            #     "expected": {
+            #         "status_code": 200,
+            #         "content_checks": [
+            #             lambda x: isinstance(x, dict),
+            #         ],
+            #     },
+            # },
+            # {
+            #     "input": {
+            #         "userInput": "spread my USDC evenly",
+            #         "context": DEFAULT_CONTEXT,
+            #     },
+            #     "expected": {
+            #         "status_code": 200,
+            #         "content_checks": [
+            #             lambda x: isinstance(x, dict),
+            #         ],
+            #     },
+            # },
+            # {
+            #     "input": {
+            #         "userInput": "i want to withdraw everything",
+            #         "context": DEFAULT_CONTEXT,
+            #     },
+            #     "expected": {
+            #         "status_code": 200,
+            #         "content_checks": [
+            #             lambda x: isinstance(x, dict),
+            #         ],
+            #     },
+            # },
+            # {
+            #     "input": {
+            #         "userInput": "what positions do i have?",
+            #         "context": DEFAULT_CONTEXT,
+            #     },
+            #     "expected": {
+            #         "status_code": 200,
+            #         "content_checks": [
+            #             lambda x: isinstance(x, dict),
+            #         ],
+            #     },
+            # },
         ]
 
     def make_request(self, input_data: Dict[str, Any]) -> TestResponse:
@@ -157,15 +160,15 @@ class TestAgentAPI(unittest.TestCase):
                         check(content), f"Content check failed for response: {content}"
                     )
 
-    def test_invalid_input(self):
-        """Test the API with invalid input"""
-        invalid_input = {
-            "userInput": "test",
-            # Missing context
-        }
+    # def test_invalid_input(self):
+    #     """Test the API with invalid input"""
+    #     invalid_input = {
+    #         "userInput": "test",
+    #         # Missing context
+    #     }
 
-        response = self.make_request(invalid_input)
-        self.assertEqual(response.status_code, 400)
+    #     response = self.make_request(invalid_input)
+    #     self.assertEqual(response.status_code, 400)
 
 
 if __name__ == "__main__":

@@ -54,7 +54,7 @@ def handle_agent_request(request: AgentRequest, agent: CompiledGraph) -> AgentOu
 
     return AgentOutput(
         message=final_state["messages"][-1].content,
-        recommendedAction=extract_recommendations(final_state["messages"]),
+        recommendedActions=extract_recommendations(final_state["messages"]),
     )
 
 

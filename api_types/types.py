@@ -48,7 +48,7 @@ Action = Union[DepositAction, WithdrawAction]
 
 class AgentOutput(BaseModel):
     message: str
-    recommendedAction: List[Action]
+    recommendedActions: List[Action]
 
 
 Message = Union[str, AgentOutput]
