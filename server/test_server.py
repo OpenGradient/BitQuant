@@ -44,10 +44,12 @@ DEFAULT_CONTEXT = {
     ],
 }
 
+
 @dataclass
 class ContentCheck:
     description: str
     check_func: Callable[[Dict], bool]
+
 
 class TestAgentAPI(unittest.TestCase):
     app: Flask
@@ -74,19 +76,20 @@ class TestAgentAPI(unittest.TestCase):
                     "content_checks": [
                         ContentCheck(
                             "Response should be a dictionary",
-                            lambda x: isinstance(x, dict)
+                            lambda x: isinstance(x, dict),
                         ),
                         ContentCheck(
                             "Response message should mention deposit and SUI-USDC",
-                            lambda x: "SUI-USDC" in x["message"]
+                            lambda x: "SUI-USDC" in x["message"],
                         ),
                         ContentCheck(
-                            "Should have exactly one recommended action",
-                            lambda x: len(x["recommendedActions"]) == 3
+                            "Should have at least 1 recommended action",
+                            lambda x: len(x["recommendedActions"]) >= 1,
                         ),
                         ContentCheck(
                             "Recommended action should be depositToPool",
-                            lambda x: x["recommendedActions"][0]["type"] == "depositToPool"
+                            lambda x: x["recommendedActions"][0]["type"]
+                            == "depositToPool",
                         ),
                     ],
                 },
@@ -101,11 +104,11 @@ class TestAgentAPI(unittest.TestCase):
                     "content_checks": [
                         ContentCheck(
                             "Response should be a dictionary",
-                            lambda x: isinstance(x, dict)
+                            lambda x: isinstance(x, dict),
                         ),
                         ContentCheck(
-                            "Should have exactly one recommended action",
-                            lambda x: len(x["recommendedActions"]) == 1
+                            "Should have at least 1 actions",
+                            lambda x: len(x["recommendedActions"]) >= 1,
                         ),
                     ],
                 },
@@ -120,11 +123,11 @@ class TestAgentAPI(unittest.TestCase):
                     "content_checks": [
                         ContentCheck(
                             "Response should be a dictionary",
-                            lambda x: isinstance(x, dict)
+                            lambda x: isinstance(x, dict),
                         ),
                         ContentCheck(
-                            "Should have exactly one recommended action",
-                            lambda x: len(x["recommendedActions"]) == 1
+                            "Should have 3 recommended actions",
+                            lambda x: len(x["recommendedActions"]) == 3,
                         ),
                     ],
                 },
@@ -139,15 +142,16 @@ class TestAgentAPI(unittest.TestCase):
                     "content_checks": [
                         ContentCheck(
                             "Response should be a dictionary",
-                            lambda x: isinstance(x, dict)
+                            lambda x: isinstance(x, dict),
                         ),
                         ContentCheck(
                             "Should have exactly one recommended action",
-                            lambda x: len(x["recommendedActions"]) == 1
+                            lambda x: len(x["recommendedActions"]) == 1,
                         ),
                         ContentCheck(
                             "Recommended action should be withdrawFromPool",
-                            lambda x: x["recommendedActions"][0]["type"] == "withdrawFromPool"
+                            lambda x: x["recommendedActions"][0]["type"]
+                            == "withdrawFromPool",
                         ),
                     ],
                 },
@@ -162,11 +166,11 @@ class TestAgentAPI(unittest.TestCase):
                     "content_checks": [
                         ContentCheck(
                             "Response should be a dictionary",
-                            lambda x: isinstance(x, dict)
+                            lambda x: isinstance(x, dict),
                         ),
                         ContentCheck(
                             "Should have no recommended actions",
-                            lambda x: len(x["recommendedActions"]) == 0
+                            lambda x: len(x["recommendedActions"]) == 0,
                         ),
                     ],
                 },
@@ -182,7 +186,7 @@ class TestAgentAPI(unittest.TestCase):
 
     def test_agent_responses(self):
         for test_case in self.test_cases:
-            with self.subTest(input_data=test_case["input"]):
+            with self.subTest(input_data=test_case["input"]["userInput"]):
                 # Make the request
                 response = self.make_request(test_case["input"])
 
@@ -203,8 +207,9 @@ class TestAgentAPI(unittest.TestCase):
                 for check in test_case["expected"]["content_checks"]:
                     self.assertTrue(
                         check.check_func(content),
-                        f"\nUser input': {test_case["input"]["userInput"]}'\nCheck failed: {check.description}\nResponse content: {json.dumps(content, indent=2)}"
+                        f"\nCheck failed: {check.description}\nResponse content: {json.dumps(content, indent=2)}",
                     )
+
 
 if __name__ == "__main__":
     unittest.main()

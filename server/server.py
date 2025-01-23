@@ -43,8 +43,10 @@ def handle_agent_request(request: AgentRequest, agent: CompiledGraph) -> AgentOu
         availablePools=request.context.availablePools,
     )
 
+    messages = [("system", system_prompt), ("user", request.userInput)]
+
     events = agent.stream(
-        {"messages": [("system", system_prompt), ("user", request.userInput)]},
+        {"messages": messages},
         stream_mode="values",
         debug=False,  # Set to True for debugging
     )
