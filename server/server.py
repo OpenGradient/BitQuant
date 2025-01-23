@@ -73,7 +73,7 @@ def convert_to_agent_msg(message: Message) -> Tuple[str, str]:
     if isinstance(message, str):
         return ("user", message)
     elif isinstance(message, AgentOutput):
-        return ("assistant", json.dumps(message))
+        return ("assistant", message.model_dump_json())
     else:
         raise TypeError(f"Unexpected message type: {type(message)}")
 

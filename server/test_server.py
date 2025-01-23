@@ -11,7 +11,6 @@ from flask.testing import FlaskClient
 from werkzeug.test import TestResponse
 
 from server import create_flask_app
-from api_types.types import Message, AgentOutput, DepositAction, Context
 
 DEFAULT_CONTEXT = {
     "conversationHistory": [],
@@ -190,14 +189,16 @@ class TestAgentAPI(unittest.TestCase):
                     "context": context_with_msg_history(
                         [
                             "allocate my USDC to highest yielding pool",
-                            AgentOutput(
-                                "you can deposit your USDC to SUI-USDC",
-                                recommendedActions=[
-                                    DepositAction(
-                                        pool="SUI-USDC", amount=45333, asset="USDC"
-                                    )
+                            {
+                                "message": "you can deposit your USDC to SUI-USDC",
+                                "recommendedActions": [
+                                    {
+                                        "pool": "SUI-USDC",
+                                        "amount": 45333,
+                                        "asset": "USDC",
+                                    }
                                 ],
-                            ),
+                            },
                         ]
                     ),
                 },
