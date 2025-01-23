@@ -10,3 +10,6 @@ check:
 
 test:
 	python -m unittest server/test_server.py
+
+docker:
+	docker build . -t bluefin_agent

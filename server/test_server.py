@@ -215,7 +215,7 @@ class TestAgentAPI(unittest.TestCase):
                         ),
                         ContentCheck(
                             "Should deposit 20k to pool",
-                            lambda x: x["recommendedActions"]["amount"] == 20000,
+                            lambda x: x["recommendedActions"][0]["amount"] == 20000,
                         ),
                     ],
                 },
