@@ -1,10 +1,11 @@
-from typing import List, Any
+from typing import List, Any, Tuple
+import json
 
 from flask import Flask, request, jsonify
 from pydantic import ValidationError
 from langgraph.graph.graph import CompiledGraph
 
-from api_types.types import AgentRequest, AgentOutput, Action
+from api_types.types import AgentRequest, AgentOutput, Action, Message
 from agent import create_agent_executor, get_agent_prompt
 
 
@@ -43,7 +44,15 @@ def handle_agent_request(request: AgentRequest, agent: CompiledGraph) -> AgentOu
         availablePools=request.context.availablePools,
     )
 
-    messages = [("system", system_prompt), ("user", request.userInput)]
+    message_history = [
+        convert_to_agent_msg(m) for m in request.context.conversationHistory
+    ]
+
+    messages = [
+        ("system", system_prompt),
+        *message_history,
+        ("user", request.userInput),
+    ]
 
     events = agent.stream(
         {"messages": messages},
@@ -58,6 +67,15 @@ def handle_agent_request(request: AgentRequest, agent: CompiledGraph) -> AgentOu
         message=final_state["messages"][-1].content,
         recommendedActions=extract_recommendations(final_state["messages"]),
     )
+
+
+def convert_to_agent_msg(message: Message) -> Tuple[str, str]:
+    if isinstance(message, str):
+        return ("user", message)
+    elif isinstance(message, AgentOutput):
+        return ("assistant", json.dumps(message))
+    else:
+        raise TypeError(f"Unexpected message type: {type(message)}")
 
 
 def extract_recommendations(messages: List[Any]) -> List[Action]:
