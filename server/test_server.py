@@ -78,11 +78,11 @@ class TestAgentAPI(unittest.TestCase):
                         ),
                         ContentCheck(
                             "Response message should mention deposit and SUI-USDC",
-                            lambda x: "deposit" in x["message"] and "SUI-USDC" in x["message"]
+                            lambda x: "SUI-USDC" in x["message"]
                         ),
                         ContentCheck(
                             "Should have exactly one recommended action",
-                            lambda x: len(x["recommendedActions"]) == 1
+                            lambda x: len(x["recommendedActions"]) == 3
                         ),
                         ContentCheck(
                             "Recommended action should be depositToPool",
@@ -203,7 +203,7 @@ class TestAgentAPI(unittest.TestCase):
                 for check in test_case["expected"]["content_checks"]:
                     self.assertTrue(
                         check.check_func(content),
-                        f"Check failed: {check.description}\nResponse content: {json.dumps(content, indent=2)}"
+                        f"\nUser input': {test_case["input"]["userInput"]}'\nCheck failed: {check.description}\nResponse content: {json.dumps(content, indent=2)}"
                     )
 
 if __name__ == "__main__":

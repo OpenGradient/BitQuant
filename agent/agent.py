@@ -8,6 +8,7 @@ from opengradient import LLM
 from agent.tools import create_agent_toolkit
 
 MODEL = LLM.QWEN_2_5_72B_INSTRUCT
+MAX_TOKENS = 1000
 
 
 def create_agent_executor() -> CompiledGraph:
@@ -16,7 +17,7 @@ def create_agent_executor() -> CompiledGraph:
         raise Exception("Must set PRIVATE_KEY env var")
 
     # Initialize LLM
-    llm = langchain_adapter(private_key=private_key, model_cid=MODEL, max_tokens=400)
+    llm = langchain_adapter(private_key=private_key, model_cid=MODEL, max_tokens=MAX_TOKENS)
 
     # Create agent
     agent_executor = create_react_agent(
