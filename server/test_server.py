@@ -1,7 +1,9 @@
 import unittest
 import json
-from typing import Dict, Any, Callable
+from typing import Dict, Any, Callable, List
 from dataclasses import dataclass
+from copy import deepcopy
+
 
 from dotenv import load_dotenv
 from flask import Flask
@@ -9,6 +11,7 @@ from flask.testing import FlaskClient
 from werkzeug.test import TestResponse
 
 from server import create_flask_app
+from api_types.types import Message, AgentOutput, DepositAction, Context
 
 DEFAULT_CONTEXT = {
     "conversationHistory": [],
@@ -43,6 +46,12 @@ DEFAULT_CONTEXT = {
         },
     ],
 }
+
+
+def context_with_msg_history(msg_history: List) -> Dict:
+    context = deepcopy(DEFAULT_CONTEXT)
+    context["conversationHistory"] = msg_history
+    return context
 
 
 @dataclass
@@ -171,6 +180,41 @@ class TestAgentAPI(unittest.TestCase):
                         ContentCheck(
                             "Should have no recommended actions",
                             lambda x: len(x["recommendedActions"]) == 0,
+                        ),
+                    ],
+                },
+            },
+            {
+                "input": {
+                    "userInput": "only deposit 20k",
+                    "context": context_with_msg_history(
+                        [
+                            "allocate my USDC to highest yielding pool",
+                            AgentOutput(
+                                "you can deposit your USDC to SUI-USDC",
+                                recommendedActions=[
+                                    DepositAction(
+                                        pool="SUI-USDC", amount=45333, asset="USDC"
+                                    )
+                                ],
+                            ),
+                        ]
+                    ),
+                },
+                "expected": {
+                    "status_code": 200,
+                    "content_checks": [
+                        ContentCheck(
+                            "Response should be a dictionary",
+                            lambda x: isinstance(x, dict),
+                        ),
+                        ContentCheck(
+                            "Should have at least 1 actions",
+                            lambda x: len(x["recommendedActions"]) >= 1,
+                        ),
+                        ContentCheck(
+                            "Should deposit 20k to pool",
+                            lambda x: x["recommendedActions"]["amount"] == 20000,
                         ),
                     ],
                 },
