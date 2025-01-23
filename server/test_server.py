@@ -1,6 +1,7 @@
 import unittest
 import json
-from typing import Dict, Any
+from typing import Dict, Any, Callable
+from dataclasses import dataclass
 
 from dotenv import load_dotenv
 from flask import Flask
@@ -43,9 +44,12 @@ DEFAULT_CONTEXT = {
     ],
 }
 
+@dataclass
+class ContentCheck:
+    description: str
+    check_func: Callable[[Dict], bool]
 
 class TestAgentAPI(unittest.TestCase):
-
     app: Flask
     client: FlaskClient
 
@@ -53,10 +57,8 @@ class TestAgentAPI(unittest.TestCase):
     def setUpClass(cls):
         """Set up Flask test client once for all tests"""
         load_dotenv()
-
         cls.app = create_flask_app()
         cls.app.testing = True
-
         cls.client = cls.app.test_client()
 
     def setUp(self):
@@ -70,62 +72,105 @@ class TestAgentAPI(unittest.TestCase):
                 "expected": {
                     "status_code": 200,
                     "content_checks": [
-                        lambda x: isinstance(x, dict),
-                        lambda x: "deposit" in x["message"]
-                        and "SUI-USDC" in x["message"],
-                        lambda x: len(x["recommendedActions"]) == 1,
-                        lambda x: x["recommendedActions"][0]["type"] == "depositToPool",
+                        ContentCheck(
+                            "Response should be a dictionary",
+                            lambda x: isinstance(x, dict)
+                        ),
+                        ContentCheck(
+                            "Response message should mention deposit and SUI-USDC",
+                            lambda x: "deposit" in x["message"] and "SUI-USDC" in x["message"]
+                        ),
+                        ContentCheck(
+                            "Should have exactly one recommended action",
+                            lambda x: len(x["recommendedActions"]) == 1
+                        ),
+                        ContentCheck(
+                            "Recommended action should be depositToPool",
+                            lambda x: x["recommendedActions"][0]["type"] == "depositToPool"
+                        ),
                     ],
                 },
             },
-            # {
-            #     "input": {
-            #         "userInput": "allocate my USDC",
-            #         "context": DEFAULT_CONTEXT,
-            #     },
-            #     "expected": {
-            #         "status_code": 200,
-            #         "content_checks": [
-            #             lambda x: isinstance(x, dict),
-            #         ],
-            #     },
-            # },
-            # {
-            #     "input": {
-            #         "userInput": "spread my USDC evenly",
-            #         "context": DEFAULT_CONTEXT,
-            #     },
-            #     "expected": {
-            #         "status_code": 200,
-            #         "content_checks": [
-            #             lambda x: isinstance(x, dict),
-            #         ],
-            #     },
-            # },
-            # {
-            #     "input": {
-            #         "userInput": "i want to withdraw everything",
-            #         "context": DEFAULT_CONTEXT,
-            #     },
-            #     "expected": {
-            #         "status_code": 200,
-            #         "content_checks": [
-            #             lambda x: isinstance(x, dict),
-            #         ],
-            #     },
-            # },
-            # {
-            #     "input": {
-            #         "userInput": "what positions do i have?",
-            #         "context": DEFAULT_CONTEXT,
-            #     },
-            #     "expected": {
-            #         "status_code": 200,
-            #         "content_checks": [
-            #             lambda x: isinstance(x, dict),
-            #         ],
-            #     },
-            # },
+            {
+                "input": {
+                    "userInput": "allocate my USDC",
+                    "context": DEFAULT_CONTEXT,
+                },
+                "expected": {
+                    "status_code": 200,
+                    "content_checks": [
+                        ContentCheck(
+                            "Response should be a dictionary",
+                            lambda x: isinstance(x, dict)
+                        ),
+                        ContentCheck(
+                            "Should have exactly one recommended action",
+                            lambda x: len(x["recommendedActions"]) == 1
+                        ),
+                    ],
+                },
+            },
+            {
+                "input": {
+                    "userInput": "spread my USDC evenly",
+                    "context": DEFAULT_CONTEXT,
+                },
+                "expected": {
+                    "status_code": 200,
+                    "content_checks": [
+                        ContentCheck(
+                            "Response should be a dictionary",
+                            lambda x: isinstance(x, dict)
+                        ),
+                        ContentCheck(
+                            "Should have exactly one recommended action",
+                            lambda x: len(x["recommendedActions"]) == 1
+                        ),
+                    ],
+                },
+            },
+            {
+                "input": {
+                    "userInput": "i want to withdraw everything",
+                    "context": DEFAULT_CONTEXT,
+                },
+                "expected": {
+                    "status_code": 200,
+                    "content_checks": [
+                        ContentCheck(
+                            "Response should be a dictionary",
+                            lambda x: isinstance(x, dict)
+                        ),
+                        ContentCheck(
+                            "Should have exactly one recommended action",
+                            lambda x: len(x["recommendedActions"]) == 1
+                        ),
+                        ContentCheck(
+                            "Recommended action should be withdrawFromPool",
+                            lambda x: x["recommendedActions"][0]["type"] == "withdrawFromPool"
+                        ),
+                    ],
+                },
+            },
+            {
+                "input": {
+                    "userInput": "what positions do i have?",
+                    "context": DEFAULT_CONTEXT,
+                },
+                "expected": {
+                    "status_code": 200,
+                    "content_checks": [
+                        ContentCheck(
+                            "Response should be a dictionary",
+                            lambda x: isinstance(x, dict)
+                        ),
+                        ContentCheck(
+                            "Should have no recommended actions",
+                            lambda x: len(x["recommendedActions"]) == 0
+                        ),
+                    ],
+                },
+            },
         ]
 
     def make_request(self, input_data: Dict[str, Any]) -> TestResponse:
@@ -154,22 +199,12 @@ class TestAgentAPI(unittest.TestCase):
                 except json.JSONDecodeError:
                     self.fail("Response is not valid JSON")
 
-                # Run all content checks
+                # Run all content checks with descriptive error messages
                 for check in test_case["expected"]["content_checks"]:
                     self.assertTrue(
-                        check(content), f"Content check failed for response: {content}"
+                        check.check_func(content),
+                        f"Check failed: {check.description}\nResponse content: {json.dumps(content, indent=2)}"
                     )
-
-    # def test_invalid_input(self):
-    #     """Test the API with invalid input"""
-    #     invalid_input = {
-    #         "userInput": "test",
-    #         # Missing context
-    #     }
-
-    #     response = self.make_request(invalid_input)
-    #     self.assertEqual(response.status_code, 400)
-
 
 if __name__ == "__main__":
     unittest.main()
