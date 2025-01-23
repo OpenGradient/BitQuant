@@ -20,7 +20,7 @@ class PoolPosition(BaseModel):
     # Unique name of pool
     poolName: str
 
-    # User's deposit in USD 
+    # User's deposit in USD
     depositedValue: float
 
 

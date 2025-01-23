@@ -72,9 +72,10 @@ class TestAgentAPI(unittest.TestCase):
                     "status_code": 200,
                     "content_checks": [
                         lambda x: isinstance(x, dict),
-                        lambda x: "deposit" in x["message"] and "SUI-USDC" in x["message"],
+                        lambda x: "deposit" in x["message"]
+                        and "SUI-USDC" in x["message"],
                         lambda x: len(x["recommendedActions"]) == 1,
-                        lambda x: x["recommendedActions"][0]["type"] == "depositToPool"
+                        lambda x: x["recommendedActions"][0]["type"] == "depositToPool",
                     ],
                 },
             },
