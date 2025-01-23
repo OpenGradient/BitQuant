@@ -177,13 +177,6 @@ class TestAgentAPI(unittest.TestCase):
             },
         ]
 
-    def make_request(self, input_data: Dict[str, Any]) -> TestResponse:
-        return self.client.post(
-            "/api/agent/run",
-            json=input_data,
-            headers={"Content-Type": "application/json"},
-        )
-
     def test_agent_responses(self):
         for test_case in self.test_cases:
             with self.subTest(input_data=test_case["input"]["userInput"]):
@@ -209,6 +202,13 @@ class TestAgentAPI(unittest.TestCase):
                         check.check_func(content),
                         f"\nCheck failed: {check.description}\nResponse content: {json.dumps(content, indent=2)}",
                     )
+
+    def make_request(self, input_data: Dict[str, Any]) -> TestResponse:
+        return self.client.post(
+            "/api/agent/run",
+            json=input_data,
+            headers={"Content-Type": "application/json"},
+        )
 
 
 if __name__ == "__main__":
