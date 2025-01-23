@@ -1,6 +1,6 @@
 from typing import List, Tuple, Dict
 
-from api_types.types import DepositAction, WithdrawAction, Action
+from api_types.types import DepositAction, WithdrawAction
 
 from langchain_core.tools import BaseTool, tool
 

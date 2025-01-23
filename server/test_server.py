@@ -1,7 +1,6 @@
 import unittest
 import json
 from typing import Dict, Any
-import logging
 
 from dotenv import load_dotenv
 from flask import Flask
