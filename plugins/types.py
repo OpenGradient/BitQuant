@@ -1,27 +1,26 @@
 from pydantic import BaseModel
-from typing import List, Union
+from typing import List, Union, Optional, Mapping
 from enum import Enum
 
 
 class Pool(BaseModel):
-    name: str
-    TVL: str
-    APRLastDay: float
-    APRLastWeek: float
-    APRLastMonth: float
+    id: str  # unique ID
+    tokenSymbols: List[str]  # list of tokens in pool
+    TVL: str  # in USD
+    APRLastDay: float  # APR for last day (must be present)
+    APRLastWeek: Optional[float]  # APR for last week (if known)
+    APRLastMonth: Optional[float]  # APR for last month (if known)
+    protocol: str  # protocol name
 
 
-class TokenBalance(BaseModel):
-    amount: float
-    symbol: str
+class WalletTokenHolding(BaseModel):
+    tokenSymbol: str  # token symbol
+    amount: float  # amount of tokens held
 
 
-class PoolPosition(BaseModel):
-    # Unique name of pool
-    poolName: str
-
-    # User's deposit in USD
-    depositedValue: float
+class WalletPoolPosition(BaseModel):
+    poolId: str  # unique ID of pool
+    depositedTokens: Mapping[str, float]  # deposited Tokens to pool
 
 
 class ActionType(str, Enum):
@@ -32,15 +31,13 @@ class ActionType(str, Enum):
 class DepositAction(BaseModel):
     type: ActionType = ActionType.DEPOSIT
     pool: str
-    amount: float
-    asset: str
+    tokens: Mapping[str, float]
 
 
 class WithdrawAction(BaseModel):
     type: ActionType = ActionType.WITHDRAW
     pool: str
-    amount: float
-    asset: str
+    tokens: Mapping[str, float]
 
 
 Action = Union[DepositAction, WithdrawAction]
@@ -56,8 +53,8 @@ Message = Union[str, AgentOutput]
 
 class Context(BaseModel):
     conversationHistory: List[Message]
-    tokens: List[TokenBalance]
-    poolPositions: List[PoolPosition]
+    tokens: List[WalletTokenHolding]
+    poolPositions: List[WalletPoolPosition]
     availablePools: List[Pool]
 
 

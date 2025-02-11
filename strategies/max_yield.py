@@ -3,8 +3,8 @@ from typing import List
 from plugins.types import (
     Pool,
     Action,
-    TokenBalance,
-    PoolPosition,
+    WalletTokenHolding,
+    WalletPoolPosition,
     DepositAction,
     WithdrawAction,
 )
@@ -18,8 +18,8 @@ class MaxYieldStrategy(Strategy):
 
     def allocate(
         self,
-        tokens: List[TokenBalance],
-        positions: List[PoolPosition],
+        tokens: List[WalletTokenHolding],
+        positions: List[WalletPoolPosition],
         available_pools: List[Pool],
     ) -> List[Action]:
         ordered_pools = MaxYieldStrategy.sort_pools_by_apy(available_pools)

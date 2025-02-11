@@ -56,12 +56,13 @@ class NaviPlugin(Plugin):
 
     def convert_to_pool(self, pool: Dict) -> Pool:
         coin_type = f"0x{pool["coinType"]}"
-        pool_name = (
+        token_symbol = (
             self.tokens[coin_type]["symbol"] if coin_type in self.tokens else coin_type
         )
 
         return Pool(
-            name=pool_name,
+            id=token_symbol,
+            tokenSymbols=[token_symbol],
             TVL=NaviPlugin.format_usd(
                 NaviPlugin.calc_dollar_amount(
                     amount=pool["totalSupplyAmount"],
@@ -70,8 +71,9 @@ class NaviPlugin(Plugin):
                 )
             ),
             APRLastDay=pool["supplyIncentiveApyInfo"]["apy"],
-            APRLastWeek=pool["supplyIncentiveApyInfo"]["apy"],
-            APRLastMonth=pool["supplyIncentiveApyInfo"]["apy"],
+            APRLastWeek=None,
+            APRLastMonth=None,
+            protocol="Navi",
         )
 
     @staticmethod

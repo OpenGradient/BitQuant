@@ -3,15 +3,15 @@ import logging
 
 import jinja2
 
-from plugins.types import TokenBalance, Pool, PoolPosition
+from plugins.types import WalletTokenHolding, Pool, WalletPoolPosition
 
 env = jinja2.Environment(loader=jinja2.FileSystemLoader("templates/"))
 template = env.get_template("prompt.jinja2")
 
 
 def get_agent_prompt(
-    tokens: List[TokenBalance],
-    poolDeposits: List[PoolPosition],
+    tokens: List[WalletTokenHolding],
+    poolDeposits: List[WalletPoolPosition],
     availablePools: List[Pool],
 ) -> str:
     agent_prompt = template.render(

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import List
 
-from plugins.types import Pool, Action, TokenBalance, PoolPosition
+from plugins.types import Pool, Action, WalletTokenHolding, WalletPoolPosition
 
 
 class Strategy(ABC):
@@ -14,8 +14,8 @@ class Strategy(ABC):
     @abstractmethod
     def allocate(
         self,
-        tokens: List[TokenBalance],
-        positions: List[PoolPosition],
+        tokens: List[WalletTokenHolding],
+        positions: List[WalletPoolPosition],
         available_pools: List[Pool],
     ) -> List[Action]:
         """Returns suggested action based on user's holdings and available pools"""

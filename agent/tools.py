@@ -8,7 +8,7 @@ from langchain_core.tools import BaseTool, tool
 @tool(response_format="content_and_artifact")
 def recommend_deposit_to_pool(pool: str, token: str, amount: float) -> Tuple[str, Dict]:
     """Recommends depositing into the given pool"""
-    action = DepositAction(pool=pool, amount=amount, asset=token).model_dump()
+    action = DepositAction(pool=pool, tokens={token: amount}).model_dump()
 
     return "Recommendation recorded for user", action
 
@@ -18,7 +18,7 @@ def recommend_withdraw_from_pool(
     pool: str, token: str, amount: float
 ) -> Tuple[str, Dict]:
     """Recommends withdrawal from the given pool"""
-    action = WithdrawAction(pool=pool, amount=amount, asset=token).model_dump()
+    action = WithdrawAction(pool=pool, tokens={token: amount}).model_dump()
 
     return "Recommendation recorded for user", action
 
