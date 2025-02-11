@@ -61,6 +61,9 @@ class Context(BaseModel):
     availablePools: List[Pool]
 
 
-class AgentRequest(BaseModel):
+class AgentChatRequest(BaseModel):
     context: Context
     userInput: str
+
+class AgentSuggestionRequest(BaseModel):
+    context: Context
