@@ -10,12 +10,16 @@ template = env.get_template("prompt.jinja2")
 
 
 def get_agent_prompt(
+    protocol: str,
     tokens: List[WalletTokenHolding],
     poolDeposits: List[WalletPoolPosition],
     availablePools: List[Pool],
 ) -> str:
     agent_prompt = template.render(
-        tokens=tokens, poolDeposits=poolDeposits, availablePools=availablePools
+        protocolName=protocol,
+        tokens=tokens,
+        poolDeposits=poolDeposits, 
+        availablePools=availablePools
     )
     logging.debug("Built prompt:\n=======\n%s\n=======", agent_prompt)
 
