@@ -1,4 +1,4 @@
-# Bluefin Agent
+# OpenGradient DeFAI Agent
 
 ## Structure
 
