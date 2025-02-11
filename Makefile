@@ -8,8 +8,11 @@ check:
 	black .
 	mypy .
 
-test:
+integration-test:
 	python -m unittest server/test_server.py
+
+test:
+	python -m unittest discover
 
 docker:
 	docker build . -t bluefin_agent
