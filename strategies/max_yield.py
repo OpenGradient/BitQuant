@@ -11,7 +11,12 @@ from plugins.types import (
 from strategies.strategy import Strategy
 
 
-class MaxYieldStrategy(Strategy):
+class MaxYieldOptions:
+    def __init__(self, reallocate: bool):
+        self.reallocate = reallocate
+
+
+class MaxYieldStrategy(Strategy[MaxYieldOptions]):
 
     def description(self) -> str:
         return "Maximizes yield by allocating funds to pools with the highest APR, withdrawing from lower-yield positions when necessary."
@@ -21,6 +26,7 @@ class MaxYieldStrategy(Strategy):
         tokens: List[WalletTokenHolding],
         positions: List[WalletPoolPosition],
         available_pools: List[Pool],
+        options: MaxYieldOptions,
     ) -> List[Action]:
         # Create a map of token symbol to amount for quick lookup
         token_balances: Dict[str, float] = {
