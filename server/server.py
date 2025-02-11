@@ -56,6 +56,7 @@ def handle_agent_chat_request(
 ) -> AgentOutput:
     # Build system prompt
     system_prompt = get_agent_prompt(
+        protocol="Navi",
         tokens=request.context.tokens,
         poolDeposits=request.context.poolPositions,
         availablePools=request.context.availablePools,
