@@ -11,6 +11,11 @@ T = TypeVar("T")
 class Strategy(ABC, Generic[T]):
 
     @abstractmethod
+    def name(self) -> str:
+        """Returns strategy's name for LLM."""
+        pass
+
+    @abstractmethod
     def description(self) -> str:
         """Returns strategy's description for LLM."""
         pass
