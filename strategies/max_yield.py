@@ -101,11 +101,6 @@ class MaxYieldStrategy(Strategy):
             if balance <= 0:
                 return {}
 
-            # For simplicity, deposit all available tokens
-            # In a real implementation, you might want to:
-            # 1. Consider pool-specific deposit limits
-            # 2. Implement more sophisticated deposit ratio calculations
-            # 3. Keep some tokens in reserve
             deposit_amounts[token] = balance * 0.95  # Keep 5% in reserve
 
         return deposit_amounts
