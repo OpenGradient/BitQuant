@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify
 from pydantic import ValidationError
 from langgraph.graph.graph import CompiledGraph
 
-from plugins.bluefin.types import AgentRequest, AgentOutput, Action, Message
+from plugins.types import AgentRequest, AgentOutput, Action, Message
 from agent import create_agent_executor, get_agent_prompt
 
 
@@ -15,7 +15,6 @@ def create_flask_app() -> Flask:
     agent = create_agent_executor()
 
     if not app.config.get("TESTING"):
-
         @app.errorhandler(ValidationError)
         def handle_validation_error(e):
             return jsonify({"error": str(e)}), 400

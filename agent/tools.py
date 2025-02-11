@@ -1,6 +1,6 @@
 from typing import List, Tuple, Dict
 
-from plugins.bluefin.types import DepositAction, WithdrawAction
+from plugins.types import DepositAction, WithdrawAction
 
 from langchain_core.tools import BaseTool, tool
 
