@@ -12,8 +12,8 @@ from strategies.strategy import Strategy
 
 
 class MaxYieldOptions:
-    def __init__(self, reallocate: bool):
-        self.reallocate = reallocate
+    def __init__(self, allow_reallocate: bool):
+        self.allow_reallocate = allow_reallocate
 
 
 class MaxYieldStrategy(Strategy[MaxYieldOptions]):
@@ -42,22 +42,25 @@ class MaxYieldStrategy(Strategy[MaxYieldOptions]):
         ordered_pools = self.sort_pools_by_apy(available_pools)
         actions: List[Action] = []
 
-        # First, withdraw from low-performing pools
-        for pool in reversed(ordered_pools):
-            position = pool_positions.get(pool.id)
-            if position:
-                # Check if there's a better pool for these tokens
-                better_pool = self._find_better_pool(pool, position, ordered_pools)
-                if better_pool:
-                    # Withdraw from current position
-                    withdraw_action = WithdrawAction(
-                        pool=pool.id, tokens=position.depositedTokens
-                    )
-                    actions.append(withdraw_action)
+        # Handle reallocation from low-performing pools if allowed
+        if options.allow_reallocate:
+            for pool in reversed(ordered_pools):
+                position = pool_positions.get(pool.id)
+                if position:
+                    # Check if there's a better pool for these tokens
+                    better_pool = self._find_better_pool(pool, position, ordered_pools)
+                    if better_pool:
+                        # Withdraw from current position
+                        withdraw_action = WithdrawAction(
+                            pool=pool.id, tokens=position.depositedTokens
+                        )
+                        actions.append(withdraw_action)
 
-                    # Update token balances with withdrawn amounts
-                    for token, amount in position.depositedTokens.items():
-                        token_balances[token] = token_balances.get(token, 0) + amount
+                        # Update token balances with withdrawn amounts
+                        for token, amount in position.depositedTokens.items():
+                            token_balances[token] = (
+                                token_balances.get(token, 0) + amount
+                            )
 
         # Then, deposit into high-performing pools
         for pool in ordered_pools:
