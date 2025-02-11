@@ -1,15 +1,15 @@
 import unittest
 
-from plugins.navi.fetcher import fetch_pools, fetch_tokens
+from plugins.navi.navi_plugin import NaviPlugin
 
 
 class TestPlugins(unittest.TestCase):
 
-    def test_api(self):
-        tokens = fetch_tokens()
-        pools = fetch_pools()
+    def test_plugin(self):
+        plugin = NaviPlugin()
+
+        plugin.initialize()
+        pools = plugin.fetch_pools()
 
         self.assertTrue(len(pools) > 0, "Pools are empty")
-        self.assertTrue(len(tokens) > 0, "Tokens are empty")
-
-        print(tokens)
+        print(pools)
