@@ -10,7 +10,7 @@ class TestAgentAPI(unittest.TestCase):
         prompt = get_agent_prompt(
             protocol="OpenGradient",
             tokens=TEST_CONTEXT["tokens"],
-            poolDeposits=TEST_CONTEXT["poolDeposits"],
+            poolDeposits=TEST_CONTEXT["poolPositions"],
             availablePools=TEST_CONTEXT["availablePools"],
         )
 
