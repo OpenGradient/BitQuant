@@ -3,7 +3,7 @@ import logging
 
 import jinja2
 
-from api_types.types import TokenBalance, Pool, PoolPosition
+from plugins.bluefin.types import TokenBalance, Pool, PoolPosition
 
 env = jinja2.Environment(loader=jinja2.FileSystemLoader("templates/"))
 template = env.get_template("prompt.jinja2")

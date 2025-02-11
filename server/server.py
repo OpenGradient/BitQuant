@@ -5,7 +5,7 @@ from flask import Flask, request, jsonify
 from pydantic import ValidationError
 from langgraph.graph.graph import CompiledGraph
 
-from api_types.types import AgentRequest, AgentOutput, Action, Message
+from plugins.bluefin.types import AgentRequest, AgentOutput, Action, Message
 from agent import create_agent_executor, get_agent_prompt
 
 
