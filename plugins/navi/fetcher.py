@@ -16,10 +16,34 @@ def fetch_pools() -> List[Pool]:
 
     raw_pools = response.json()["data"]
     pools = [convert_to_pool(p) for p in raw_pools]
-    print(pools)
 
-    return []
+    return pools
 
 
 def convert_to_pool(pool: Dict) -> Pool:
-    return Pool(name="", TVL="", APRLastDay=0, APRLastWeek=0, APRLastMonth=0)
+    print(pool)
+
+    return Pool(
+        name="",
+        TVL=format_usd(
+            calc_dollar_amount(
+                amount=pool["totalSupplyAmount"],
+                oracle_price=pool["oracle"]["price"],
+                oracle_decimals=pool["oracle"]["decimal"],
+            )
+        ),
+        APRLastDay=pool["supplyIncentiveApyInfo"]["apy"],
+        APRLastWeek=0.0,
+        APRLastMonth=0.0,
+    )
+
+
+def calc_dollar_amount(amount: str, oracle_price: str, oracle_decimals: int) -> float:
+    """Calculate dollar value of an amount using oracle price and decimals"""
+    return (float(amount) / 10 ** float(oracle_decimals)) * float(oracle_price)
+
+
+def format_usd(amount: float) -> str:
+    formatted = "${:,}".format(amount)
+
+    return formatted
