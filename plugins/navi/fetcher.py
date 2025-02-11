@@ -4,14 +4,40 @@ import requests
 from plugins.types import Pool
 
 POOL_FETCH_ENDPOINT = "https://open-api.naviprotocol.io/api/navi/pools"
-HEADERS = {
+POOL_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
     "Accept": "application/json",
 }
 
+TOKEN_LIST_ENDPOINT = (
+    "https://aggregator-api.naviprotocol.io/coins/support-token-list?page=1&pageSize=50"
+)
+TOKEN_HEADERS = {
+    "accept": "application/json, text/plain, */*",
+    "accept-language": "en-US,en;q=0.9,hu;q=0.8",
+    "origin": "https://www.navi.ag",
+    "priority": "u=1, i",
+    "referer": "https://www.navi.ag/",
+    "sec-ch-ua": '"Not A(Brand";v="8", "Chromium";v="132", "Google Chrome";v="132"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"macOS"',
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "cross-site",
+    "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36",
+}
+
+
+def fetch_tokens() -> Dict:
+    response = requests.get(url=TOKEN_LIST_ENDPOINT, headers=TOKEN_HEADERS)
+    response.raise_for_status()
+
+    tokens: Dict = response.json()
+    return tokens
+
 
 def fetch_pools() -> List[Pool]:
-    response = requests.get(url=POOL_FETCH_ENDPOINT, headers=HEADERS)
+    response = requests.get(url=POOL_FETCH_ENDPOINT, headers=POOL_HEADERS)
     response.raise_for_status()
 
     raw_pools = response.json()["data"]
@@ -21,10 +47,8 @@ def fetch_pools() -> List[Pool]:
 
 
 def convert_to_pool(pool: Dict) -> Pool:
-    print(pool)
-
     return Pool(
-        name="",
+        name=pool["coinType"],
         TVL=format_usd(
             calc_dollar_amount(
                 amount=pool["totalSupplyAmount"],
@@ -33,8 +57,8 @@ def convert_to_pool(pool: Dict) -> Pool:
             )
         ),
         APRLastDay=pool["supplyIncentiveApyInfo"]["apy"],
-        APRLastWeek=0.0,
-        APRLastMonth=0.0,
+        APRLastWeek=pool["supplyIncentiveApyInfo"]["apy"],
+        APRLastMonth=pool["supplyIncentiveApyInfo"]["apy"],
     )
 
 
@@ -44,6 +68,9 @@ def calc_dollar_amount(amount: str, oracle_price: str, oracle_decimals: int) -> 
 
 
 def format_usd(amount: float) -> str:
-    formatted = "${:,}".format(amount)
-
-    return formatted
+    millions = amount / 1_000_000
+    if millions >= 1:
+        return f"${millions:.1f}M"
+    else:
+        # For amounts less than 1M, show full number with commas
+        return "${:,.0f}".format(amount)
