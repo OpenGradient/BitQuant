@@ -11,3 +11,5 @@ class TestPlugins(unittest.TestCase):
 
         self.assertTrue(len(pools) > 0, "Pools are empty")
         self.assertTrue(len(tokens) > 0, "Tokens are empty")
+
+        print(tokens)

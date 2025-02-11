@@ -32,8 +32,12 @@ def fetch_tokens() -> Dict:
     response = requests.get(url=TOKEN_LIST_ENDPOINT, headers=TOKEN_HEADERS)
     response.raise_for_status()
 
-    tokens: Dict = response.json()
-    return tokens
+    tokens = response.json()["data"]["list"]
+    tokens_by_address: Dict = {
+        t["address"]: {"address": t["address"], "symbol": t["symbol"]} for t in tokens
+    }
+
+    return tokens_by_address
 
 
 def fetch_pools() -> List[Pool]:
