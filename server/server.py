@@ -5,7 +5,13 @@ from flask import Flask, request, jsonify
 from pydantic import ValidationError
 from langgraph.graph.graph import CompiledGraph
 
-from plugins.types import AgentChatRequest, AgentSuggestionRequest, AgentOutput, Action, Message
+from plugins.types import (
+    AgentChatRequest,
+    AgentSuggestionRequest,
+    AgentOutput,
+    Action,
+    Message,
+)
 from agent import create_agent_executor, get_agent_prompt
 
 
@@ -15,6 +21,7 @@ def create_flask_app() -> Flask:
     agent = create_agent_executor()
 
     if not app.config.get("TESTING"):
+
         @app.errorhandler(ValidationError)
         def handle_validation_error(e):
             return jsonify({"error": str(e)}), 400
@@ -44,7 +51,9 @@ def create_flask_app() -> Flask:
     return app
 
 
-def handle_agent_request(request: AgentRequest, agent: CompiledGraph) -> AgentOutput:
+def handle_agent_request(
+    request: AgentChatRequest, agent: CompiledGraph
+) -> AgentOutput:
     # Build system prompt
     system_prompt = get_agent_prompt(
         tokens=request.context.tokens,
