@@ -15,8 +15,8 @@ class Strategy(ABC):
     def allocate(
         self,
         tokens: List[TokenBalance],
-        available_pools: List[Pool],
         positions: List[PoolPosition],
+        available_pools: List[Pool],
     ) -> List[Action]:
         """Returns suggested action based on user's holdings and available pools"""
         pass
