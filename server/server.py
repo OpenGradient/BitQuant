@@ -35,7 +35,7 @@ def create_flask_app() -> Flask:
         request_data = request.get_json()
         suggestion_request = AgentSuggestionRequest(**request_data)
 
-        response = handle_agent_request(suggestion_request, agent)
+        response = handle_agent_chat_request(suggestion_request, agent)
 
         return jsonify(response.model_dump())
 
@@ -44,14 +44,14 @@ def create_flask_app() -> Flask:
         request_data = request.get_json()
         agent_request = AgentChatRequest(**request_data)
 
-        response = handle_agent_request(agent_request, agent)
+        response = handle_agent_chat_request(agent_request, agent)
 
         return jsonify(response.model_dump())
 
     return app
 
 
-def handle_agent_request(
+def handle_agent_chat_request(
     request: AgentChatRequest, agent: CompiledGraph
 ) -> AgentOutput:
     # Build system prompt
