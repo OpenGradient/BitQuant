@@ -18,8 +18,8 @@ def get_agent_prompt(
     agent_prompt = template.render(
         protocolName=protocol,
         tokens=tokens,
-        poolDeposits=poolDeposits, 
-        availablePools=availablePools
+        poolDeposits=poolDeposits,
+        availablePools=availablePools,
     )
     logging.debug("Built prompt:\n=======\n%s\n=======", agent_prompt)
 

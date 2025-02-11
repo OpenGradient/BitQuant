@@ -12,9 +12,9 @@ MAX_TOKENS = 1000
 
 
 def create_agent_executor() -> CompiledGraph:
-    private_key = os.environ.get("PRIVATE_KEY")
+    private_key = os.environ.get("OG_PRIVATE_KEY")
     if not private_key:
-        raise Exception("Must set PRIVATE_KEY env var")
+        raise Exception("Must set OG_PRIVATE_KEY env var")
 
     # Initialize LLM
     llm = langchain_adapter(

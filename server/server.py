@@ -12,7 +12,8 @@ from plugins.types import (
     Action,
     Message,
 )
-from agent import create_agent_executor, get_agent_prompt
+from agent.agent_executor import create_agent_executor
+from agent.prompts import get_agent_prompt
 
 
 def create_flask_app() -> Flask:
