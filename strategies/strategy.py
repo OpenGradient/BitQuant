@@ -1,18 +1,19 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict
+from typing import List
 
 from plugins.types import Pool, Action, TokenBalance, PoolPosition
 
 
-def Strategy(ABC):
+class Strategy(ABC):
 
     @abstractmethod
-    def description() -> str:
+    def description(self) -> str:
         """Returns strategy's description for LLM."""
         pass
 
     @abstractmethod
     def allocate(
+        self,
         tokens: List[TokenBalance],
         available_pools: List[Pool],
         positions: List[PoolPosition],
