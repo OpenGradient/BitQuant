@@ -121,7 +121,7 @@ class TestAgentAPI(unittest.TestCase):
                         ),
                         ContentCheck(
                             "Should have exactly one recommended action",
-                            lambda x: len(x["recommendedActions"]) == 1,
+                            lambda x: len(x["recommendedActions"]) == 2,
                         ),
                         ContentCheck(
                             "Recommended action should be withdrawFromPool",
@@ -161,8 +161,10 @@ class TestAgentAPI(unittest.TestCase):
                                 "recommendedActions": [
                                     {
                                         "pool": "SUI-USDC",
-                                        "amount": 45333,
-                                        "asset": "USDC",
+                                        "tokens": {
+                                            "USDC": 45333,
+                                            "SUI": 100,
+                                        }
                                     }
                                 ],
                             },
@@ -182,7 +184,7 @@ class TestAgentAPI(unittest.TestCase):
                         ),
                         ContentCheck(
                             "Should deposit 20k to pool",
-                            lambda x: x["recommendedActions"][0]["amount"] == 20000,
+                            lambda x: x["recommendedActions"][0]["tokens"]["USDC"] == 20000,
                         ),
                     ],
                 },

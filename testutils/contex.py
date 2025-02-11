@@ -1,4 +1,5 @@
 TEST_CONTEXT = {
+    "conversationHistory": [],
     "tokens": [
         {"amount": 100, "tokenSymbol": "SUI"},
         {"amount": 45333, "tokenSymbol": "USDC"},
