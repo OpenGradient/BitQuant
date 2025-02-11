@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict, Optional
 
 from plugins.types import (
     Pool,
@@ -22,49 +22,93 @@ class MaxYieldStrategy(Strategy):
         positions: List[WalletPoolPosition],
         available_pools: List[Pool],
     ) -> List[Action]:
-        ordered_pools = MaxYieldStrategy.sort_pools_by_apy(available_pools)
+        # Create a map of token symbol to amount for quick lookup
+        token_balances: Dict[str, float] = {
+            holding.tokenSymbol: holding.amount for holding in tokens
+        }
+
+        # Create a map of pool ID to position for quick lookup
+        pool_positions: Dict[str, WalletPoolPosition] = {
+            position.poolId: position for position in positions
+        }
+
+        # Sort pools by APR in descending order
+        ordered_pools = self.sort_pools_by_apy(available_pools)
         actions: List[Action] = []
 
-        # Calculate total value available for allocation
-        total_value = sum(token.amount for token in tokens)
-
-        # First, withdraw from any positions in low-yield pools
-        current_positions = {pos.poolName: pos for pos in positions}
-        for pool in reversed(ordered_pools):  # Start with lowest yield pools
-            if pool.name in current_positions:
-                position = current_positions[pool.name]
-                # Find matching token for withdrawal
-                for token in tokens:
-                    # If we have a position in a lower-yield pool, withdraw it
-                    if position.depositedValue > 0:
-                        actions.append(
-                            WithdrawAction(
-                                pool=pool.name,
-                                amount=position.depositedValue,
-                                asset=token.symbol,
-                            )
-                        )
-                        total_value += position.depositedValue
-
-        # Then deposit into highest-yield pools
-        remaining_value = total_value
-        for pool in ordered_pools:
-            if remaining_value <= 0:
-                break
-
-            # Find suitable token for deposit
-            for token in tokens:
-                if token.amount > 0:
-                    deposit_amount = min(remaining_value, token.amount)
-                    actions.append(
-                        DepositAction(
-                            pool=pool.name, amount=deposit_amount, asset=token.symbol
-                        )
+        # First, withdraw from low-performing pools
+        for pool in reversed(ordered_pools):
+            position = pool_positions.get(pool.id)
+            if position:
+                # Check if there's a better pool for these tokens
+                better_pool = self._find_better_pool(pool, position, ordered_pools)
+                if better_pool:
+                    # Withdraw from current position
+                    withdraw_action = WithdrawAction(
+                        pool=pool.id, tokens=position.depositedTokens
                     )
-                    remaining_value -= deposit_amount
-                    break
+                    actions.append(withdraw_action)
+
+                    # Update token balances with withdrawn amounts
+                    for token, amount in position.depositedTokens.items():
+                        token_balances[token] = token_balances.get(token, 0) + amount
+
+        # Then, deposit into high-performing pools
+        for pool in ordered_pools:
+            # Check if we have the required tokens for this pool
+            deposit_amounts = self._calculate_deposit_amounts(pool, token_balances)
+            if deposit_amounts:
+                deposit_action = DepositAction(pool=pool.id, tokens=deposit_amounts)
+                actions.append(deposit_action)
+
+                # Update token balances after deposit
+                for token, amount in deposit_amounts.items():
+                    token_balances[token] -= amount
 
         return actions
+
+    def _find_better_pool(
+        self,
+        current_pool: Pool,
+        position: WalletPoolPosition,
+        ordered_pools: List[Pool],
+    ) -> Optional[Pool]:
+        """Find a higher-yielding pool that accepts the same tokens."""
+        position_tokens = set(position.depositedTokens.keys())
+
+        for pool in ordered_pools:
+            if pool.id == current_pool.id:
+                continue
+
+            if pool.APRLastDay <= current_pool.APRLastDay:
+                break
+
+            pool_tokens = set(pool.tokenSymbols)
+            if position_tokens.issubset(pool_tokens):
+                return pool
+
+        return None
+
+    def _calculate_deposit_amounts(
+        self, pool: Pool, token_balances: Dict[str, float]
+    ) -> Dict[str, float]:
+        """Calculate optimal deposit amounts for a pool based on available balances."""
+        deposit_amounts = {}
+
+        # Check if we have all required tokens
+        for token in pool.tokenSymbols:
+            balance = token_balances.get(token, 0)
+            if balance <= 0:
+                return {}
+
+            # For simplicity, deposit all available tokens
+            # In a real implementation, you might want to:
+            # 1. Consider pool-specific deposit limits
+            # 2. Implement more sophisticated deposit ratio calculations
+            # 3. Keep some tokens in reserve
+            deposit_amounts[token] = balance * 0.95  # Keep 5% in reserve
+
+        return deposit_amounts
 
     @staticmethod
     def sort_pools_by_apy(pools: List[Pool]) -> List[Pool]:
