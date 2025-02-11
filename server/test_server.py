@@ -11,44 +11,11 @@ from flask.testing import FlaskClient
 from werkzeug.test import TestResponse
 
 from server import create_flask_app
-
-DEFAULT_CONTEXT = {
-    "conversationHistory": [],
-    "tokens": [
-        {"amount": 100, "symbol": "SUI"},
-        {"amount": 45333, "symbol": "USDC"},
-        {"amount": 900, "symbol": "suiUSDT"},
-        {"amount": 5, "symbol": "wUSDT"},
-    ],
-    "poolPositions": [{"poolName": "SUI-USDC", "depositedValue": 5000}],
-    "availablePools": [
-        {
-            "name": "suiUSDT-USDC",
-            "TVL": "$19.64M",
-            "APRLastDay": 2.64,
-            "APRLastWeek": 33.45,
-            "APRLastMonth": 81.06,
-        },
-        {
-            "name": "SUI-USDC",
-            "TVL": "$10.14M",
-            "APRLastDay": 103.11,
-            "APRLastWeek": 118.33,
-            "APRLastMonth": 102.79,
-        },
-        {
-            "name": "wUSDT-USDC",
-            "TVL": "$6.16M",
-            "APRLastDay": 8.76,
-            "APRLastWeek": 40.71,
-            "APRLastMonth": 39.09,
-        },
-    ],
-}
+from testutils.contex import TEST_CONTEXT
 
 
 def context_with_msg_history(msg_history: List) -> Dict:
-    context = deepcopy(DEFAULT_CONTEXT)
+    context = deepcopy(TEST_CONTEXT)
     context["conversationHistory"] = msg_history
     return context
 
@@ -77,7 +44,7 @@ class TestAgentAPI(unittest.TestCase):
             {
                 "input": {
                     "userInput": "Make my tokens work for me",
-                    "context": DEFAULT_CONTEXT,
+                    "context": TEST_CONTEXT,
                 },
                 "expected": {
                     "status_code": 200,
@@ -105,7 +72,7 @@ class TestAgentAPI(unittest.TestCase):
             {
                 "input": {
                     "userInput": "allocate my USDC",
-                    "context": DEFAULT_CONTEXT,
+                    "context": TEST_CONTEXT,
                 },
                 "expected": {
                     "status_code": 200,
@@ -124,7 +91,7 @@ class TestAgentAPI(unittest.TestCase):
             {
                 "input": {
                     "userInput": "spread my USDC evenly",
-                    "context": DEFAULT_CONTEXT,
+                    "context": TEST_CONTEXT,
                 },
                 "expected": {
                     "status_code": 200,
@@ -143,7 +110,7 @@ class TestAgentAPI(unittest.TestCase):
             {
                 "input": {
                     "userInput": "i want to withdraw everything",
-                    "context": DEFAULT_CONTEXT,
+                    "context": TEST_CONTEXT,
                 },
                 "expected": {
                     "status_code": 200,
@@ -167,7 +134,7 @@ class TestAgentAPI(unittest.TestCase):
             {
                 "input": {
                     "userInput": "what positions do i have?",
-                    "context": DEFAULT_CONTEXT,
+                    "context": TEST_CONTEXT,
                 },
                 "expected": {
                     "status_code": 200,
