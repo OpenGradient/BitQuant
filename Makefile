@@ -19,3 +19,8 @@ docker:
 
 prod:
 	docker run -d -p 8000:8000 bluefin_agent
+
+sample:
+	curl -XPOST http://127.0.0.1:5000/api/agent/run \
+	  -H "Content-Type: application/json" \
+	  -d @sample-payload.json

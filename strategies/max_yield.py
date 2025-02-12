@@ -8,7 +8,6 @@ from plugins.types import (
     WalletPoolPosition,
     DepositAction,
     WithdrawAction,
-    Token,
 )
 from strategies.strategy import Strategy
 
