@@ -7,7 +7,6 @@ from plugins.types import (
     WalletPoolPosition,
     DepositAction,
     WithdrawAction,
-    Action,
 )
 from .max_yield import MaxYieldStrategy, MaxYieldOptions
 
@@ -16,14 +15,11 @@ class TestMaxYieldStrategy(unittest.TestCase):
     def setUp(self):
         self.strategy = MaxYieldStrategy()
 
-        # Set up base tokens
         self.base_tokens = [
             Token(symbol="USDC", price=1.0),
             Token(symbol="ETH", price=2000.0),
             Token(symbol="WBTC", price=40000.0),
         ]
-
-        # Set up sample pools
         self.sample_pools = [
             Pool(
                 id="pool1",
@@ -214,13 +210,14 @@ class TestMaxYieldStrategy(unittest.TestCase):
             APRLastMonth=0.18,
             protocol="Protocol1",
         )
-        
+
         tokens = [WalletTokenHolding(tokenSymbol="USDC", amount=1000.0)]
         positions: List[WalletPoolPosition] = []
         options = MaxYieldOptions(allow_reallocate=False)
-        
-        actions = self.strategy.allocate(tokens, positions, [single_token_pool], options)
-        # Should handle single token pools appropriately
+
+        actions = self.strategy.allocate(
+            tokens, positions, [single_token_pool], options
+        )
         self.assertTrue(len(actions) > 0)
 
 
