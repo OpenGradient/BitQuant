@@ -83,7 +83,7 @@ def handle_agent_chat_request(
             }
         ),
         stream_mode="values",
-        debug=False,  # Set to True for debugging
+        debug=True,  # Set to True for debugging
     )
 
     all_events = list(events)

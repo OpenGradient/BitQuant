@@ -1,3 +1,4 @@
+import logging
 from typing import List, Dict, Optional
 from pydantic import BaseModel, Field
 
@@ -15,11 +16,13 @@ from strategies.strategy import Strategy
 class MaxYieldOptions(BaseModel):
     # whether we should withdraw existing positions if there are better pools
     allow_reallocate: bool = Field(
-        description="Whether withdrawals should be allowed. Default to True"
+        default=False,
+        description="Whether withdrawals should be allowed. Default to False",
     )
 
     token_allowlist: Optional[List[str]] = Field(
-        description="Indicates the allowed tokens to trade. Leave empty unless user explicitly asks"
+        default=None,
+        description="The allowed token symbols to trade. Leave empty unless user explicitly asks",
     )
 
 

@@ -1,4 +1,5 @@
 from typing import List, Tuple, Dict, Any, Type
+import logging
 
 from plugins.types import DepositAction, WithdrawAction, Action
 from strategies.strategy import Strategy
@@ -32,11 +33,15 @@ def convert_strategy_to_tool(
 ) -> StructuredTool:
 
     # Tool runnable
-    def execute_strategy(options: Any, config: RunnableConfig) -> Tuple[str, List]:
+    def execute_strategy(*, config: RunnableConfig, **kwargs) -> Tuple[str, List]:
+        options = args_schema(**kwargs)
+        logging.info(f"Strategy option: {options}")
+
+        configurable = config["configurable"]
         actions: List[Action] = strategy.allocate(
-            tokens=config["configurable"]["tokens"],
-            positions=config["configurable"]["positions"],
-            available_pools=config["configurable"]["available_pools"],
+            tokens=configurable["tokens"],
+            positions=configurable["positions"],
+            available_pools=configurable["available_pools"],
             options=options,
         )
 
