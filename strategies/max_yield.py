@@ -46,7 +46,7 @@ class MaxYieldStrategy(Strategy[MaxYieldOptions]):
             for pool in available_pools
             for token in pool.tokens
         }
-        ordered_pools = sorted(
+        ordered_pools: List[Pool] = sorted(
             available_pools, key=lambda x: x.APRLastDay, reverse=True
         )
 
