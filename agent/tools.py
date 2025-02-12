@@ -1,6 +1,6 @@
 from typing import List, Tuple, Dict, Any
 
-from plugins.types import DepositAction, WithdrawAction
+from plugins.types import DepositAction, WithdrawAction, Action
 from strategies.strategy import Strategy
 from strategies.registry import STRATEGIES
 
@@ -9,39 +9,39 @@ from langchain_core.tools import BaseTool, tool, StructuredTool
 
 
 @tool(response_format="content_and_artifact")
-def recommend_deposit_to_pool(pool: str, token: str, amount: float) -> Tuple[str, Dict]:
+def recommend_deposit_to_pool(pool: str, token: str, amount: float) -> Tuple[str, List]:
     """Recommends depositing into the given pool"""
     action = DepositAction(pool=pool, tokens={token: amount}).model_dump()
 
-    return "Recommendation recorded for user", action
+    return "Recommendation recorded for user", [action]
 
 
 @tool(response_format="content_and_artifact")
 def recommend_withdraw_from_pool(
     pool: str, token: str, amount: float
-) -> Tuple[str, Dict]:
+) -> Tuple[str, List]:
     """Recommends withdrawal from the given pool"""
     action = WithdrawAction(pool=pool, tokens={token: amount}).model_dump()
 
-    return "Recommendation recorded for user", action
+    return "Recommendation recorded for user", [action]
 
 
 def convert_strategy_to_tool(strategy: Strategy) -> StructuredTool:
-    def execute_strategy(options: Any, config: RunnableConfig) -> str:
-        strategy.allocate(
+    def execute_strategy(options: Any, config: RunnableConfig) -> Tuple[str, List]:
+        actions: List[Action] = strategy.allocate(
             tokens=config["configurable"]["tokens"],
             positions=config["configurable"]["positions"],
             available_pools=config["configurable"]["available_pools"],
             options=options,
         )
 
-        return "Recorded allocations"
+        return "Recorded allocations", [action.model_dump_json() for action in actions]
 
     return StructuredTool.from_function(
         func=execute_strategy,
         name=strategy.name(),
         description=strategy.description(),
-        response_format="content_and_artifact",
+        response_format="content",
         args_schema=None,
     )
 

@@ -105,4 +105,9 @@ def convert_to_agent_msg(message: Message) -> Tuple[str, str]:
 
 
 def extract_recommendations(messages: List[Any]) -> List[Action]:
-    return [msg.artifact for msg in messages if hasattr(msg, "artifact")]
+    return [
+        a
+        for msg in messages
+        if hasattr(msg, "artifact") and msg.artifact
+        for a in msg.artifact
+    ]

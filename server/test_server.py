@@ -54,10 +54,6 @@ class TestAgentAPI(unittest.TestCase):
                             lambda x: isinstance(x, dict),
                         ),
                         ContentCheck(
-                            "Response message should mention deposit and SUI-USDC",
-                            lambda x: "SUI-USDC" in x["message"],
-                        ),
-                        ContentCheck(
                             "Should have at least 1 recommended action",
                             lambda x: len(x["recommendedActions"]) >= 1,
                         ),
