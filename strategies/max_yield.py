@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 from pydantic import BaseModel
 
 from plugins.types import (
@@ -13,7 +13,11 @@ from strategies.strategy import Strategy
 
 
 class MaxYieldOptions(BaseModel):
+    # whether we should withdraw existing positions if there are better pools
     allow_reallocate: bool
+
+    # when empty, uses all tokens
+    token_allowlist: Optional[List[str]]
 
 
 class MaxYieldStrategy(Strategy[MaxYieldOptions]):
@@ -34,8 +38,12 @@ class MaxYieldStrategy(Strategy[MaxYieldOptions]):
         tokens: List[WalletTokenHolding],
         positions: List[WalletPoolPosition],
         available_pools: List[Pool],
-        options: MaxYieldOptions = MaxYieldOptions(allow_reallocate=True),
+        options: Optional[MaxYieldOptions],
     ) -> List[Action]:
+        if options is None:
+            # default option
+            options = MaxYieldOptions(allow_reallocate=True, token_allowlist=None)
+
         # Accounting
         total_tokens: Dict[str, float] = {t.tokenSymbol: t.amount for t in tokens}
         for position in positions:

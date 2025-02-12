@@ -32,6 +32,7 @@ def convert_strategy_to_tool(strategy: Strategy) -> StructuredTool:
             tokens=config["configurable"]["tokens"],
             positions=config["configurable"]["positions"],
             available_pools=config["configurable"]["available_pools"],
+            options=None,
         )
 
         return "Recorded allocations", [action.model_dump() for action in actions]

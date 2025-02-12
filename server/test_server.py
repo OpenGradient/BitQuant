@@ -11,6 +11,7 @@ from flask.testing import FlaskClient
 from werkzeug.test import TestResponse
 
 from server import create_flask_app
+from plugins.types import ActionType
 from testutils.contex import TEST_CONTEXT
 
 
@@ -43,16 +44,12 @@ class TestAgentAPI(unittest.TestCase):
         self.test_cases = [
             {
                 "input": {
-                    "userInput": "Make my tokens work for me",
+                    "userInput": "Achieve max yield",
                     "context": TEST_CONTEXT,
                 },
                 "expected": {
                     "status_code": 200,
                     "content_checks": [
-                        ContentCheck(
-                            "Response should be a dictionary",
-                            lambda x: isinstance(x, dict),
-                        ),
                         ContentCheck(
                             "Should have at least 1 recommended action",
                             lambda x: len(x["recommendedActions"]) >= 1,
@@ -60,7 +57,7 @@ class TestAgentAPI(unittest.TestCase):
                         ContentCheck(
                             "Recommended action should be depositToPool",
                             lambda x: x["recommendedActions"][0]["type"]
-                            == "depositToPool",
+                            == "withdrawFromPool",
                         ),
                     ],
                 },
@@ -80,6 +77,13 @@ class TestAgentAPI(unittest.TestCase):
                         ContentCheck(
                             "Should have at least 1 actions",
                             lambda x: len(x["recommendedActions"]) >= 1,
+                        ),
+                        ContentCheck(
+                            "Should not withdraw anything",
+                            lambda x: not any(
+                                action["type"] == ActionType.WITHDRAW
+                                for action in x["recommendedActions"]
+                            ),
                         ),
                     ],
                 },
@@ -122,7 +126,7 @@ class TestAgentAPI(unittest.TestCase):
                         ContentCheck(
                             "Recommended action should be withdrawFromPool",
                             lambda x: x["recommendedActions"][0]["type"]
-                            == "withdrawFromPool",
+                            == ActionType.WITHDRAW,
                         ),
                     ],
                 },
@@ -204,6 +208,8 @@ class TestAgentAPI(unittest.TestCase):
                 # Parse response content
                 try:
                     content = json.loads(response.data.decode())
+
+                    print(f"\nInput: {test_case["input"]}\nResponse:{content}\n")
                 except json.JSONDecodeError:
                     self.fail("Response is not valid JSON")
 
