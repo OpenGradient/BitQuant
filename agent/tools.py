@@ -1,4 +1,4 @@
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple, Dict, Any, Type
 
 from plugins.types import DepositAction, WithdrawAction, Action
 from strategies.strategy import Strategy
@@ -6,6 +6,7 @@ from strategies.registry import STRATEGIES
 
 from langgraph.graph.graph import RunnableConfig
 from langchain_core.tools import BaseTool, tool, StructuredTool
+from pydantic import BaseModel
 
 
 @tool(response_format="content_and_artifact")
@@ -26,13 +27,17 @@ def recommend_withdraw_from_pool(
     return "Recommendation recorded for user", [action]
 
 
-def convert_strategy_to_tool(strategy: Strategy) -> StructuredTool:
+def convert_strategy_to_tool(
+    strategy: Strategy, args_schema: Type[BaseModel]
+) -> StructuredTool:
+
+    # Tool runnable
     def execute_strategy(options: Any, config: RunnableConfig) -> Tuple[str, List]:
         actions: List[Action] = strategy.allocate(
             tokens=config["configurable"]["tokens"],
             positions=config["configurable"]["positions"],
             available_pools=config["configurable"]["available_pools"],
-            options=None,
+            options=options,
         )
 
         return "Recorded allocations", [action.model_dump() for action in actions]
@@ -42,7 +47,7 @@ def convert_strategy_to_tool(strategy: Strategy) -> StructuredTool:
         name=strategy.name(),
         description=strategy.description(),
         response_format="content_and_artifact",
-        args_schema=None,
+        args_schema=args_schema,
     )
 
 
@@ -50,7 +55,7 @@ def convert_strategy_to_tool(strategy: Strategy) -> StructuredTool:
 def create_agent_toolkit() -> List[BaseTool]:
     tools = [recommend_deposit_to_pool, recommend_withdraw_from_pool]
 
-    for s in STRATEGIES:
-        tools.append(convert_strategy_to_tool(s))
+    for strategy, options in STRATEGIES:
+        tools.append(convert_strategy_to_tool(strategy, options))
 
     return tools
