@@ -26,8 +26,13 @@ def recommend_withdraw_from_pool(
 
 
 def convert_strategy_to_tool(strategy: Strategy) -> StructuredTool:
+    def execute_strategy(options):
+        strategy.allocate(
+            tokens=None, positions=None, available_pools=None, options=options
+        )
+
     return StructuredTool.from_function(
-        func=strategy.allocate,
+        func=execute_strategy,
         name=strategy.name(),
         description=strategy.description(),
         response_format="content_and_artifact",
@@ -39,7 +44,7 @@ def convert_strategy_to_tool(strategy: Strategy) -> StructuredTool:
 def create_agent_toolkit() -> List[BaseTool]:
     tools = [recommend_deposit_to_pool, recommend_withdraw_from_pool]
 
-    # for s in STRATEGIES:
-    #     tools.append(convert_strategy_to_tool(s))
+    for s in STRATEGIES:
+        tools.append(convert_strategy_to_tool(s))
 
     return tools

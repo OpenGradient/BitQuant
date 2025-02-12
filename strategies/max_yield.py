@@ -1,4 +1,6 @@
 from typing import List, Dict
+from pydantic import BaseModel
+
 from plugins.types import (
     Pool,
     Action,
@@ -11,9 +13,8 @@ from plugins.types import (
 from strategies.strategy import Strategy
 
 
-class MaxYieldOptions:
-    def __init__(self, allow_reallocate: bool):
-        self.allow_reallocate = allow_reallocate
+class MaxYieldOptions(BaseModel):
+    allow_reallocate: bool
 
 
 class MaxYieldStrategy(Strategy[MaxYieldOptions]):

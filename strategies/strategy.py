@@ -2,10 +2,11 @@ from abc import ABC, abstractmethod
 from typing import List
 from typing import Generic, TypeVar
 
+from pydantic import BaseModel
 from plugins.types import Pool, Action, WalletTokenHolding, WalletPoolPosition
 
 
-T = TypeVar("T")
+T = TypeVar("T", bound=BaseModel)
 
 
 class Strategy(ABC, Generic[T]):
