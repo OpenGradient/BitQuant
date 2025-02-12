@@ -18,3 +18,8 @@
 ## Testing
 
 To run all tests, run `make test` 
+
+## Deployment
+
+1. `make docker`
+2. `make prod`
