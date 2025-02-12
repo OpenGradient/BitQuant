@@ -17,7 +17,7 @@ class MaxYieldOptions(BaseModel):
     # whether we should withdraw existing positions if there are better pools
     allow_reallocate: bool = Field(
         default=False,
-        description="Whether withdrawals should be allowed. Default to False",
+        description="Whether withdrawing from pools should be part of the strategy's allocation. Default to False unless the user says something like 'reallocate' or 'optimize my entire portfolio'",
     )
 
     token_allowlist: Optional[List[str]] = Field(

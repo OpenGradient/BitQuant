@@ -35,7 +35,7 @@ def convert_strategy_to_tool(
     # Tool runnable
     def execute_strategy(*, config: RunnableConfig, **kwargs) -> Tuple[str, List]:
         options = args_schema(**kwargs)
-        logging.info(f"Strategy option: {options}")
+        print(f"Strategy option: {options}")
 
         configurable = config["configurable"]
         actions: List[Action] = strategy.allocate(
