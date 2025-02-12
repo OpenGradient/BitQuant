@@ -3,7 +3,7 @@ import json
 
 from flask import Flask, request, jsonify
 from pydantic import ValidationError
-from langgraph.graph.graph import CompiledGraph
+from langgraph.graph.graph import CompiledGraph, RunnableConfig
 
 from plugins.types import (
     AgentChatRequest,
@@ -75,6 +75,13 @@ def handle_agent_chat_request(
 
     events = agent.stream(
         {"messages": messages},
+        config=RunnableConfig(
+            configurable={
+                "tokens": request.context.tokens,
+                "positions": request.context.poolPositions,
+                "available_pools": request.context.availablePools,
+            }
+        ),
         stream_mode="values",
         debug=False,  # Set to True for debugging
     )

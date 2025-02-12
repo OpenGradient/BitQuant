@@ -1,9 +1,10 @@
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Any
 
 from plugins.types import DepositAction, WithdrawAction
 from strategies.strategy import Strategy
 from strategies.registry import STRATEGIES
 
+from langgraph.graph.graph import RunnableConfig
 from langchain_core.tools import BaseTool, tool, StructuredTool
 
 
@@ -26,10 +27,15 @@ def recommend_withdraw_from_pool(
 
 
 def convert_strategy_to_tool(strategy: Strategy) -> StructuredTool:
-    def execute_strategy(options):
+    def execute_strategy(options: Any, config: RunnableConfig) -> str:
         strategy.allocate(
-            tokens=None, positions=None, available_pools=None, options=options
+            tokens=config["configurable"]["tokens"],
+            positions=config["configurable"]["positions"],
+            available_pools=config["configurable"]["available_pools"],
+            options=options,
         )
+
+        return "Recorded allocations"
 
     return StructuredTool.from_function(
         func=execute_strategy,
