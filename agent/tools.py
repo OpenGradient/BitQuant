@@ -47,8 +47,7 @@ def convert_strategy_to_tool(strategy: Strategy) -> StructuredTool:
 
 # Define the tools the agent can use
 def create_agent_toolkit() -> List[BaseTool]:
-    # tools = [recommend_deposit_to_pool, recommend_withdraw_from_pool]
-    tools = []
+    tools = [recommend_deposit_to_pool, recommend_withdraw_from_pool]
 
     for s in STRATEGIES:
         tools.append(convert_strategy_to_tool(s))
