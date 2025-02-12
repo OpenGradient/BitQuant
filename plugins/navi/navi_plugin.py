@@ -2,7 +2,7 @@ from typing import List, Dict
 import requests
 
 from plugins.plugin import Plugin
-from plugins.types import Pool
+from plugins.types import Pool, Token
 
 POOL_FETCH_ENDPOINT = "https://open-api.naviprotocol.io/api/navi/pools"
 POOL_HEADERS = {
@@ -62,7 +62,15 @@ class NaviPlugin(Plugin):
 
         return Pool(
             id=token_symbol,
-            tokenSymbols=[token_symbol],
+            tokens=[
+                Token(
+                    symbol=token_symbol,
+                    price=NaviPlugin.calc_token_price(
+                        oracle_price=pool["oracle"]["price"],
+                        oracle_decimals=pool["oracle"]["decimal"],
+                    ),
+                )
+            ],
             TVL=NaviPlugin.format_usd(
                 NaviPlugin.calc_dollar_amount(
                     amount=pool["totalSupplyAmount"],
@@ -75,6 +83,11 @@ class NaviPlugin(Plugin):
             APRLastMonth=None,
             protocol="Navi",
         )
+
+    @staticmethod
+    def calc_token_price(oracle_price: str, oracle_decimals: int) -> float:
+        """Calculates the dollar value of a token"""
+        return (1 / 10 ** float(oracle_decimals)) * float(oracle_price)
 
     @staticmethod
     def calc_dollar_amount(

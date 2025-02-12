@@ -164,7 +164,7 @@ class TestAgentAPI(unittest.TestCase):
                                         "tokens": {
                                             "USDC": 45333,
                                             "SUI": 100,
-                                        }
+                                        },
                                     }
                                 ],
                             },
@@ -184,7 +184,8 @@ class TestAgentAPI(unittest.TestCase):
                         ),
                         ContentCheck(
                             "Should deposit 20k to pool",
-                            lambda x: x["recommendedActions"][0]["tokens"]["USDC"] == 20000,
+                            lambda x: x["recommendedActions"][0]["tokens"]["USDC"]
+                            == 20000,
                         ),
                     ],
                 },

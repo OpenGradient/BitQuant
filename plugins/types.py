@@ -2,9 +2,11 @@ from pydantic import BaseModel
 from typing import List, Union, Optional, Mapping
 from enum import Enum
 
+
 class Token(BaseModel):
     symbol: str
     price: float
+
 
 class Pool(BaseModel):
     id: str  # unique ID

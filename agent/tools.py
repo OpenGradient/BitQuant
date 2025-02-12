@@ -31,7 +31,7 @@ def convert_strategy_to_tool(strategy: Strategy) -> StructuredTool:
         name=strategy.name(),
         description=strategy.description(),
         response_format="content_and_artifact",
-        args_schema=None
+        args_schema=None,
     )
 
 

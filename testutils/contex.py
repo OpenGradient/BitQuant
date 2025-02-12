@@ -12,7 +12,10 @@ TEST_CONTEXT = {
     "availablePools": [
         {
             "id": "suiUSDT-USDC",
-            "tokenSymbols": ["suiUSDT", "USDC"],
+            "tokens": [
+                {"symbol": "suiUSDT", "price": 3.45},
+                {"symbol": "USDC", "price": 1},
+            ],
             "protocol": "OG",
             "TVL": "$19.64M",
             "APRLastDay": 2.64,
@@ -21,7 +24,10 @@ TEST_CONTEXT = {
         },
         {
             "id": "SUI-USDC",
-            "tokenSymbols": ["SUI", "USDC"],
+            "tokens": [
+                {"symbol": "SUI", "price": 3.45},
+                {"symbol": "USDC", "price": 1},
+            ],
             "protocol": "OG",
             "TVL": "$10.14M",
             "APRLastDay": 103.11,
@@ -30,7 +36,7 @@ TEST_CONTEXT = {
         },
         {
             "id": "wUSDT-USDC",
-            "tokenSymbols": ["wUSDT", "USDC"],
+            "tokens": [{"symbol": "wUSDT", "price": 1}, {"symbol": "USDC", "price": 1}],
             "protocol": "OG",
             "TVL": "$6.16M",
             "APRLastDay": 8.76,
