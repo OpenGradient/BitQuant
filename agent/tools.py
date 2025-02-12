@@ -32,23 +32,23 @@ def convert_strategy_to_tool(strategy: Strategy) -> StructuredTool:
             tokens=config["configurable"]["tokens"],
             positions=config["configurable"]["positions"],
             available_pools=config["configurable"]["available_pools"],
-            options=options,
         )
 
-        return "Recorded allocations", [action.model_dump_json() for action in actions]
+        return "Recorded allocations", [action.model_dump() for action in actions]
 
     return StructuredTool.from_function(
         func=execute_strategy,
         name=strategy.name(),
         description=strategy.description(),
-        response_format="content",
+        response_format="content_and_artifact",
         args_schema=None,
     )
 
 
 # Define the tools the agent can use
 def create_agent_toolkit() -> List[BaseTool]:
-    tools = [recommend_deposit_to_pool, recommend_withdraw_from_pool]
+    # tools = [recommend_deposit_to_pool, recommend_withdraw_from_pool]
+    tools = []
 
     for s in STRATEGIES:
         tools.append(convert_strategy_to_tool(s))

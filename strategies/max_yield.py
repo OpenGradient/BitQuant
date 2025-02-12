@@ -34,7 +34,7 @@ class MaxYieldStrategy(Strategy[MaxYieldOptions]):
         tokens: List[WalletTokenHolding],
         positions: List[WalletPoolPosition],
         available_pools: List[Pool],
-        options: MaxYieldOptions,
+        options: MaxYieldOptions = MaxYieldOptions(allow_reallocate=True),
     ) -> List[Action]:
         # Accounting
         total_tokens: Dict[str, float] = {t.tokenSymbol: t.amount for t in tokens}
