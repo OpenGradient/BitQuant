@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Union, Optional, Mapping
+from typing import List, Union, Optional, Dict
 from enum import Enum
 
 
@@ -25,7 +25,7 @@ class WalletTokenHolding(BaseModel):
 
 class WalletPoolPosition(BaseModel):
     poolId: str  # unique ID of pool
-    depositedTokens: Mapping[str, float]  # deposited Tokens to pool
+    depositedTokens: Dict[str, float]  # deposited Tokens to pool
 
 
 class ActionType(str, Enum):
@@ -36,13 +36,13 @@ class ActionType(str, Enum):
 class DepositAction(BaseModel):
     type: ActionType = ActionType.DEPOSIT
     pool: str
-    tokens: Mapping[str, float]
+    tokens: Dict[str, float]
 
 
 class WithdrawAction(BaseModel):
     type: ActionType = ActionType.WITHDRAW
     pool: str
-    tokens: Mapping[str, float]
+    tokens: Dict[str, float]
 
 
 Action = Union[DepositAction, WithdrawAction]

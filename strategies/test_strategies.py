@@ -54,14 +54,6 @@ class TestMaxYieldStrategy(unittest.TestCase):
             ),
         ]
 
-    def test_pool_sorting(self):
-        """Test that pools are correctly sorted by APR"""
-        sorted_pools = self.strategy.sort_pools_by_apy(self.sample_pools)
-        self.assertEqual(len(sorted_pools), 3)
-        self.assertEqual(sorted_pools[0].id, "pool2")  # Highest APR
-        self.assertEqual(sorted_pools[1].id, "pool1")
-        self.assertEqual(sorted_pools[2].id, "pool3")  # Lowest APR
-
     def test_basic_allocation_no_existing_positions(self):
         """Test basic allocation with no existing positions"""
         tokens = [

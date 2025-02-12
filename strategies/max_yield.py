@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional, Set
+from typing import List, Dict
 from plugins.types import (
     Pool,
     Action,
@@ -36,94 +36,111 @@ class MaxYieldStrategy(Strategy[MaxYieldOptions]):
         available_pools: List[Pool],
         options: MaxYieldOptions,
     ) -> List[Action]:
-        actions: List[Action] = []
-
-        # Sort pools by APR in descending order
-        ordered_pools = self.sort_pools_by_apy(available_pools)
-
-        # Create lookup dictionaries for easier access
-        token_holdings = {t.tokenSymbol: t.amount for t in tokens}
-        pool_positions = {p.poolId: p.depositedTokens for p in positions}
-
-        # Create a mapping of tokens to their available amounts (including what's in pools)
-        total_token_amounts = token_holdings.copy()
+        # Accounting
+        total_tokens: Dict[str, float] = {t.tokenSymbol: t.amount for t in tokens}
         for position in positions:
             for token, amount in position.depositedTokens.items():
-                if token not in total_token_amounts:
-                    total_token_amounts[token] = 0
-                total_token_amounts[token] += amount
+                total_tokens[token] = total_tokens.get(token, 0) + amount
+        token_prices: Dict[str, float] = {
+            token.symbol: token.price
+            for pool in available_pools
+            for token in pool.tokens
+        }
+        ordered_pools = sorted(
+            available_pools, key=lambda x: x.APRLastDay, reverse=True
+        )
 
-        # If reallocation is allowed, consider withdrawing from lower-yield pools
-        if options.allow_reallocate:
-            # Find pools with lower APR than available alternatives for the same tokens
-            for pool_id, deposited_tokens in pool_positions.items():
-                current_pool = next(
-                    (p for p in available_pools if p.id == pool_id), None
-                )
-                if not current_pool:
-                    continue
+        # Calculate optimal allocation
+        optimal_allocation = self._calculate_optimal_allocation(
+            total_tokens, token_prices, ordered_pools
+        )
 
-                # Find better pools for these tokens
-                better_pools = [
-                    p
-                    for p in ordered_pools
-                    if p.APRLastDay > current_pool.APRLastDay
-                    and all(
-                        token in [t.symbol for t in p.tokens]
-                        for token in deposited_tokens.keys()
-                    )
-                ]
+        # Generate actions to achieve optimal allocation
+        return self._generate_actions(
+            optimal_allocation, positions, options.allow_reallocate
+        )
 
-                if better_pools:
-                    # Withdraw from current pool to reallocate to better ones
-                    actions.append(
-                        WithdrawAction(pool=pool_id, tokens=deposited_tokens)
-                    )
-                    # Update available amounts
-                    for token, amount in deposited_tokens.items():
-                        token_holdings[token] = token_holdings.get(token, 0) + amount
+    def _calculate_optimal_allocation(
+        self,
+        total_tokens: Dict[str, float],
+        token_prices: Dict[str, float],
+        ordered_pools: List[Pool],
+    ) -> Dict[str, Dict[str, float]]:
+        """
+        Calculates the optimal allocation of tokens across pools.
+        Returns a dict mapping pool IDs to token amounts.
+        """
+        optimal_allocation: Dict[str, Dict[str, float]] = {}
+        remaining_tokens = total_tokens.copy()
 
-        # Try to allocate tokens to highest yielding pools
         for pool in ordered_pools:
             pool_tokens = [t.symbol for t in pool.tokens]
 
             # Skip if we don't have any of the required tokens
-            if not any(token in token_holdings for token in pool_tokens):
+            if not any(
+                token in remaining_tokens and remaining_tokens[token] > 0
+                for token in pool_tokens
+            ):
                 continue
 
-            # Calculate the maximum amount we can deposit while keeping ratios equal
-            max_deposit_amounts = {}
-            for token in pool_tokens:
-                if token in token_holdings and token_holdings[token] > 0:
-                    token_price = next(
-                        t.price for t in pool.tokens if t.symbol == token
-                    )
-                    max_deposit_amounts[token] = token_holdings[token] * token_price
+            # Calculate maximum possible deposit in USD terms
+            max_usd_deposits = [
+                remaining_tokens.get(token, 0) * token_prices[token]
+                for token in pool_tokens
+                if token in remaining_tokens
+            ]
 
-            if not max_deposit_amounts:
+            if not max_usd_deposits:
                 continue
 
-            # Find the minimum USD value that can be deposited equally across all tokens
-            min_usd_value = min(max_deposit_amounts.values())
+            # Find minimum USD value that can be deposited
+            min_usd_value = min(max_usd_deposits)
 
-            # Calculate token amounts to deposit
-            deposit_amounts = {}
+            # Calculate token amounts
+            allocation: Dict[str, float] = {}
             for token in pool_tokens:
-                if token in token_holdings and token_holdings[token] > 0:
-                    token_price = next(
-                        t.price for t in pool.tokens if t.symbol == token
-                    )
-                    amount = min_usd_value / token_price
+                if token in remaining_tokens:
+                    amount = min_usd_value / token_prices[token]
                     if amount > 0:
-                        deposit_amounts[token] = amount
-                        token_holdings[token] -= amount
+                        allocation[token] = amount
+                        remaining_tokens[token] -= amount
 
-            if deposit_amounts:
-                actions.append(DepositAction(pool=pool.id, tokens=deposit_amounts))
+            if allocation:
+                optimal_allocation[pool.id] = allocation
+
+        return optimal_allocation
+
+    def _generate_actions(
+        self,
+        optimal_allocation: Dict[str, Dict[str, float]],
+        current_positions: List[WalletPoolPosition],
+        allow_reallocate: bool,
+    ) -> List[Action]:
+        """
+        Generates the necessary actions to achieve the optimal allocation.
+        """
+        actions: List[Action] = []
+
+        # Convert current positions to dict for easier lookup
+        current_allocations = {
+            pos.poolId: pos.depositedTokens for pos in current_positions
+        }
+
+        # Generate withdrawals for positions not in optimal allocation
+        if allow_reallocate:
+            for pool_id, current_tokens in current_allocations.items():
+                if (
+                    pool_id not in optimal_allocation
+                    or optimal_allocation[pool_id] != current_tokens
+                ):
+                    actions.append(WithdrawAction(pool=pool_id, tokens=current_tokens))
+
+        # Generate deposits for optimal allocation
+        for pool_id, tokens in optimal_allocation.items():
+            if (
+                pool_id not in current_allocations
+                or current_allocations[pool_id] != tokens
+            ):
+                actions.append(DepositAction(pool=pool_id, tokens=tokens))
 
         return actions
-
-    @staticmethod
-    def sort_pools_by_apy(pools: List[Pool]) -> List[Pool]:
-        # Sort by APRLastDay in descending order (higher APR first)
-        return sorted(pools, key=lambda x: x.APRLastDay, reverse=True)
