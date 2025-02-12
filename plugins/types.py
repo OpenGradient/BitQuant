@@ -2,10 +2,13 @@ from pydantic import BaseModel
 from typing import List, Union, Optional, Mapping
 from enum import Enum
 
+class Token(BaseModel):
+    symbol: str
+    price: float
 
 class Pool(BaseModel):
     id: str  # unique ID
-    tokenSymbols: List[str]  # list of tokens in pool
+    tokens: List[Token]  # list of tokens in pool
     TVL: str  # in USD
     APRLastDay: float  # APR for last day (must be present)
     APRLastWeek: Optional[float]  # APR for last week (if known)
