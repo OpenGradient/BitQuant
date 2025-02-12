@@ -203,6 +203,26 @@ class TestMaxYieldStrategy(unittest.TestCase):
         self.assertTrue(len(deposits) > 0)
         self.assertTrue(any(d.pool == "pool2" for d in deposits))
 
+    def test_single_token_pool(self):
+        """Test behavior with single-token pools"""
+        single_token_pool = Pool(
+            id="single_pool",
+            tokens=[self.base_tokens[0]],  # Single token pool
+            TVL="1000000",
+            APRLastDay=0.2,
+            APRLastWeek=0.19,
+            APRLastMonth=0.18,
+            protocol="Protocol1",
+        )
+        
+        tokens = [WalletTokenHolding(tokenSymbol="USDC", amount=1000.0)]
+        positions: List[WalletPoolPosition] = []
+        options = MaxYieldOptions(allow_reallocate=False)
+        
+        actions = self.strategy.allocate(tokens, positions, [single_token_pool], options)
+        # Should handle single token pools appropriately
+        self.assertTrue(len(actions) > 0)
+
 
 if __name__ == "__main__":
     unittest.main()
