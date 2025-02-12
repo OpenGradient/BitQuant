@@ -1,5 +1,7 @@
 # OpenGradient DeFAI Agent
 
+OpenGradient's DeFAI Agent is an AI system that helps users manage their DeFi operations through natural language commands. It exposes a REST API that turns user inputs like "deposit 20k" or "optimize my portfolio" into concrete DeFi actions.
+
 ## Structure
 
 - `agent`: contains the agent logic
