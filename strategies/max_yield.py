@@ -89,7 +89,7 @@ class MaxYieldStrategy(Strategy[MaxYieldOptions]):
                 f"ERROR: User's positions are not compatible with pools and request ({options}). Ask if he wants to allow withdrawals or include other token types too from his wallet.",
             )
         else:
-            return actions, f"Suggested {len(actions)} trades for user"
+            return actions, "Trade recommendations generated"
 
     def _calculate_optimal_allocation(
         self,
