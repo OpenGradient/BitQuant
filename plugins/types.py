@@ -60,7 +60,6 @@ class Context(BaseModel):
     conversationHistory: List[Message]
     tokens: List[WalletTokenHolding]
     poolPositions: List[WalletPoolPosition]
-    availablePools: List[Pool]
 
 
 class AgentChatRequest(BaseModel):

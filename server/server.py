@@ -1,5 +1,4 @@
-from typing import List, Any, Tuple
-import json
+from typing import Set, List, Any, Tuple
 
 from flask import Flask, request, jsonify
 from pydantic import ValidationError
@@ -14,12 +13,14 @@ from plugins.types import (
 )
 from agent.agent_executor import create_agent_executor
 from agent.prompts import get_agent_prompt
+from plugins.registry import PoolRegistry
 
 
-def create_flask_app() -> Flask:
+def create_flask_app(plugins: List[str] = ["navi"]) -> Flask:
 
     app = Flask(__name__)
     agent = create_agent_executor()
+    pool_registry = PoolRegistry(plugins=set(plugins))
 
     if not app.config.get("TESTING"):
 
@@ -36,7 +37,7 @@ def create_flask_app() -> Flask:
         request_data = request.get_json()
         suggestion_request = AgentSuggestionRequest(**request_data)
 
-        response = handle_agent_chat_request(suggestion_request, agent)
+        response = handle_agent_chat_request(pool_registry, suggestion_request, agent)
 
         return jsonify(response.model_dump())
 
@@ -45,7 +46,7 @@ def create_flask_app() -> Flask:
         request_data = request.get_json()
         agent_request = AgentChatRequest(**request_data)
 
-        response = handle_agent_chat_request(agent_request, agent)
+        response = handle_agent_chat_request(pool_registry, agent_request, agent)
 
         return jsonify(response.model_dump())
 
@@ -53,14 +54,19 @@ def create_flask_app() -> Flask:
 
 
 def handle_agent_chat_request(
-    request: AgentChatRequest, agent: CompiledGraph
+    pool_registry: PoolRegistry, request: AgentChatRequest, agent: CompiledGraph
 ) -> AgentOutput:
+    # Get compatible pools
+    compatible_pools = pool_registry.get_compatible_pools(
+        request.context.tokens, request.context.poolPositions
+    )
+
     # Build system prompt
     system_prompt = get_agent_prompt(
         protocol="Navi",
         tokens=request.context.tokens,
         poolDeposits=request.context.poolPositions,
-        availablePools=request.context.availablePools,
+        availablePools=compatible_pools,
     )
 
     message_history = [
@@ -79,7 +85,7 @@ def handle_agent_chat_request(
             configurable={
                 "tokens": request.context.tokens,
                 "positions": request.context.poolPositions,
-                "available_pools": request.context.availablePools,
+                "available_pools": compatible_pools,
             }
         ),
         stream_mode="values",
@@ -101,7 +107,7 @@ def convert_to_agent_msg(message: Message) -> Tuple[str, str]:
     if isinstance(message, str):
         return ("user", message)
     elif isinstance(message, AgentOutput):
-        return ("assistant", message.model_dump_json())
+        return ("assistant", message.message)
     else:
         raise TypeError(f"Unexpected message type: {type(message)}")
 

@@ -21,6 +21,5 @@ def get_agent_prompt(
         poolDeposits=poolDeposits,
         availablePools=availablePools,
     )
-    logging.debug("Built prompt:\n=======\n%s\n=======", agent_prompt)
 
     return agent_prompt

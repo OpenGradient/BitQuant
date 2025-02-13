@@ -74,7 +74,7 @@ def main():
         context["conversationHistory"].append(agent_output)
 
 
-def make_request(input_data: Dict[str, Any]):
+def make_request(input_data: Dict[str, Any]) -> Any:
     return requests.post(
         "http://127.0.0.1:5000/api/agent/run",
         json=input_data,
