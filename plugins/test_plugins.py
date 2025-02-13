@@ -11,3 +11,5 @@ class TestPlugins(unittest.TestCase):
 
         pools = plugin.fetch_pools()
         self.assertTrue(len(pools) > 0, "Pools are empty")
+
+        print(pools)
