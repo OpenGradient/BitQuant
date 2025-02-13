@@ -61,6 +61,8 @@ class MaxYieldStrategy(Strategy[MaxYieldOptions]):
                 for symbol, amount in total_tokens.items()
                 if symbol in options.token_allowlist
             }
+        if not total_tokens:
+            return [], "ERROR: User holds none of the tokens in the allowlist"
 
         token_prices: Dict[str, float] = {
             token.symbol: token.price
@@ -82,7 +84,10 @@ class MaxYieldStrategy(Strategy[MaxYieldOptions]):
         )
 
         if len(actions) == 0:
-            return [], "User's positions are not compatible with pools and request. Tell user."
+            return (
+                [],
+                f"ERROR: User's positions are not compatible with pools and request ({options}). Ask if he wants to allow withdrawals or include other token types too from his wallet.",
+            )
         else:
             return actions, f"Suggested {len(actions)} trades for user"
 

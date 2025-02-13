@@ -88,9 +88,11 @@ def handle_agent_chat_request(
 
     all_events = list(events)
     final_state = all_events[-1]
+    last_message = final_state["messages"][-1]
+    print(last_message)
 
     return AgentOutput(
-        message=final_state["messages"][-1].content,
+        message=last_message.content,
         recommendedActions=extract_recommendations(final_state["messages"]),
     )
 
