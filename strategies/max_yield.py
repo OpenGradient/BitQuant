@@ -1,5 +1,4 @@
-import logging
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Tuple
 from pydantic import BaseModel, Field
 
 from plugins.types import (
@@ -45,16 +44,24 @@ class MaxYieldStrategy(Strategy[MaxYieldOptions]):
         positions: List[WalletPoolPosition],
         available_pools: List[Pool],
         options: Optional[MaxYieldOptions],
-    ) -> List[Action]:
+    ) -> Tuple[List[Action], str]:
         if options is None:
-            # default option
-            options = MaxYieldOptions(allow_reallocate=True, token_allowlist=None)
+            options = MaxYieldOptions()
 
         # Accounting
         total_tokens: Dict[str, float] = {t.tokenSymbol: t.amount for t in tokens}
         for position in positions:
             for token, amount in position.depositedTokens.items():
                 total_tokens[token] = total_tokens.get(token, 0) + amount
+
+        # Filter total_tokens based on allowlist if specified
+        if options.token_allowlist:
+            total_tokens = {
+                symbol: amount
+                for symbol, amount in total_tokens.items()
+                if symbol in options.token_allowlist
+            }
+
         token_prices: Dict[str, float] = {
             token.symbol: token.price
             for pool in available_pools
@@ -66,19 +73,25 @@ class MaxYieldStrategy(Strategy[MaxYieldOptions]):
 
         # Calculate optimal allocation
         optimal_allocation = self._calculate_optimal_allocation(
-            total_tokens, token_prices, ordered_pools
+            total_tokens, token_prices, ordered_pools, options.token_allowlist
         )
 
         # Generate actions to achieve optimal allocation
-        return self._generate_actions(
+        actions = self._generate_actions(
             optimal_allocation, positions, options.allow_reallocate
         )
+
+        if len(actions) == 0:
+            return [], "User's positions are not compatible with pools and request. Tell user."
+        else:
+            return actions, f"Suggested {len(actions)} trades for user"
 
     def _calculate_optimal_allocation(
         self,
         total_tokens: Dict[str, float],
         token_prices: Dict[str, float],
         ordered_pools: List[Pool],
+        token_allowlist: Optional[List[str]] = None,
     ) -> Dict[str, Dict[str, float]]:
         """
         Calculates the optimal allocation of tokens across pools.
@@ -89,6 +102,11 @@ class MaxYieldStrategy(Strategy[MaxYieldOptions]):
 
         for pool in ordered_pools:
             pool_tokens = [t.symbol for t in pool.tokens]
+
+            # Skip pools containing any non-allowed tokens
+            if token_allowlist:
+                if any(token not in token_allowlist for token in pool_tokens):
+                    continue
 
             # Skip if we don't have any of the required tokens
             if not any(

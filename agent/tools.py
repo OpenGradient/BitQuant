@@ -38,14 +38,16 @@ def convert_strategy_to_tool(
         print(f"Strategy option: {options}")
 
         configurable = config["configurable"]
-        actions: List[Action] = strategy.allocate(
+        actions, reason = strategy.allocate(
             tokens=configurable["tokens"],
             positions=configurable["positions"],
             available_pools=configurable["available_pools"],
             options=options,
         )
 
-        return "Recorded allocations", [action.model_dump() for action in actions]
+        return reason, [
+            action.model_dump() for action in actions
+        ]
 
     return StructuredTool.from_function(
         func=execute_strategy,

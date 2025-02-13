@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List
-from typing import Generic, TypeVar, Optional
+from typing import Generic, TypeVar, Optional, Tuple, List
 
 from pydantic import BaseModel
 from plugins.types import Pool, Action, WalletTokenHolding, WalletPoolPosition
@@ -28,6 +27,6 @@ class Strategy(ABC, Generic[T]):
         positions: List[WalletPoolPosition],
         available_pools: List[Pool],
         options: Optional[T],
-    ) -> List[Action]:
-        """Returns suggested action based on user's holdings and available pools"""
+    ) -> Tuple[List[Action], str]:
+        """Returns suggested action based on user's holdings and available pools, and the outcome"""
         pass

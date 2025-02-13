@@ -71,38 +71,8 @@ class TestAgentAPI(unittest.TestCase):
                     "status_code": 200,
                     "content_checks": [
                         ContentCheck(
-                            "Response should be a dictionary",
-                            lambda x: isinstance(x, dict),
-                        ),
-                        ContentCheck(
-                            "Should have at least 1 actions",
-                            lambda x: len(x["recommendedActions"]) >= 1,
-                        ),
-                        ContentCheck(
-                            "Should not withdraw anything",
-                            lambda x: not any(
-                                action["type"] == ActionType.WITHDRAW
-                                for action in x["recommendedActions"]
-                            ),
-                        ),
-                    ],
-                },
-            },
-            {
-                "input": {
-                    "userInput": "spread my USDC evenly",
-                    "context": TEST_CONTEXT,
-                },
-                "expected": {
-                    "status_code": 200,
-                    "content_checks": [
-                        ContentCheck(
-                            "Response should be a dictionary",
-                            lambda x: isinstance(x, dict),
-                        ),
-                        ContentCheck(
-                            "Should have 3 recommended actions",
-                            lambda x: len(x["recommendedActions"]) == 3,
+                            "Should have no action since there is no USDC-only pool",
+                            lambda x: len(x["recommendedActions"]) == 0,
                         ),
                     ],
                 },
@@ -124,8 +94,10 @@ class TestAgentAPI(unittest.TestCase):
                             lambda x: len(x["recommendedActions"]) == 2,
                         ),
                         ContentCheck(
-                            "Recommended action should be withdrawFromPool",
+                            "Recommended actions should be withdrawFromPool",
                             lambda x: x["recommendedActions"][0]["type"]
+                            == ActionType.WITHDRAW
+                            and x["recommendedActions"][1]["type"]
                             == ActionType.WITHDRAW,
                         ),
                     ],
