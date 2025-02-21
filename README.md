@@ -12,14 +12,15 @@ OpenGradient's DeFAI Agent is an AI system that helps users manage their DeFi op
 
 ## Setup
 
-1. `make install`
-2. Create `.env` file and add `OG_PRIVATE_KEY` set to your OpenGradient private key
-3. `make run`
-4. (Optional) Run `make sample` for a sample query
+1. `make venv`
+2. `make install`
+3. Create `.env` file and add `OG_PRIVATE_KEY` set to your OpenGradient private key
+4. `make run`
+5. (Optional) Run `make sample` for a sample query
 
 ## Testing
 
-To run all tests, run `make test` 
+To run all tests, run `make test`
 
 ## Deployment
 
