@@ -55,7 +55,7 @@ class NaviPlugin(Plugin):
         return pools
 
     def convert_to_pool(self, pool: Dict) -> Pool:
-        coin_type = f"0x{pool["coinType"]}"
+        coin_type = f'0x{pool["coinType"]}'
         token_symbol = (
             self.tokens[coin_type]["symbol"] if coin_type in self.tokens else coin_type
         )
