@@ -1,0 +1,53 @@
+name: Deploy to AWS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+    # environment: ${{ github.event.inputs.environment }}
+    environment: production
+
+    env:
+      ECS_CLUSTER: Agents
+      ECS_SERVICE: open-gradient-backend-service
+      ECR_REPOSITORY: agents/two-ligma-api
+      IMAGE_TAG: latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to Amazon ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          echo "Docker image successfully pushed to ECR!"
+
+      # - name: Force new deployment on Amazon ECS
+      #   run: |
+      #     aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --force-new-deployment > /dev/null
+
+      # - name: AWS LINKS TO VIEW DEPLOYMENT
+      #   run: |
+      #     echo "View deployment progress here - https://us-east-2.console.aws.amazon.com/ecs/v2/clusters/OpenGradient/services/open-gradient-backend-service/tasks?region=us-east-2"
+      # - name: Wait for deployment to complete
+      #   run: |
+      #     echo "Waiting for ECS deployment to complete..."
+      #     aws ecs wait services-stable --cluster $ECS_CLUSTER --services $ECS_SERVICE
+      #     echo "Deployment completed successfully!"
