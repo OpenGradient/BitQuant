@@ -11,7 +11,7 @@ jobs:
 
     env:
       ECS_CLUSTER: Agents
-      ECS_SERVICE: two-ligma-agent-api
+      ECS_SERVICE: two-ligma-api-service
       ECR_REPOSITORY: agents/two-ligma-api
       IMAGE_TAG: latest
 
