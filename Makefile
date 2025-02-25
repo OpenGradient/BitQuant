@@ -1,3 +1,7 @@
+venv:
+	python3 -m venv venv
+	@echo "To activate the virtual environment, run: source venv/bin/activate"
+
 install:
 	pip install -r requirements.txt
 
