@@ -7,12 +7,11 @@ jobs:
   build-and-deploy:
     name: Build and Deploy
     runs-on: ubuntu-latest
-    # environment: ${{ github.event.inputs.environment }}
     environment: production
 
     env:
       ECS_CLUSTER: Agents
-      ECS_SERVICE: open-gradient-backend-service
+      ECS_SERVICE: two-ligma-agent-api
       ECR_REPOSITORY: agents/two-ligma-api
       IMAGE_TAG: latest
 
@@ -42,6 +41,7 @@ jobs:
       - name: Force new deployment on Amazon ECS
         run: |
           aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --force-new-deployment > /dev/null
+          echo "New ECS deployment started!"
 
       - name: AWS LINKS TO VIEW DEPLOYMENT
         run: |
