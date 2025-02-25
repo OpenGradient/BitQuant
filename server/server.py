@@ -34,6 +34,10 @@ def create_flask_app(plugins: List[str] = ["navi"]) -> Flask:
         def handle_generic_error(e):
             return jsonify({"error": str(e)}), 500
 
+    @app.route("/api/healthcheck", methods=["GET"])
+    def healthcheck():
+        return jsonify({"status": "ok"})
+
     @app.route("/api/agent/suggest", methods=["POST"])
     def generate_suggestion():
         request_data = request.get_json()
