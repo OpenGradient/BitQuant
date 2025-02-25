@@ -1,6 +1,7 @@
 from typing import Set, List, Any, Tuple
 
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from pydantic import ValidationError
 from langgraph.graph.graph import CompiledGraph, RunnableConfig
 
@@ -19,6 +20,7 @@ from plugins.registry import PoolRegistry
 def create_flask_app(plugins: List[str] = ["navi"]) -> Flask:
 
     app = Flask(__name__)
+    CORS(app)
     agent = create_agent_executor()
     pool_registry = PoolRegistry(plugins=set(plugins))
 
