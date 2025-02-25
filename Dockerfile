@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends gcc python3-dev && \
+    apt-get install -y --no-install-recommends gcc python3-dev curl && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first to leverage Docker cache
