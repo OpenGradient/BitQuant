@@ -1,7 +1,7 @@
 [project]
-name = "bluefin-agent"
+name = "two-ligma"
 version = "0.1.0"
-description = "Bluefin Agent"
+description = "OpenGradient TwoLigma"
 requires-python = ">=3.8"
 
 [tool.black]

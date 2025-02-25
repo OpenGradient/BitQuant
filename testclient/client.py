@@ -20,7 +20,7 @@ def main():
 
     while True:
         # read input from command line
-        message = input("Enter your message: ")
+        message = input("\nUser: ")
 
         # send to agent
         response = make_request({"userInput": message, "context": context})
@@ -31,7 +31,7 @@ def main():
         actions = agent_output["recommendedActions"]
 
         # print results
-        print(f"Bot: {answer}")
+        print(f"Two-Ligma: {answer}")
         print(actions)
 
         # append to history

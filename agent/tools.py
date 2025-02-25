@@ -12,30 +12,22 @@ from pydantic import BaseModel
 
 @tool(response_format="content_and_artifact")
 def recommend_deposit_to_pool(pool: str, token: str, amount: float) -> Tuple[str, List]:
-    """Recommends depositing into the given pool"""
+    """Creates a recommendation for depositing into the given pool"""
     action = DepositAction(pool=pool, tokens={token: amount}).model_dump()
     print("deposit_to_pool")
 
-    return "Recommendation recorded for user", [action]
+    return f"Action generated for user: {action}", [action]
 
 
 @tool(response_format="content_and_artifact")
 def recommend_withdraw_from_pool(
     pool: str, token: str, amount: float
 ) -> Tuple[str, List]:
-    """Recommends withdrawal from the given pool"""
+    """Creates a recommendation withdrawal from the given pool"""
     action = WithdrawAction(pool=pool, tokens={token: amount}).model_dump()
     print("withdraw_from_pool")
 
-    return "Recommendation recorded for user", [action]
-
-
-@tool(response_format="content_and_artifact")
-def edit_recommendations(edit_description: str) -> Tuple[str, List]:
-    """Edits the recommended actions based on 'edit_description'"""
-    print(edit_description)
-
-    return "Made edits to actions", []
+    return f"Action generated for user: {action}", [action]
 
 
 def convert_strategy_to_tool(
@@ -55,7 +47,7 @@ def convert_strategy_to_tool(
             options=options,
         )
 
-        return reason, [action.model_dump() for action in actions]
+        return f"{reason}: [{actions}]", [action.model_dump() for action in actions]
 
     return StructuredTool.from_function(
         func=execute_strategy,
@@ -69,7 +61,6 @@ def convert_strategy_to_tool(
 # Define the tools the agent can use
 def create_agent_toolkit() -> List[BaseTool]:
     tools = [
-        edit_recommendations,
         recommend_deposit_to_pool,
         recommend_withdraw_from_pool,
     ]
