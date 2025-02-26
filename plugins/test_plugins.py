@@ -2,6 +2,7 @@ import unittest
 
 from plugins.navi.navi_plugin import NaviPlugin
 from plugins.defi_metrics import DeFiMetrics
+from plugins.types import Chain
 
 
 class TestPlugins(unittest.TestCase):
@@ -19,4 +20,5 @@ class TestPlugins(unittest.TestCase):
         metrics = DeFiMetrics()
         pools = metrics.refresh_metrics()
 
-        print(pools[:10])
+        sol = [p for p in pools if p.chain == Chain.SOLANA]
+        print(sol)

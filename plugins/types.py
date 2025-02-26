@@ -7,6 +7,7 @@ class Token(BaseModel):
     symbol: str
     price: float
 
+
 class Chain(Enum):
     ETHEREUM = 0
     SOLANA = 1
@@ -14,15 +15,25 @@ class Chain(Enum):
     OTHER = 3
 
 
+class PoolQuery(BaseModel):
+    chain: Optional[Chain]
+    tokens: List[Token]
+    protocol: Optional[str]
+    isStableCoin: Optional[bool]
+    impermanentLossRisk: Optional[bool]
+
+
 class Pool(BaseModel):
     id: str  # unique ID
-    chain: Chain # Chain pool is deployed on
+    chain: Chain  # Chain pool is deployed on
     tokens: List[Token]  # list of tokens in pool
     TVL: str  # in USD
     APRLastDay: float  # APR for last day (must be present)
     APRLastWeek: Optional[float]  # APR for last week (if known)
     APRLastMonth: Optional[float]  # APR for last month (if known)
     protocol: str  # protocol name
+    isStableCoin: bool  # whether pool is stablecoin
+    impermanentLossRisk: bool
 
 
 class WalletTokenHolding(BaseModel):
