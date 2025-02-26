@@ -7,9 +7,16 @@ class Token(BaseModel):
     symbol: str
     price: float
 
+class Chain(Enum):
+    ETHEREUM = 0
+    SOLANA = 1
+    BASE = 2
+    OTHER = 3
+
 
 class Pool(BaseModel):
     id: str  # unique ID
+    chain: Chain # Chain pool is deployed on
     tokens: List[Token]  # list of tokens in pool
     TVL: str  # in USD
     APRLastDay: float  # APR for last day (must be present)
