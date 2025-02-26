@@ -51,8 +51,7 @@ class DeFiMetrics:
 
     def refresh_metrics(self) -> List[Pool]:
         pools_response = self.llama.get_pools()
-
-        return [DeFiMetrics._convert_to_pool(p) for p in pools_response["data"]]
+        self.pools = [DeFiMetrics._convert_to_pool(p) for p in pools_response["data"]]
 
     @staticmethod
     def _convert_to_pool(pool_data: Dict) -> Pool:
