@@ -1,6 +1,6 @@
 from typing import Set, List, Any, Tuple
-
-from flask import Flask, request, jsonify
+import os
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from pydantic import ValidationError
 from langgraph.graph.graph import CompiledGraph, RunnableConfig
@@ -18,6 +18,8 @@ from defi.types import (
 from agent.agent_executor import create_agent_executor
 from agent.prompts import get_agent_prompt
 
+ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+STATIC_DIR = os.path.join(ROOT_DIR, 'static')
 
 def create_flask_app() -> Flask:
 
@@ -40,6 +42,15 @@ def create_flask_app() -> Flask:
     @app.route("/api/healthcheck", methods=["GET"])
     def healthcheck():
         return jsonify({"status": "ok"})
+
+    @app.route("/api/tokenlist", methods=["GET"])
+    def get_tokenlist():
+        file_path = os.path.join(STATIC_DIR, 'tokenlist.json')
+
+        if not os.path.isfile(file_path):
+            return jsonify({"error": "Tokenlist file not found"}), 404
+
+        return send_from_directory(STATIC_DIR, 'tokenlist.json')
 
     @app.route("/api/agent/suggest", methods=["POST"])
     def generate_suggestion():
