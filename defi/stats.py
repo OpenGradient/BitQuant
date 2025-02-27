@@ -30,8 +30,7 @@ class DeFiMetrics:
 
         if query.protocols is not None and len(query.protocols) > 0:
             filtered_pools = [
-                pool for pool in filtered_pools 
-                if pool.protocol in query.protocols
+                pool for pool in filtered_pools if pool.protocol in query.protocols
             ]
 
         if query.isStableCoin is not None:
@@ -59,7 +58,11 @@ class DeFiMetrics:
         return Pool(
             id=pool_data["pool"],
             chain=DeFiMetrics._get_chain(pool_data["chain"]),
-            tokens=[Token(symbol=token, price=0) for token in (pool_data.get('underlyingTokens') or []) if token is not None],
+            tokens=[
+                Token(symbol=token, price=0)
+                for token in (pool_data.get("underlyingTokens") or [])
+                if token is not None
+            ],
             TVL=f"${pool_data['tvlUsd']}",
             APRLastDay=pool_data["apy"],
             APRLastWeek=pool_data["apyMean30d"],  # use 30d

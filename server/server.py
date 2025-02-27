@@ -5,7 +5,7 @@ from flask_cors import CORS
 from pydantic import ValidationError
 from langgraph.graph.graph import CompiledGraph, RunnableConfig
 
-from defi.defi_metrics import DeFiMetrics
+from defi.stats import DeFiMetrics
 from defi.types import (
     AgentChatRequest,
     AgentSuggestionRequest,
@@ -65,10 +65,12 @@ def handle_agent_chat_request(
     defi_metrics: DeFiMetrics, request: AgentChatRequest, agent: CompiledGraph
 ) -> AgentOutput:
     # Get compatible pools
-    compatible_pools = defi_metrics.get_pools(PoolQuery(
-        chain=Chain.SOLANA,
-        protocols=["kamino-liquidity", "kamino-lend", "save"],
-    ))
+    compatible_pools = defi_metrics.get_pools(
+        PoolQuery(
+            chain=Chain.SOLANA,
+            protocols=["kamino-liquidity", "kamino-lend", "save"],
+        )
+    )
 
     # Build system prompt
     system_prompt = get_agent_prompt(
