@@ -1,0 +1,23 @@
+{
+    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": {
+        "name": "USD Coin"
+    },
+    "USDSwr9ApdHk5bvJKMjzff41FfuX8bSxdKcR81vTwcA": {
+        "name": "USDS"
+    },
+    "AUSD1jCcCyPLybk1YnvPWsHQSrZ46dxwoMniN4N2UEB9": {
+        "name": "AUSD"
+    },
+    "FWhZyxJQas4s52kusCQRwgYRYkUhx9AfQYs3uhtEs9sQ": {
+        "name": "DAI"
+    },
+    "So11111111111111111111111111111111111111112": {
+        "name": "Wrapped SOL"
+    },
+    "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So": {
+        "name": "Marinade staked SOL"
+    },
+    "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn": {
+        "name": "Jito Staked SOL"
+    }
+}
