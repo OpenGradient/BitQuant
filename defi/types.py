@@ -18,7 +18,7 @@ class Chain(Enum):
 
 class PoolQuery(BaseModel):
     chain: Optional[Chain] = None
-    tokens: List[Token] = None
+    tokens: List[str] = None
     protocols: List[str] = None
     isStableCoin: Optional[bool] = None
     impermanentLossRisk: Optional[bool] = None
@@ -38,7 +38,7 @@ class Pool(BaseModel):
 
 
 class WalletTokenHolding(BaseModel):
-    tokenSymbol: str  # token symbol
+    address: str  # token symbol
     amount: float  # amount of tokens held
 
 

@@ -31,7 +31,9 @@ class DefiMetrics:
             filtered_pools = [
                 pool
                 for pool in filtered_pools
-                if all(token in pool.tokens for token in query.tokens)
+                if any(
+                    token in [t.address for t in pool.tokens] for token in query.tokens
+                )
             ]
 
         if query.protocols is not None and len(query.protocols) > 0:
@@ -66,8 +68,16 @@ class DefiMetrics:
             tokens=[
                 Token(
                     address=token_address,
-                    symbol=self.tokenlist[token_address]["symbol"] if token_address in self.tokenlist else "", 
-                    name=self.tokenlist[token_address]["name"] if token_address in self.tokenlist else ""
+                    symbol=(
+                        self.tokenlist[token_address]["symbol"]
+                        if token_address in self.tokenlist
+                        else ""
+                    ),
+                    name=(
+                        self.tokenlist[token_address]["name"]
+                        if token_address in self.tokenlist
+                        else ""
+                    ),
                 )
                 for token_address in (pool_data.get("underlyingTokens") or [])
                 if token_address is not None

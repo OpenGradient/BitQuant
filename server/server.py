@@ -25,6 +25,7 @@ def create_flask_app() -> Flask:
     CORS(app)
     agent = create_agent_executor()
     defi_metrics = DefiMetrics()
+    defi_metrics.refresh_metrics()
 
     if not app.config.get("TESTING"):
 
@@ -68,13 +69,14 @@ def handle_agent_chat_request(
     compatible_pools = defi_metrics.get_pools(
         PoolQuery(
             chain=Chain.SOLANA,
-            protocols=["kamino-liquidity", "kamino-lend", "save"],
+            protocols=["save"],
+            tokens=[token.address for token in request.context.tokens],
         )
     )
 
     # Build system prompt
     system_prompt = get_agent_prompt(
-        protocol="Navi",
+        protocol="Save",
         tokens=request.context.tokens,
         poolDeposits=request.context.poolPositions,
         availablePools=compatible_pools,
