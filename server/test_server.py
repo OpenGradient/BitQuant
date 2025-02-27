@@ -11,7 +11,7 @@ from flask.testing import FlaskClient
 from werkzeug.test import TestResponse
 
 from server import create_flask_app
-from plugins.types import ActionType
+from defi.types import ActionType
 from testutils.contex import TEST_CONTEXT
 
 

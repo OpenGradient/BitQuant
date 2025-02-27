@@ -1,7 +1,7 @@
 from typing import List, Tuple, Dict, Any, Type
 import logging
 
-from plugins.types import DepositAction, WithdrawAction, Action
+from defi.types import DepositAction, WithdrawAction, Action
 from strategies.strategy import Strategy
 from strategies.registry import STRATEGIES
 

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, Optional, Tuple, List
 
 from pydantic import BaseModel
-from plugins.types import Pool, Action, WalletTokenHolding, WalletPoolPosition
+from defi.types import Pool, Action, WalletTokenHolding, WalletPoolPosition
 
 
 T = TypeVar("T", bound=BaseModel)

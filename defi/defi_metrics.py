@@ -2,7 +2,7 @@ from typing import List, Dict
 
 from defillama import DefiLlama
 
-from plugins.types import Pool, Chain, PoolQuery, Token
+from defi.types import Pool, Chain, PoolQuery, Token
 
 
 class DeFiMetrics:

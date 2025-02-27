@@ -5,8 +5,8 @@ from flask_cors import CORS
 from pydantic import ValidationError
 from langgraph.graph.graph import CompiledGraph, RunnableConfig
 
-from plugins.defi_metrics import DeFiMetrics
-from plugins.types import (
+from defi.defi_metrics import DeFiMetrics
+from defi.types import (
     AgentChatRequest,
     AgentSuggestionRequest,
     AgentOutput,

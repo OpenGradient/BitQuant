@@ -1,6 +1,6 @@
 import unittest
 from typing import List
-from plugins.types import (
+from defi.types import (
     Pool,
     Token,
     WalletTokenHolding,

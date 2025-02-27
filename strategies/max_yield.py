@@ -1,7 +1,7 @@
 from typing import List, Dict, Optional, Tuple
 from pydantic import BaseModel, Field
 
-from plugins.types import (
+from defi.types import (
     Pool,
     Action,
     WalletTokenHolding,
