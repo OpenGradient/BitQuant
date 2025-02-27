@@ -13,8 +13,8 @@ class TestPlugins(unittest.TestCase):
         sol_pools = metrics.get_pools(
             PoolQuery(
                 chain=Chain.SOLANA,
-                isStableCoin=False,
-                protocols=["kamino-liquidity", "kamino-lend", "save"],
+                isStableCoin=True,
+                protocols=["save"],
             )
         )
 

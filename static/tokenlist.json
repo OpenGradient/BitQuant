@@ -1,23 +1,38 @@
 {
+    "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB": {
+        "name": "USDT",
+        "symbol": "USDT"
+    },
     "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v": {
-        "name": "USD Coin"
+        "name": "USD Coin",
+        "symbol": "USDC"
     },
     "USDSwr9ApdHk5bvJKMjzff41FfuX8bSxdKcR81vTwcA": {
-        "name": "USDS"
+        "name": "USDS",
+        "symbol": "USDS"
     },
     "AUSD1jCcCyPLybk1YnvPWsHQSrZ46dxwoMniN4N2UEB9": {
-        "name": "AUSD"
+        "name": "AUSD",
+        "symbol": "AUSD"
     },
     "FWhZyxJQas4s52kusCQRwgYRYkUhx9AfQYs3uhtEs9sQ": {
-        "name": "DAI"
+        "name": "DAI",
+        "symbol": "DAI"
     },
     "So11111111111111111111111111111111111111112": {
-        "name": "Wrapped SOL"
+        "name": "Wrapped SOL",
+        "symbol": "SOL"
     },
     "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So": {
-        "name": "Marinade staked SOL"
+        "name": "Marinade staked SOL",
+        "symbol": "mSOL"
     },
     "J1toso1uCk3RLmjorhTtrVwY9HJ7X8V9yYac6Y7kGCPn": {
-        "name": "Jito Staked SOL"
+        "name": "Jito Staked SOL",
+        "symbol": "JitoSOL"
+    },
+    "USDH1SM1ojwWUga67PGrgFWUHibbjqMvuMaDkRJTgkX": {
+        "name": "USDH Hubble Stablecoin",
+        "symbol": "USDH"
     }
 }

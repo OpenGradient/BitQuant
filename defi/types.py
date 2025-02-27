@@ -1,11 +1,12 @@
 from pydantic import BaseModel
-from typing import List, Union, Optional, Dict
+from typing import List, Union, Optional, Dict, Mapping
 from enum import Enum
 
 
 class Token(BaseModel):
+    address: str
+    name: str
     symbol: str
-    price: float
 
 
 class Chain(Enum):

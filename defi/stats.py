@@ -1,4 +1,5 @@
 from typing import List, Dict
+import json
 
 from defillama import DefiLlama
 
@@ -9,9 +10,14 @@ class DefiMetrics:
 
     llama: DefiLlama
     pools: List[Pool]
+    tokenlist: Dict
 
     def __init__(self):
         self.llama = DefiLlama()
+        self.pools = []
+
+        with open("static/tokenlist.json", "r") as f:
+            self.tokenlist = json.load(f)
 
     def get_pools(self, query: PoolQuery) -> List[Pool]:
         filtered_pools = self.pools.copy()
@@ -51,17 +57,20 @@ class DefiMetrics:
 
     def refresh_metrics(self):
         pools_response = self.llama.get_pools()
-        self.pools = [DefiMetrics._convert_to_pool(p) for p in pools_response["data"]]
+        self.pools = [self._convert_to_pool(p) for p in pools_response["data"]]
 
-    @staticmethod
-    def _convert_to_pool(pool_data: Dict) -> Pool:
+    def _convert_to_pool(self, pool_data: Dict) -> Pool:
         return Pool(
             id=pool_data["pool"],
             chain=DefiMetrics._get_chain(pool_data["chain"]),
             tokens=[
-                Token(symbol=token, price=0)
-                for token in (pool_data.get("underlyingTokens") or [])
-                if token is not None
+                Token(
+                    address=token_address,
+                    symbol=self.tokenlist[token_address]["symbol"] if token_address in self.tokenlist else "", 
+                    name=self.tokenlist[token_address]["name"] if token_address in self.tokenlist else ""
+                )
+                for token_address in (pool_data.get("underlyingTokens") or [])
+                if token_address is not None
             ],
             TVL=f"${pool_data['tvlUsd']}",
             APRLastDay=pool_data["apy"],
