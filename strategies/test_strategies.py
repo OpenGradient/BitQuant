@@ -53,9 +53,9 @@ class TestMaxYieldStrategy(unittest.TestCase):
     def test_basic_allocation_no_existing_positions(self):
         """Test basic allocation with no existing positions"""
         tokens = [
-            WalletTokenHolding(tokenSymbol="USDC", amount=1000.0),
-            WalletTokenHolding(tokenSymbol="ETH", amount=1.0),
-            WalletTokenHolding(tokenSymbol="WBTC", amount=0.05),
+            WalletTokenHolding(address="USDC", amount=1000.0),
+            WalletTokenHolding(address="ETH", amount=1.0),
+            WalletTokenHolding(address="WBTC", amount=0.05),
         ]
         positions: List[WalletPoolPosition] = []
         options = MaxYieldOptions(allow_reallocate=False)
@@ -100,7 +100,7 @@ class TestMaxYieldStrategy(unittest.TestCase):
     def test_no_reallocation_when_disabled(self):
         """Test that no reallocation happens when it's disabled"""
         tokens = [
-            WalletTokenHolding(tokenSymbol="USDC", amount=100.0),
+            WalletTokenHolding(address="USDC", amount=100.0),
         ]
         positions = [
             WalletPoolPosition(
@@ -119,8 +119,8 @@ class TestMaxYieldStrategy(unittest.TestCase):
     def test_balanced_token_deposits(self):
         """Test that deposits maintain balanced USD values across tokens"""
         tokens = [
-            WalletTokenHolding(tokenSymbol="USDC", amount=2000.0),  # $2000
-            WalletTokenHolding(tokenSymbol="ETH", amount=1.0),  # $2000
+            WalletTokenHolding(address="USDC", amount=2000.0),  # $2000
+            WalletTokenHolding(address="ETH", amount=1.0),  # $2000
         ]
         positions: List[WalletPoolPosition] = []
         options = MaxYieldOptions(allow_reallocate=False)
@@ -159,8 +159,8 @@ class TestMaxYieldStrategy(unittest.TestCase):
     def test_insufficient_token_amounts(self):
         """Test behavior with insufficient token amounts"""
         tokens = [
-            WalletTokenHolding(tokenSymbol="USDC", amount=0.000001),
-            WalletTokenHolding(tokenSymbol="ETH", amount=0.000001),
+            WalletTokenHolding(address="USDC", amount=0.000001),
+            WalletTokenHolding(address="ETH", amount=0.000001),
         ]
         positions: List[WalletPoolPosition] = []
         options = MaxYieldOptions(allow_reallocate=False)
@@ -176,7 +176,7 @@ class TestMaxYieldStrategy(unittest.TestCase):
     def test_multiple_reallocations(self):
         """Test multiple reallocations from different pools"""
         tokens = [
-            WalletTokenHolding(tokenSymbol="USDC", amount=100.0),
+            WalletTokenHolding(address="USDC", amount=100.0),
         ]
         positions = [
             WalletPoolPosition(
@@ -211,7 +211,7 @@ class TestMaxYieldStrategy(unittest.TestCase):
             protocol="Protocol1",
         )
 
-        tokens = [WalletTokenHolding(tokenSymbol="USDC", amount=1000.0)]
+        tokens = [WalletTokenHolding(address="USDC", amount=1000.0)]
         positions: List[WalletPoolPosition] = []
         options = MaxYieldOptions(allow_reallocate=False)
 

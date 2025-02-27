@@ -21,7 +21,7 @@ class MaxYieldOptions(BaseModel):
 
     token_allowlist: Optional[List[str]] = Field(
         default=None,
-        description="The allowed token symbols to trade. Leave empty unless user explicitly asks",
+        description="The allowed token addresses to trade. Leave empty unless user explicitly asks",
     )
 
 
@@ -49,7 +49,7 @@ class MaxYieldStrategy(Strategy[MaxYieldOptions]):
             options = MaxYieldOptions()
 
         # Accounting
-        total_tokens: Dict[str, float] = {t.tokenSymbol: t.amount for t in tokens}
+        total_tokens: Dict[str, float] = {t.address: t.amount for t in tokens}
         for position in positions:
             for token, amount in position.depositedTokens.items():
                 total_tokens[token] = total_tokens.get(token, 0) + amount

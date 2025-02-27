@@ -38,13 +38,13 @@ class Pool(BaseModel):
 
 
 class WalletTokenHolding(BaseModel):
-    address: str  # token symbol
+    address: str  # token address
     amount: float  # amount of tokens held
 
 
 class WalletPoolPosition(BaseModel):
     poolId: str  # unique ID of pool
-    depositedTokens: Dict[str, float]  # deposited Tokens to pool
+    depositedTokens: Dict[str, float]  # address to token amount
 
 
 class ActionType(str, Enum):
