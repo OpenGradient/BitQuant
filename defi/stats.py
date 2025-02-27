@@ -5,7 +5,7 @@ from defillama import DefiLlama
 from defi.types import Pool, Chain, PoolQuery, Token
 
 
-class DeFiMetrics:
+class DefiMetrics:
 
     llama: DefiLlama
     pools: List[Pool]
@@ -51,13 +51,13 @@ class DeFiMetrics:
 
     def refresh_metrics(self):
         pools_response = self.llama.get_pools()
-        self.pools = [DeFiMetrics._convert_to_pool(p) for p in pools_response["data"]]
+        self.pools = [DefiMetrics._convert_to_pool(p) for p in pools_response["data"]]
 
     @staticmethod
     def _convert_to_pool(pool_data: Dict) -> Pool:
         return Pool(
             id=pool_data["pool"],
-            chain=DeFiMetrics._get_chain(pool_data["chain"]),
+            chain=DefiMetrics._get_chain(pool_data["chain"]),
             tokens=[
                 Token(symbol=token, price=0)
                 for token in (pool_data.get("underlyingTokens") or [])

@@ -5,7 +5,7 @@ from flask_cors import CORS
 from pydantic import ValidationError
 from langgraph.graph.graph import CompiledGraph, RunnableConfig
 
-from defi.stats import DeFiMetrics
+from defi.stats import DefiMetrics
 from defi.types import (
     AgentChatRequest,
     AgentSuggestionRequest,
@@ -24,7 +24,7 @@ def create_flask_app() -> Flask:
     app = Flask(__name__)
     CORS(app)
     agent = create_agent_executor()
-    defi_metrics = DeFiMetrics()
+    defi_metrics = DefiMetrics()
 
     if not app.config.get("TESTING"):
 
@@ -62,7 +62,7 @@ def create_flask_app() -> Flask:
 
 
 def handle_agent_chat_request(
-    defi_metrics: DeFiMetrics, request: AgentChatRequest, agent: CompiledGraph
+    defi_metrics: DefiMetrics, request: AgentChatRequest, agent: CompiledGraph
 ) -> AgentOutput:
     # Get compatible pools
     compatible_pools = defi_metrics.get_pools(

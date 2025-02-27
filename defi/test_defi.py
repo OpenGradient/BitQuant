@@ -1,13 +1,13 @@
 import unittest
 
-from defi.stats import DeFiMetrics
+from defi.stats import DefiMetrics
 from defi.types import Chain, Pool, PoolQuery
 
 
 class TestPlugins(unittest.TestCase):
 
     def test_defillama(self):
-        metrics = DeFiMetrics()
+        metrics = DefiMetrics()
         metrics.refresh_metrics()
 
         sol_pools = metrics.get_pools(
