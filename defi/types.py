@@ -18,7 +18,7 @@ class Chain(Enum):
 class PoolQuery(BaseModel):
     chain: Optional[Chain] = None
     tokens: List[Token] = None
-    protocol: Optional[str] = None
+    protocols: List[str] = None
     isStableCoin: Optional[bool] = None
     impermanentLossRisk: Optional[bool] = None
 

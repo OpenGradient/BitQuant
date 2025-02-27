@@ -2,7 +2,7 @@ from typing import List, Dict
 
 from defillama import DefiLlama
 
-from plugins.types import Pool, Chain, PoolQuery
+from plugins.types import Pool, Chain, PoolQuery, Token
 
 
 class DeFiMetrics:
@@ -28,9 +28,10 @@ class DeFiMetrics:
                 if all(token in pool.tokens for token in query.tokens)
             ]
 
-        if query.protocol is not None:
+        if query.protocols is not None and len(query.protocols) > 0:
             filtered_pools = [
-                pool for pool in filtered_pools if pool.protocol == query.protocol
+                pool for pool in filtered_pools 
+                if pool.protocol in query.protocols
             ]
 
         if query.isStableCoin is not None:
@@ -49,7 +50,7 @@ class DeFiMetrics:
 
         return filtered_pools
 
-    def refresh_metrics(self) -> List[Pool]:
+    def refresh_metrics(self):
         pools_response = self.llama.get_pools()
         self.pools = [DeFiMetrics._convert_to_pool(p) for p in pools_response["data"]]
 
@@ -58,8 +59,7 @@ class DeFiMetrics:
         return Pool(
             id=pool_data["pool"],
             chain=DeFiMetrics._get_chain(pool_data["chain"]),
-            # tokens=[Token(symbol=token, price=0) for token in pool_data['underlyingTokens']],
-            tokens=[],
+            tokens=[Token(symbol=token, price=0) for token in (pool_data.get('underlyingTokens') or []) if token is not None],
             TVL=f"${pool_data['tvlUsd']}",
             APRLastDay=pool_data["apy"],
             APRLastWeek=pool_data["apyMean30d"],  # use 30d

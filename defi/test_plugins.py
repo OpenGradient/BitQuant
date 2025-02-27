@@ -10,6 +10,10 @@ class TestPlugins(unittest.TestCase):
         metrics = DeFiMetrics()
         metrics.refresh_metrics()
 
-        sol_pools = metrics.get_pools(PoolQuery(chain=Chain.SOLANA, isStableCoin=True))
+        sol_pools = metrics.get_pools(PoolQuery(
+            chain=Chain.SOLANA, 
+            isStableCoin=True,
+            protocols=["kamino-liquidity", "kamino-lend", "save"]
+        ))
 
         print(sol_pools)

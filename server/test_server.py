@@ -181,7 +181,7 @@ class TestAgentAPI(unittest.TestCase):
                 try:
                     content = json.loads(response.data.decode())
 
-                    print(f"\nInput: {test_case["input"]}\nResponse:{content}\n")
+                    print(f"Input: {test_case['input']}\nResponse:{content}\n")
                 except json.JSONDecodeError:
                     self.fail("Response is not valid JSON")
 

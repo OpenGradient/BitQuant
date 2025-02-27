@@ -5,24 +5,26 @@ from flask_cors import CORS
 from pydantic import ValidationError
 from langgraph.graph.graph import CompiledGraph, RunnableConfig
 
+from plugins.defi_metrics import DeFiMetrics
 from plugins.types import (
     AgentChatRequest,
     AgentSuggestionRequest,
     AgentOutput,
+    PoolQuery,
+    Chain,
     Action,
     Message,
 )
 from agent.agent_executor import create_agent_executor
 from agent.prompts import get_agent_prompt
-from plugins.registry import PoolRegistry
 
 
-def create_flask_app(plugins: List[str] = ["navi"]) -> Flask:
+def create_flask_app() -> Flask:
 
     app = Flask(__name__)
     CORS(app)
     agent = create_agent_executor()
-    pool_registry = PoolRegistry(plugins=set(plugins))
+    defi_metrics = DeFiMetrics()
 
     if not app.config.get("TESTING"):
 
@@ -43,7 +45,7 @@ def create_flask_app(plugins: List[str] = ["navi"]) -> Flask:
         request_data = request.get_json()
         suggestion_request = AgentSuggestionRequest(**request_data)
 
-        response = handle_agent_chat_request(pool_registry, suggestion_request, agent)
+        response = handle_agent_chat_request(defi_metrics, suggestion_request, agent)
 
         return jsonify(response.model_dump())
 
@@ -52,7 +54,7 @@ def create_flask_app(plugins: List[str] = ["navi"]) -> Flask:
         request_data = request.get_json()
         agent_request = AgentChatRequest(**request_data)
 
-        response = handle_agent_chat_request(pool_registry, agent_request, agent)
+        response = handle_agent_chat_request(defi_metrics, agent_request, agent)
 
         return jsonify(response.model_dump())
 
@@ -60,12 +62,13 @@ def create_flask_app(plugins: List[str] = ["navi"]) -> Flask:
 
 
 def handle_agent_chat_request(
-    pool_registry: PoolRegistry, request: AgentChatRequest, agent: CompiledGraph
+    defi_metrics: DeFiMetrics, request: AgentChatRequest, agent: CompiledGraph
 ) -> AgentOutput:
     # Get compatible pools
-    compatible_pools = pool_registry.get_compatible_pools(
-        request.context.tokens, request.context.poolPositions
-    )
+    compatible_pools = defi_metrics.get_pools(PoolQuery(
+        chain=Chain.SOLANA,
+        protocols=["kamino-liquidity", "kamino-lend", "save"],
+    ))
 
     # Build system prompt
     system_prompt = get_agent_prompt(
