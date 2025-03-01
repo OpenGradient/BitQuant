@@ -12,15 +12,16 @@ MODEL = LLM.QWEN_2_5_72B_INSTRUCT
 MAX_TOKENS = 1000
 
 
-def create_agent_executor() -> CompiledGraph:
-    private_key = os.environ.get("OG_PRIVATE_KEY")
-    if not private_key:
-        raise Exception("Must set OG_PRIVATE_KEY env var")
+def create_suggestions_executor() -> CompiledGraph:
+    openai_model = ChatOpenAI(model="gpt-4o", temperature=0)
 
-    # Initialize LLMs
-    og_model = langchain_adapter(
-        private_key=private_key, model_cid=MODEL, max_tokens=MAX_TOKENS
-    )
+    # Create agent
+    agent_executor = create_react_agent(model=openai_model, tools=[])
+
+    return agent_executor
+
+
+def create_agent_executor() -> CompiledGraph:
     openai_model = ChatOpenAI(model="gpt-4o", temperature=0)
 
     # Create agent
