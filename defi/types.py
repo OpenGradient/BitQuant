@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import List, Union, Optional, Dict, Mapping
-from enum import Enum
+from enum import IntEnum
 
 
 class Token(BaseModel):
@@ -9,7 +9,7 @@ class Token(BaseModel):
     symbol: str
 
 
-class Chain(Enum):
+class Chain(IntEnum):
     ETHEREUM = 0
     SOLANA = 1
     BASE = 2
@@ -18,8 +18,8 @@ class Chain(Enum):
 
 class PoolQuery(BaseModel):
     chain: Optional[Chain] = None
-    tokens: List[str] = None
-    protocols: List[str] = None
+    tokens: List[str] = []
+    protocols: List[str] = []
     isStableCoin: Optional[bool] = None
     impermanentLossRisk: Optional[bool] = None
 
@@ -27,14 +27,16 @@ class PoolQuery(BaseModel):
 class Pool(BaseModel):
     id: str  # unique ID
     chain: Chain  # Chain pool is deployed on
+    protocol: str  # protocol name
     tokens: List[Token]  # list of tokens in pool
+    type: str  # Lending or AMM
     TVL: str  # in USD
     APRLastDay: float  # APR for last day (must be present)
     APRLastWeek: Optional[float]  # APR for last week (if known)
     APRLastMonth: Optional[float]  # APR for last month (if known)
-    protocol: str  # protocol name
     isStableCoin: bool  # whether pool is stablecoin
     impermanentLossRisk: bool
+    risk: str  # Risk
 
 
 class WalletTokenHolding(BaseModel):
@@ -47,29 +49,10 @@ class WalletPoolPosition(BaseModel):
     depositedTokens: Dict[str, float]  # address to token amount
 
 
-class ActionType(str, Enum):
-    DEPOSIT = "depositToPool"
-    WITHDRAW = "withdrawFromPool"
-
-
-class DepositAction(BaseModel):
-    type: ActionType = ActionType.DEPOSIT
-    pool: str
-    tokens: Dict[str, float]
-
-
-class WithdrawAction(BaseModel):
-    type: ActionType = ActionType.WITHDRAW
-    pool: str
-    tokens: Dict[str, float]
-
-
-Action = Union[DepositAction, WithdrawAction]
-
-
 class AgentOutput(BaseModel):
     message: str
-    recommendedActions: List[Action]
+    pools: List[Pool]
+    suggestions: List[str]
 
 
 Message = Union[str, AgentOutput]

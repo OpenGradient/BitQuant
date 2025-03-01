@@ -89,6 +89,8 @@ class DefiMetrics:
             protocol=pool_data["project"],
             isStableCoin=pool_data["stablecoin"],
             impermanentLossRisk=pool_data["ilRisk"],
+            type="Lending",
+            risk="Low",
         )
 
     @staticmethod

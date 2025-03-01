@@ -12,7 +12,7 @@ from defi.types import (
     AgentOutput,
     PoolQuery,
     Chain,
-    Action,
+    Pool,
     Message,
 )
 from agent.agent_executor import create_agent_executor
@@ -81,7 +81,7 @@ def handle_agent_chat_request(
     compatible_pools = defi_metrics.get_pools(
         PoolQuery(
             chain=Chain.SOLANA,
-            protocols=["save"],
+            protocols=["save", "kamino-lend"],
             tokens=[token.address for token in request.context.tokens],
         )
     )
@@ -124,7 +124,8 @@ def handle_agent_chat_request(
 
     return AgentOutput(
         message=last_message.content,
-        recommendedActions=extract_recommendations(final_state["messages"]),
+        pools=extract_pools(final_state["messages"]),
+        suggestions=[]
     )
 
 
@@ -137,7 +138,7 @@ def convert_to_agent_msg(message: Message) -> Tuple[str, str]:
         raise TypeError(f"Unexpected message type: {type(message)}")
 
 
-def extract_recommendations(messages: List[Any]) -> List[Action]:
+def extract_pools(messages: List[Any]) -> List[Pool]:
     return [
         a
         for msg in messages
