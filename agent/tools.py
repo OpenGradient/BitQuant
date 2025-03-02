@@ -19,8 +19,6 @@ def show_pools(pool_ids: List[str], config: RunnableConfig) -> Tuple[str, List]:
 
 # Define the tools the agent can use
 def create_agent_toolkit() -> List[BaseTool]:
-    tools = [
-        show_pools
-    ]
+    tools = [show_pools]
 
     return tools

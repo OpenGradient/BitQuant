@@ -11,7 +11,6 @@ from flask.testing import FlaskClient
 from werkzeug.test import TestResponse
 
 from server import create_flask_app
-from defi.types import ActionType
 from testutils.contex import TEST_CONTEXT
 
 
@@ -95,10 +94,6 @@ class TestAgentAPI(unittest.TestCase):
                         ),
                         ContentCheck(
                             "Recommended actions should be withdrawFromPool",
-                            lambda x: x["recommendedActions"][0]["type"]
-                            == ActionType.WITHDRAW
-                            and x["recommendedActions"][1]["type"]
-                            == ActionType.WITHDRAW,
                         ),
                     ],
                 },

@@ -26,6 +26,7 @@ def get_agent_prompt(
 
     return agent_prompt
 
+
 def get_suggestions_prompt(
     protocol: str,
     tokens: List[WalletTokenHolding],
