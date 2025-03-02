@@ -75,8 +75,6 @@ def create_flask_app() -> Flask:
         request_data = request.get_json()
         agent_request = AgentChatRequest(**request_data)
 
-        print(agent_request)
-
         suggestions = handle_suggestions_request(
             defi_metrics, agent_request, suggestions_agent
         )
