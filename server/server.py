@@ -10,10 +10,11 @@ from functools import wraps
 from defi.stats import DefiMetrics
 from defi.types import (
     AgentChatRequest,
-    AgentOutput,
     PoolQuery,
     Chain,
     Pool,
+    UserMessage,
+    AgentMessage,
     Message,
 )
 from agent.agent_executor import create_agent_executor, create_suggestions_executor
@@ -74,6 +75,8 @@ def create_flask_app() -> Flask:
         request_data = request.get_json()
         agent_request = AgentChatRequest(**request_data)
 
+        print(agent_request)
+
         suggestions = handle_suggestions_request(
             defi_metrics, agent_request, suggestions_agent
         )
@@ -87,7 +90,7 @@ def handle_agent_chat_request(
     defi_metrics: DefiMetrics,
     request: AgentChatRequest,
     agent: CompiledGraph,
-) -> AgentOutput:
+) -> AgentMessage:
     # Get compatible pools
     compatible_pools = defi_metrics.get_pools(
         PoolQuery(
@@ -114,7 +117,7 @@ def handle_agent_chat_request(
     main_messages = [
         ("system", main_system_prompt),
         *message_history,
-        ("user", request.userInput),
+        ("user", request.message.message),
     ]
 
     # Create config for the agent
@@ -129,10 +132,9 @@ def handle_agent_chat_request(
     # Run main agent
     main_result = run_main_agent(agent, main_messages, agent_config)
 
-    return AgentOutput(
+    return AgentMessage(
         message=main_result["content"],
         pools=extract_pools(main_result["messages"]),
-        suggestions=[],  # No longer including suggestions
     )
 
 
@@ -167,7 +169,6 @@ def handle_suggestions_request(
     suggestions_messages = [
         ("system", suggestions_system_prompt),
         *message_history,
-        ("user", request.userInput),
     ]
 
     # Create config for the agent
@@ -222,9 +223,9 @@ def run_suggestions_agent(
 
 
 def convert_to_agent_msg(message: Message) -> Tuple[str, str]:
-    if isinstance(message, str):
-        return ("user", message)
-    elif isinstance(message, AgentOutput):
+    if isinstance(message, UserMessage):
+        return ("user", message.message)
+    elif isinstance(message, AgentMessage):
         return ("assistant", message.message)
     else:
         raise TypeError(f"Unexpected message type: {type(message)}")

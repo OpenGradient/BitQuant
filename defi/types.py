@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import List, Union, Optional, Dict, Mapping
+from typing import List, Union, Optional, Dict, Mapping, Literal
 from enum import IntEnum
 
 
@@ -49,13 +49,18 @@ class WalletPoolPosition(BaseModel):
     depositedTokens: Dict[str, float]  # address to token amount
 
 
-class AgentOutput(BaseModel):
+class UserMessage(BaseModel):
+    type: Literal["user"] = "user"
+    message: str
+
+
+class AgentMessage(BaseModel):
+    type: Literal["assistant"] = "assistant"
     message: str
     pools: List[Pool]
-    suggestions: List[str]
 
 
-Message = Union[str, AgentOutput]
+Message = Union[UserMessage, AgentMessage]
 
 
 class Context(BaseModel):
@@ -66,4 +71,4 @@ class Context(BaseModel):
 
 class AgentChatRequest(BaseModel):
     context: Context
-    userInput: str
+    message: UserMessage
