@@ -34,17 +34,13 @@ def show_binance_price_history(pair: str = "BTCUSDT", interval: str = "1d", limi
     Returns:
         Dictionary containing the raw klines data from Binance API
     """
-    # Enforce limit parameter
     limit = min(max(2, int(limit)), 1000)
     
     try:
-        # Initialize client with Binance.US base URL
         client = Spot(base_url="https://api.binance.us")
         
-        # Get klines data directly from the API
         klines = client.klines(symbol=pair.upper(), interval=interval, limit=limit)
         
-        # Return the raw data with minimal processing
         return {
             "pair": pair,
             "interval": interval,
