@@ -35,7 +35,7 @@ class DeFiDataScientistAgent:
         return [
             # DefiLlama Tools
             show_defi_llama_protocols,
-            show_defi_llama_protocol,
+            show_defi_llama_protocol,   
             show_defi_llama_global_tvl,
             show_defi_llama_chain_tvl,
             show_defi_llama_top_pools,

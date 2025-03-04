@@ -78,10 +78,26 @@ def create_agent_toolkit() -> List[BaseTool]:
         get_global_tvl,
         get_chain_tvl,
         compare_pools,
+    ]
+
+    return tools
+
+# Create a new function for analytics-specific tools
+def create_analytics_agent_toolkit() -> List[BaseTool]:
+    tools = [
+        # DeFiLlama tools
+        get_protocol_insights,
+        get_global_tvl,
+        get_chain_tvl,
+        compare_pools,
+        
         # Binance tools
         get_price_history,
         analyze_price_trend,
         compare_assets,
+        
+        # Utility tools
+        show_pools
     ]
 
     return tools
