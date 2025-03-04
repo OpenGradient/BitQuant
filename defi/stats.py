@@ -1,5 +1,8 @@
-from typing import List, Dict
+from typing import List, Dict, Any, Optional
 import json
+import time
+import requests
+from functools import lru_cache
 
 from defillama import DefiLlama
 
@@ -56,10 +59,89 @@ class DefiMetrics:
             ]
 
         return filtered_pools
+    
+    @lru_cache(maxsize=1)
+    def get_protocols(self) -> List[Dict[str, Any]]:
+        """Get all DeFi protocols from DefiLlama with caching"""
+        try:
+            protocols_data = self.llama.get_all_protocols()
+            return protocols_data
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            print(f"Warning: Error when getting protocols: {e}. Returning empty list.")
+            return []
+    
+    def get_protocol(self, protocol_slug: str) -> Dict[str, Any]:
+        """Get details for a specific protocol by slug"""
+        try:
+            # Add a more specific timeout
+            protocol_data = self.llama.get_protocol(protocol_slug)
+            if not protocol_data:
+                # Fallback to getting the protocol current TVL
+                try:
+                    protocol_tvl = self.llama.get_protocol_current_tvl(protocol_slug)
+                    return {"name": protocol_slug, "tvl": protocol_tvl.get("tvl", 0)}
+                except:
+                    pass
+            return protocol_data
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            print(f"Warning: Error when getting protocol {protocol_slug}: {e}. Returning empty dict.")
+            return {}
+    
+    def get_global_tvl(self) -> Dict[str, Any]:
+        """Get current global TVL across all DeFi protocols"""
+        try:
+            # Use get_chains_current_tvl which returns the current TVL for all chains
+            chains_tvl = self.llama.get_chains_current_tvl()
+            
+            # Calculate the total TVL across all chains
+            total_tvl = sum(float(chain_data.get("tvl", 0)) for chain_data in chains_tvl)
+            
+            # Format like the original method expected
+            return {"totalLiquidityUSD": total_tvl}
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            print(f"Warning: Error when getting global TVL: {e}. Returning empty dict.")
+            return {"totalLiquidityUSD": 0}
+    
+    def get_chain_tvl(self, chain: str) -> Dict[str, Any]:
+        """Get TVL for a specific blockchain"""
+        try:
+            # Use get_chains_current_tvl which returns the current TVL for all chains
+            chains_tvl = self.llama.get_chains_current_tvl()
+            
+            # Find the specific chain we're looking for
+            for chain_data in chains_tvl:
+                if chain_data.get("name", "").lower() == chain.lower():
+                    return {"totalLiquidityUSD": chain_data.get("tvl", 0)}
+            
+            # If chain not found, return empty result
+            return {"totalLiquidityUSD": 0}
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            print(f"Warning: Error when getting TVL for chain {chain}: {e}. Returning empty dict.")
+            return {"totalLiquidityUSD": 0}
+    
+    def get_top_pools(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get top DeFi pools ranked by APY"""
+        try:
+            pools_data = self.llama.get_pools()
+            if isinstance(pools_data, dict) and 'data' in pools_data:
+                sorted_pools = sorted(
+                    pools_data['data'], 
+                    key=lambda x: x.get('apy', 0), 
+                    reverse=True
+                )
+                return sorted_pools[:limit]
+            return []
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            print(f"Warning: Error when getting top pools: {e}. Returning empty list.")
+            return []
 
     def refresh_metrics(self):
-        pools_response = self.llama.get_pools()
-        self.pools = [self._convert_to_pool(p) for p in pools_response["data"]]
+        try:
+            pools_response = self.llama.get_pools()
+            self.pools = [self._convert_to_pool(p) for p in pools_response["data"]]
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            print(f"Warning: Error when refreshing pools: {e}. Using existing pools.")
+            # Keep using existing pools
 
     def _convert_to_pool(self, pool_data: Dict) -> Pool:
         return Pool(
