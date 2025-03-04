@@ -94,6 +94,8 @@ class TestPlugins(unittest.TestCase):
                 # Print token information if available
                 if 'tokens' in aave:
                     print("\nToken Information:")
+                
+                print("\nAll available keys in AAVE data:", aave.keys())
             except Exception as e:
                 print(f"Warning: Failed to get AAVE V3 protocol: {e}")
             
