@@ -34,7 +34,7 @@ def create_agent_executor() -> CompiledGraph:
 
 
 def create_analytics_executor() -> CompiledGraph:
-    """Creates a specialized analytics agent focused on financial data analysis"""
+    """Creates a specialized analytics agent"""
     openai_model = ChatOpenAI(model="gpt-4o", temperature=0)
 
     # Create analytics agent
