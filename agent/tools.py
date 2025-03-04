@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from binance.spot import Spot
 from datetime import datetime, timedelta
+import traceback
 
 
 @tool(response_format="content_and_artifact")
@@ -21,169 +22,94 @@ def show_pools(pool_ids: List[str], config: RunnableConfig) -> Tuple[str, List]:
 
     return f"Showing pools to user: {pool_ids}", pools
 
-
 @tool()
-def show_crypto_price_history(coin_id: str = "bitcoin", vs_currency: str = "usd", days: int = 365, config=None) -> Dict[str, Any]:
+def show_binance_price_history(pair: str = "BTCUSDT", interval: str = "1d", limit: int = 365, config=None) -> Dict[str, Any]:
     """
-    Retrieves historical price data for a cryptocurrency using the CoinGecko API.
+    Retrieves historical price data for a cryptocurrency from Binance.
     
     Args:
-        coin_id: The CoinGecko ID for the cryptocurrency (e.g., "bitcoin", "ethereum")
-        vs_currency: The currency to show results in (e.g., "usd", "eur")
-        days: Number of days of data to retrieve
+        pair: The trading pair (e.g., "BTCUSDT", "ETHUSDT")
+        interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
+        limit: Number of candlesticks to retrieve (max 1000)
         config: Runtime configuration
         
     Returns:
         Dictionary containing price history data, current price, and price metrics
     """
-    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
-    
-    params = {
-        "vs_currency": vs_currency,
-        "days": days,
-        "interval": "daily"
-    }
+    # Enforce limit parameter - properly limit the number of data points
+    limit = min(max(2, int(limit)), 1000)
     
     try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        data = response.json()
+        # Initialize client with Binance.US base URL - no API key needed for public endpoints
+        client = Spot(base_url="https://api.binance.us")
         
-        # Extract price data
-        price_data = data["prices"]
-        timestamps = [datetime.fromtimestamp(ts[0]/1000) for ts in price_data]
-        prices = [float(price[1]) for price in price_data]
+        # Get historical klines using the Binance connector
+        data = client.klines(symbol=pair.upper(), interval=interval, limit=limit)
         
-        # Get current price (last entry)
-        current_price = prices[-1]
+        # Check if the data is valid
+        if not isinstance(data, list) or not data:
+            raise ValueError(f"Invalid response from Binance API for {pair}")
         
-        # Calculate percent changes
-        if len(prices) >= 2:
-            day_change = ((prices[-1] / prices[-2]) - 1) * 100
-        else:
-            day_change = 0
+        # Extract close prices and timestamps
+        dates = []
+        close_prices = []
+        
+        for candle in data:
+            # Binance returns timestamp as the first element (in milliseconds)
+            timestamp = int(candle[0]) / 1000
+            # Close price is the 5th element (index 4)
+            close_price = float(candle[4])
             
-        if len(prices) >= 7:
-            week_change = ((prices[-1] / prices[-7]) - 1) * 100
-        else:
-            week_change = 0
-            
-        if len(prices) >= 30:
-            month_change = ((prices[-1] / prices[-30]) - 1) * 100
-        else:
-            month_change = 0
+            date_str = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+            dates.append(date_str)
+            close_prices.append(close_price)
+        
+        # Calculate current price and percentage changes
+        current_price = close_prices[-1]
+        
+        # Calculate percentage changes if we have enough data points
+        percent_change_24h = ((close_prices[-1] / close_prices[-2]) - 1) * 100 if len(close_prices) >= 2 else None
+        percent_change_week = ((close_prices[-1] / close_prices[-7]) - 1) * 100 if len(close_prices) >= 7 else None
+        percent_change_month = ((close_prices[-1] / close_prices[-30]) - 1) * 100 if len(close_prices) >= 30 else None
         
         # Calculate statistics
-        mean_price = np.mean(prices)
-        median_price = np.median(prices)
-        min_price = np.min(prices)
-        max_price = np.max(prices)
-        std_dev = np.std(prices)
-        volatility = std_dev / mean_price
-        
-        # Format dates for display
-        formatted_dates = [ts.strftime("%Y-%m-%d") for ts in timestamps]
-        
-        # Prepare response with proper string formatting
-        response = {
-            "coin_id": coin_id,
-            "currency": vs_currency,
-            "current_price": f"${current_price:.2f}",
-            "price_changes": {
-                "24h_change": f"{day_change:.2f}%",
-                "7d_change": f"{week_change:.2f}%",
-                "30d_change": f"{month_change:.2f}%"
-            },
-            "statistics": {
-                "mean": f"${mean_price:.2f}",
-                "median": f"${median_price:.2f}",
-                "min": f"${min_price:.2f}",
-                "max": f"${max_price:.2f}",
-                "std_dev": f"${std_dev:.2f}",
-                "volatility": f"{volatility:.2f}"  # Removed $ since volatility is a ratio
-            },
-            "data_points": len(prices),
-            "sample_data": {
-                "first_3": {formatted_dates[i]: f"${prices[i]:.2f}" for i in range(min(3, len(prices)))},
-                "last_3": {formatted_dates[len(prices)-i-1]: f"${prices[len(prices)-i-1]:.2f}" for i in range(min(3, len(prices)))}
-            }
-        }
-        
-        return response
-        
-    except Exception as e:
-        import traceback
-        return {
-            "error": f"Failed to get price history: {str(e)}",
-            "traceback": traceback.format_exc(),
-            "coin_id": coin_id,
-            "currency": vs_currency
-        }
-
-@tool()
-def show_binance_price_history(pair: str, granularity: str = '1d', rows: int = 365) -> Dict[str, Any]:
-    """
-    Show historical price data from Binance for a specific trading pair.
-    
-    Args:
-        pair: Trading pair symbol (e.g., 'BTCUSDT', 'ETHUSDT')
-        granularity: Time interval for candles ('1m', '5m', '15m', '1h', '4h', '1d', '1w', etc.)
-        rows: Number of candles to retrieve (max 1000)
-    
-    Returns:
-        Dictionary with historical price data including close prices, percentage change, and summary statistics
-    """
-    try:
-        # Get the candle data
-        candles_df = get_binance_candles(pair, granularity, rows)
-        
-        # Get the close price series
-        close_prices = single_close_price_series(pair, granularity, rows)
-        
-        # Calculate some useful metrics
-        current_price = close_prices[-1]
-        price_24h_ago = close_prices[-2] if len(close_prices) > 1 else None
-        percent_change_24h = ((current_price - price_24h_ago) / price_24h_ago * 100) if price_24h_ago else None
-        
-        week_ago_idx = -7 if len(close_prices) >= 7 else 0
-        price_week_ago = close_prices[week_ago_idx] if len(close_prices) > abs(week_ago_idx) else None
-        percent_change_week = ((current_price - price_week_ago) / price_week_ago * 100) if price_week_ago else None
-        
-        month_ago_idx = -30 if len(close_prices) >= 30 else 0
-        price_month_ago = close_prices[month_ago_idx] if len(close_prices) > abs(month_ago_idx) else None
-        percent_change_month = ((current_price - price_month_ago) / price_month_ago * 100) if price_month_ago else None
-        
-        # Get some statistics
         stats = {
             "mean": float(np.mean(close_prices)),
             "median": float(np.median(close_prices)),
             "min": float(np.min(close_prices)),
             "max": float(np.max(close_prices)),
-            "std_dev": float(np.std(close_prices)),
-            "volatility": float(np.std(np.diff(close_prices) / close_prices[:-1]) * 100) if len(close_prices) > 1 else None
+            "std_dev": float(np.std(close_prices))
         }
         
-        # Format the dates for the response
-        formatted_dates = candles_df['timestamp'].dt.strftime('%Y-%m-%d').tolist() if 'timestamp' in candles_df.columns else []
+        # Calculate volatility
+        stats["volatility"] = float(stats["std_dev"] / stats["mean"]) if stats["mean"] > 0 else 0
         
-        # Create a response object
-        response = {
+        # Return the formatted response
+        return {
             "pair": pair,
-            "granularity": granularity,
-            "data_points": len(close_prices),
-            "current_price": float(current_price),
-            "percent_change_24h": float(percent_change_24h) if percent_change_24h is not None else None,
-            "percent_change_week": float(percent_change_week) if percent_change_week is not None else None,
-            "percent_change_month": float(percent_change_month) if percent_change_month is not None else None,
+            "interval": interval,
+            "current_price": current_price,
+            "percent_change_24h": percent_change_24h,
+            "percent_change_week": percent_change_week,
+            "percent_change_month": percent_change_month,
             "stats": stats,
-            "close_prices": close_prices.tolist(),
-            "dates": formatted_dates
+            "dates": dates,
+            "close_prices": close_prices,
+            "data_points": len(close_prices)
         }
-        
-        return response
+    
     except Exception as e:
-        print(f"Warning: Error fetching Binance data for {pair}: {e}")
-        return {"error": str(e), "pair": pair}
+        error_msg = str(e)
+        
+        # Specific error handling for invalid trading pairs
+        if "Invalid symbol" in error_msg or "Unknown symbol" in error_msg or "too many indices for array" in error_msg:
+            raise ValueError(f"Invalid trading pair: {pair}")
+        
+        # Return error information for other exceptions
+        return {
+            "error": f"Error fetching Binance data for {pair}: {error_msg}",
+            "traceback": traceback.format_exc()
+        }
 
 # Helper functions (add these outside of the tool functions)
 def get_binance_candles(
@@ -235,7 +161,6 @@ def single_close_price_series(
 def create_agent_toolkit() -> List[BaseTool]:
     tools = [
         show_pools,
-        show_crypto_price_history,
         show_binance_price_history
     ]
 
