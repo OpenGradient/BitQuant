@@ -8,7 +8,7 @@ from defi.defillama_tools import (
     show_defi_llama_chain_tvl,
     show_defi_llama_top_pools
 )
-from defi.binance_tools import get_binance_price_history
+from defi.binance_tools import get_binance_price_history, analyze_price_trend, compare_assets
 
 class DeFiDataScientistAgent:
     """
@@ -39,6 +39,11 @@ class DeFiDataScientistAgent:
             show_defi_llama_global_tvl,
             show_defi_llama_chain_tvl,
             show_defi_llama_top_pools,
+            
+            # Binance Tools
+            get_binance_price_history,
+            analyze_price_trend,
+            compare_assets,
         ]
     
     def get_protocol_insights(self, protocol_slug: str) -> Dict[str, Any]:
