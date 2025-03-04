@@ -45,7 +45,15 @@ def main():
         actions = agent_output.get("recommendedActions", [])
 
         # print results
-        print(f"Two-Ligma: {answer}")
+        if agent_type == "analytics":
+            response_json = response.json()
+            if isinstance(response_json, dict) and 'message' in response_json:
+                print(f"Two-Ligma: {response_json['message']}")
+            else:
+                print(f"Two-Ligma: {response_json}")
+        else:
+            # Regular handling for other responses
+            print(f"Two-Ligma: {response.json()['message']}")
         if actions:
             print(actions)
 
@@ -60,6 +68,23 @@ def make_request(input_data: Dict[str, Any], endpoint: str) -> Any:
         json=input_data,
         headers={"Content-Type": "application/json"},
     )
+
+
+def extract_final_response(response_data):
+    """Extract just the final response text from the analytics response"""
+    # If it's a dictionary with 'messages' key
+    if isinstance(response_data, dict) and 'messages' in response_data:
+        messages = response_data['messages']
+        # Find the last non-empty assistant message
+        for msg in reversed(messages):
+            if isinstance(msg, dict) and msg.get('content'):
+                return msg['content']
+            # Handle case where it's an object with content attribute
+            elif hasattr(msg, 'content') and msg.content:
+                return msg.content
+    
+    # Return the original if we can't parse it
+    return response_data
 
 
 if __name__ == "__main__":

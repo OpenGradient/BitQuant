@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from langgraph.graph.graph import CompiledGraph, RunnableConfig
 import json
 from functools import wraps
+from langchain_core.messages import SystemMessage, HumanMessage
 
 from defi.stats import DefiMetrics
 from defi.types import (
@@ -25,7 +26,7 @@ STATIC_DIR = os.path.join(ROOT_DIR, "static")
 
 
 def create_flask_app() -> Flask:
-    """Create and configure the Flask application with routes."""
+    """Create and configure the Flask application with routes.""" 
     app = Flask(__name__)
     CORS(app)
 
@@ -143,7 +144,7 @@ def handle_agent_chat_request(
     main_result = run_main_agent(agent, main_messages, agent_config)
 
     return AgentMessage(
-        message=main_result["content"],
+        message=main_result["output"],
         pools=extract_pools(main_result["messages"]),
     )
 
@@ -201,13 +202,39 @@ def handle_suggestions_request(
 def run_main_agent(
     agent: CompiledGraph, messages: List, config: RunnableConfig
 ) -> Dict[str, Any]:
-    # Run agent directly
-    result = agent.invoke({"messages": messages}, config=config)
-
-    # Extract final state and last message
-    last_message = result["messages"][-1]
-
-    return {"content": last_message.content, "messages": result["messages"]}
+    """Run the main agent and return the result as a dictionary."""
+    try:
+        result = agent.invoke({"messages": messages}, config)
+        
+        # Extract content regardless of result type
+        output_text = None
+        
+        # Handle dictionary responses
+        if isinstance(result, dict):
+            if "output" in result and result["output"]:
+                output_text = result["output"]
+            elif "content" in result and result["content"]:
+                output_text = result["content"]
+            elif "messages" in result and result["messages"]:
+                for msg in reversed(result["messages"]):
+                    if msg.get("role") == "assistant" and msg.get("content"):
+                        output_text = msg["content"]
+                        break
+        # Handle object with content attribute (like LangChain messages)
+        elif hasattr(result, "content") and result.content:
+            output_text = result.content
+        # Handle string or other types
+        elif result is not None:
+            output_text = str(result)
+            
+        if not output_text:
+            output_text = "No response was generated."
+            
+        return {"output": output_text}
+    
+    except Exception as e:
+        print(f"Error in run_main_agent: {str(e)}")
+        return {"output": f"I encountered an error processing your request: {str(e)}"}
 
 
 def run_suggestions_agent(
@@ -250,53 +277,116 @@ def extract_pools(messages: List[Any]) -> List[Pool]:
     ]
 
 
+def run_analytics_agent(
+    agent: CompiledGraph, messages: List, config: RunnableConfig
+) -> Dict[str, Any]:
+    """Run the analytics agent and return the result as a dictionary."""
+    try:
+        result = agent.invoke({"messages": messages}, config)
+        
+        # Debug info
+        print(f"ANALYTICS RESULT TYPE: {type(result)}")
+        
+        # Extract content regardless of result type
+        output_text = None
+        
+        # Handle LangGraph's AddableValuesDict
+        if hasattr(result, "get") and callable(result.get):
+            # Get the 'messages' list
+            agent_messages = result.get("messages", [])
+            
+            # Find the last assistant message with content
+            if agent_messages:
+                for msg in reversed(agent_messages):
+                    if hasattr(msg, "type") and msg.type == "assistant" and hasattr(msg, "content") and msg.content:
+                        output_text = msg.content
+                        break
+                    if hasattr(msg, "role") and msg.role == "assistant" and hasattr(msg, "content") and msg.content:
+                        output_text = msg.content
+                        break
+        
+        # If we still don't have output, try fallback methods
+        if not output_text:
+            # Handle object with content attribute (like LangChain messages)
+            if hasattr(result, "content") and result.content:
+                output_text = result.content
+            # Handle string or other types
+            elif result is not None:
+                output_text = str(result)
+        
+        if not output_text:
+            output_text = "No response was generated."
+            
+        return {"output": output_text}
+    
+    except Exception as e:
+        print(f"Error in run_analytics_agent: {str(e)}")
+        return {"output": f"I encountered an error processing your request: {str(e)}"}
+
+
 def handle_analytics_chat_request(
     defi_metrics: DefiMetrics,
     request: AgentChatRequest,
     agent: CompiledGraph,
 ) -> AgentMessage:
-    # Get compatible pools
-    compatible_pools = defi_metrics.get_pools(
-        PoolQuery(
-            chain=Chain.SOLANA,
-            protocols=["save", "kamino-lend"],
-            tokens=[token.address for token in request.context.tokens],
+    # Extract the actual message text
+    message_text = request.message
+    
+    # If request.message is a dictionary with a 'message' key, extract that
+    if isinstance(message_text, dict) and 'message' in message_text:
+        message_text = message_text['message']
+    
+    # Create system message with analytics prompt
+    system_message = SystemMessage(
+        content=get_analytics_prompt(question=message_text)
+    )
+    
+    # Add the user's message - make sure it's a string
+    user_message = HumanMessage(content=str(message_text))
+    
+    # Create the message history
+    messages = [system_message, user_message]
+    
+    # Run the analytics agent
+    config = RunnableConfig(callbacks=[])
+    
+    try:
+        result = agent.invoke({"messages": messages}, config)
+        
+        # Debug info
+        print(f"ANALYTICS RESULT TYPE: {type(result)}")
+        
+        # Extract the final text answer ONLY
+        final_answer = None
+        
+        # Handle LangGraph's result with message history
+        if hasattr(result, "get") and callable(result.get):
+            messages_list = result.get("messages", [])
+            
+            # Find the last AIMessage with content
+            for msg in reversed(messages_list):
+                # Look for content in various message formats
+                if hasattr(msg, "content") and msg.content:
+                    final_answer = msg.content
+                    break
+                    
+        # If we couldn't extract from messages, use fallbacks
+        if not final_answer and hasattr(result, "content") and result.content:
+            final_answer = result.content
+            
+        # Last resort - convert to string
+        if not final_answer:
+            final_answer = "I couldn't analyze that. Please try again."
+        
+        # Return ONLY the final answer text
+        return AgentMessage(
+            message=final_answer,  # Just the text, not the whole object
+            pools=[],
         )
-    )
-
-    # Build analytics agent system prompt
-    analytics_system_prompt = get_analytics_prompt(
-        protocol="Save",
-        tokens=request.context.tokens,
-        poolDeposits=request.context.poolPositions,
-        availablePools=compatible_pools,
-    )
-
-    # Prepare message history
-    message_history = [
-        convert_to_agent_msg(m) for m in request.context.conversationHistory
-    ]
-
-    # Create messages for analytics agent
-    analytics_messages = [
-        ("system", analytics_system_prompt),
-        *message_history,
-        ("user", request.message.message),
-    ]
-
-    # Create config for the agent
-    agent_config = RunnableConfig(
-        configurable={
-            "tokens": request.context.tokens,
-            "positions": request.context.poolPositions,
-            "available_pools": compatible_pools,
-        }
-    )
-
-    # Run analytics agent
-    analytics_result = run_main_agent(agent, analytics_messages, agent_config)
-
-    return AgentMessage(
-        message=analytics_result["content"],
-        pools=extract_pools(analytics_result["messages"]),
-    )
+        
+    except Exception as e:
+        print(f"Analytics agent error: {str(e)}")
+        return AgentMessage(
+            message=f"Sorry, I encountered an error while analyzing your request: {str(e)}",
+            pools=[],
+        )
