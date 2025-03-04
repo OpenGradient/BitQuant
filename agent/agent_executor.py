@@ -13,7 +13,7 @@ MAX_TOKENS = 1000
 
 
 def create_suggestions_executor() -> CompiledGraph:
-    openai_model = ChatOpenAI(model="gpt-4o", temperature=0)
+    openai_model = ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
     # Create agent
     agent_executor = create_react_agent(model=openai_model, tools=[])
