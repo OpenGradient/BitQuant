@@ -4,11 +4,10 @@ from langgraph.graph.graph import RunnableConfig
 from langchain_core.tools import BaseTool, tool, StructuredTool
 
 from defi.types import Pool
-import requests
 import numpy as np
 import pandas as pd
 from binance.spot import Spot
-from datetime import datetime, timedelta
+from datetime import datetime
 import traceback
 
 
@@ -110,52 +109,6 @@ def show_binance_price_history(pair: str = "BTCUSDT", interval: str = "1d", limi
             "error": f"Error fetching Binance data for {pair}: {error_msg}",
             "traceback": traceback.format_exc()
         }
-
-# Helper functions (add these outside of the tool functions)
-def get_binance_candles(
-    pair,
-    granularity = '1d',
-    rows = 365):
-
-    url = 'https://data-api.binance.vision/api/v3/klines?'+\
-        'symbol='+pair+'&interval='+granularity+'&limit='+str(rows+1)
-    data = np.array(requests.get(url).json())[:-1]
-    columns = [
-        'open_timestamp',
-        'open',
-        'high',
-        'low',
-        'close',
-        'volume',
-        'close_timestamp',
-        'quote_volume',
-        'n_trades',
-        'taker_buy_base_volume',
-        'taker_buy_quote_volume',
-        'unused'
-        ]
-    df = pd.DataFrame(
-        data = np.array(data,dtype=float),
-        columns = columns
-        )
-    for col in ['open_timestamp','close_timestamp','n_trades']:
-        df[col] = df[col].astype(int)
-    timestamp = pd.to_datetime(df['open_timestamp'],unit='ms')
-    df['timestamp'] = timestamp
-    df = df.sort_values('timestamp')
-    return df
-
-def single_close_price_series(
-        pair,
-        granularity = '1d',
-        rows = 365
-        ):
-    candles_data = get_binance_candles(
-        pair = pair,
-        granularity = granularity,
-        rows = rows)
-    close_series = np.array(candles_data['close'])
-    return close_series
 
 # Define the tools the agent can use
 def create_agent_toolkit() -> List[BaseTool]:
