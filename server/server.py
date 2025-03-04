@@ -17,8 +17,8 @@ from defi.types import (
     AgentMessage,
     Message,
 )
-from agent.agent_executor import create_agent_executor, create_suggestions_executor
-from agent.prompts import get_agent_prompt, get_suggestions_prompt
+from agent.agent_executor import create_agent_executor, create_suggestions_executor, create_analytics_executor
+from agent.prompts import get_agent_prompt, get_suggestions_prompt, get_analytics_prompt
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
@@ -32,6 +32,8 @@ def create_flask_app() -> Flask:
     # Initialize agents
     agent = create_agent_executor()
     suggestions_agent = create_suggestions_executor()
+    analytics_agent = create_analytics_executor()
+    app.config['PROPAGATE_EXCEPTIONS'] = True
 
     # Initialize metrics service
     defi_metrics = DefiMetrics()
@@ -80,6 +82,16 @@ def create_flask_app() -> Flask:
         )
 
         return jsonify({"suggestions": suggestions})
+
+    @app.route("/api/agent/analytics", methods=["POST"])
+    def run_analytics():
+        """Endpoint for the DeFiDataScientist agent"""
+        request_data = request.get_json()
+        agent_request = AgentChatRequest(**request_data)
+
+        response = handle_analytics_chat_request(defi_metrics, agent_request, analytics_agent)
+
+        return jsonify(response.model_dump())
 
     return app
 
@@ -236,3 +248,55 @@ def extract_pools(messages: List[Any]) -> List[Pool]:
         if hasattr(msg, "artifact") and msg.artifact
         for a in msg.artifact
     ]
+
+
+def handle_analytics_chat_request(
+    defi_metrics: DefiMetrics,
+    request: AgentChatRequest,
+    agent: CompiledGraph,
+) -> AgentMessage:
+    # Get compatible pools
+    compatible_pools = defi_metrics.get_pools(
+        PoolQuery(
+            chain=Chain.SOLANA,
+            protocols=["save", "kamino-lend"],
+            tokens=[token.address for token in request.context.tokens],
+        )
+    )
+
+    # Build analytics agent system prompt
+    analytics_system_prompt = get_analytics_prompt(
+        protocol="Save",
+        tokens=request.context.tokens,
+        poolDeposits=request.context.poolPositions,
+        availablePools=compatible_pools,
+    )
+
+    # Prepare message history
+    message_history = [
+        convert_to_agent_msg(m) for m in request.context.conversationHistory
+    ]
+
+    # Create messages for analytics agent
+    analytics_messages = [
+        ("system", analytics_system_prompt),
+        *message_history,
+        ("user", request.message.message),
+    ]
+
+    # Create config for the agent
+    agent_config = RunnableConfig(
+        configurable={
+            "tokens": request.context.tokens,
+            "positions": request.context.poolPositions,
+            "available_pools": compatible_pools,
+        }
+    )
+
+    # Run analytics agent
+    analytics_result = run_main_agent(agent, analytics_messages, agent_config)
+
+    return AgentMessage(
+        message=analytics_result["content"],
+        pools=extract_pools(analytics_result["messages"]),
+    )

@@ -16,31 +16,47 @@ TEST_CONTEXT = {
 
 def main():
     context = TEST_CONTEXT.copy()
+    
+    # Ask user which agent to use
+    agent_type = input("Choose an agent (regular/analytics): ").strip().lower()
+    
+    # Set endpoint based on agent type
+    if agent_type == "analytics":
+        endpoint = "http://127.0.0.1:5000/api/agent/analytics"
+    else:
+        endpoint = "http://127.0.0.1:5000/api/agent/run"
 
     while True:
         # read input from command line
         message = input("\nUser: ")
 
+        # Format the request payload correctly
+        payload = {
+            "message": {"message": message},
+            "context": context
+        }
+
         # send to agent
-        response = make_request({"userInput": message, "context": context})
+        response = make_request(payload, endpoint)
         response.raise_for_status()
 
         agent_output = response.json()
         answer = agent_output["message"]
-        actions = agent_output["recommendedActions"]
+        actions = agent_output.get("recommendedActions", [])
 
         # print results
         print(f"Two-Ligma: {answer}")
-        print(actions)
+        if actions:
+            print(actions)
 
         # append to history
-        context["conversationHistory"].append(message)
+        context["conversationHistory"].append({"message": message})
         context["conversationHistory"].append(agent_output)
 
 
-def make_request(input_data: Dict[str, Any]) -> Any:
+def make_request(input_data: Dict[str, Any], endpoint: str) -> Any:
     return requests.post(
-        "http://127.0.0.1:5000/api/agent/run",
+        endpoint,
         json=input_data,
         headers={"Content-Type": "application/json"},
     )

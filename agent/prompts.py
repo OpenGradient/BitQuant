@@ -9,6 +9,7 @@ env = jinja2.Environment(loader=jinja2.FileSystemLoader("templates/"))
 
 agent_template = env.get_template("agent.jinja2")
 suggestions_template = env.get_template("suggestions.jinja2")
+analytics_template = env.get_template("defi_data_scientist.jinja2")
 
 
 def get_agent_prompt(
@@ -41,3 +42,19 @@ def get_suggestions_prompt(
     )
 
     return agent_prompt
+
+
+def get_analytics_prompt(
+    protocol: str,
+    tokens: List[WalletTokenHolding],
+    poolDeposits: List[WalletPoolPosition],
+    availablePools: List[Pool],
+) -> str:
+    analytics_prompt = analytics_template.render(
+        protocolName=protocol,
+        tokens=tokens,
+        poolDeposits=poolDeposits,
+        availablePools=availablePools,
+    )
+
+    return analytics_prompt
