@@ -22,7 +22,7 @@ def show_pools(pool_ids: List[str], config: RunnableConfig) -> Tuple[str, List]:
     return f"Showing pools to user: {pool_ids}", pools
 
 @tool()
-def show_binance_price_history(pair: str = "BTCUSDT", interval: str = "1d", limit: int = 365, config=None) -> Dict[str, Any]:
+def show_binance_price_history(pair: str = "BTCUSDT", interval: str = "1d", limit: int = 365) -> Dict[str, Any]:
     """
     Retrieves historical price data for a cryptocurrency from Binance.
     
@@ -30,7 +30,6 @@ def show_binance_price_history(pair: str = "BTCUSDT", interval: str = "1d", limi
         pair: The trading pair (e.g., "BTCUSDT", "ETHUSDT")
         interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
         limit: Number of candlesticks to retrieve (max 1000)
-        config: Runtime configuration
         
     Returns:
         Dictionary containing price history data, current price, and price metrics
