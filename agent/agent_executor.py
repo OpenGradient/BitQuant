@@ -22,7 +22,7 @@ def create_suggestions_executor() -> CompiledGraph:
 
 
 def create_agent_executor() -> CompiledGraph:
-    openai_model = ChatOpenAI(model="gpt-4o", temperature=0)
+    openai_model = ChatOpenAI(model="o3-mini", temperature=0)
 
     # Create agent
     agent_executor = create_react_agent(
