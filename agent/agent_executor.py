@@ -37,7 +37,7 @@ def create_analytics_executor() -> CompiledGraph:
     """Creates a specialized analytics agent focused on financial data analysis"""
     openai_model = ChatOpenAI(model="gpt-4o", temperature=0)
 
-    # Create analytics agent with the same toolkit
+    # Create analytics agent
     analytics_executor = create_react_agent(
         model=openai_model,
         tools=create_agent_toolkit(),

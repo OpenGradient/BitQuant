@@ -72,6 +72,7 @@ def compare_assets(pairs: List[str], interval: str = "1d", limit: int = 30) -> D
 # Define the tools the agent can use
 def create_agent_toolkit() -> List[BaseTool]:
     tools = [
+        # DeFiLlama tools 
         show_pools,
         get_protocol_insights,
         get_global_tvl,

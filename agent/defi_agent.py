@@ -105,8 +105,6 @@ class DeFiDataScientistAgent:
         """
         return show_defi_llama_chain_tvl.invoke({"chain": chain})
     
-    # New Binance-related methods
-    
     def get_price_history(self, pair: str = "BTCUSDT", interval: str = "1d", limit: int = 365) -> Dict[str, Any]:
         """
         Retrieve historical price data for a cryptocurrency trading pair.
