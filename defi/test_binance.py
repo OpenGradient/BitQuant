@@ -1,5 +1,5 @@
 import unittest
-from agent.tools import show_binance_price_history
+from defi.binance_tools import get_binance_price_history
 
 class TestBinanceAPI(unittest.TestCase):
     """Test suite for Binance API functionality"""
@@ -10,7 +10,7 @@ class TestBinanceAPI(unittest.TestCase):
         
         # Test case 1: Standard case with Bitcoin
         try:
-            btc_history = show_binance_price_history.invoke({"pair": "BTCUSDT"})
+            btc_history = get_binance_price_history(pair="BTCUSDT")
             self.assertIsNotNone(btc_history)
             
             # Verify the structure of the response
@@ -59,7 +59,7 @@ class TestBinanceAPI(unittest.TestCase):
         
         # Test case 2: Different time interval and crypto
         try:
-            eth_history = show_binance_price_history.invoke({"pair": "ETHUSDT", "interval": "4h", "limit": 30})
+            eth_history = get_binance_price_history(pair="ETHUSDT", interval="4h", limit=30)
             self.assertIsNotNone(eth_history)
             self.assertIn('data', eth_history)
             
@@ -73,7 +73,7 @@ class TestBinanceAPI(unittest.TestCase):
         # Test case 3: Error handling - invalid pair
         try:
             # This should raise a ValueError
-            show_binance_price_history.invoke({"pair": "INVALIDPAIR"})
+            get_binance_price_history(pair="INVALIDPAIR")
             print("Warning: Invalid pair did not trigger an exception")
             self.fail("Should have raised an exception for invalid pair")
         except ValueError as e:
@@ -85,7 +85,7 @@ class TestBinanceAPI(unittest.TestCase):
         # Test case 4: Test with very small limit
         try:
             small_limit = 5
-            small_history = show_binance_price_history.invoke({"pair": "BTCUSDT", "limit": small_limit})
+            small_history = get_binance_price_history(pair="BTCUSDT", limit=small_limit)
             self.assertIn('data', small_history)
             
             data = small_history.get('data', [])
