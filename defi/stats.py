@@ -161,7 +161,6 @@ class DefiMetrics:
             self.pools = [self._convert_to_pool(p) for p in pools_response["data"]]
         except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
             print(f"Warning: Error when refreshing pools: {e}. Using existing pools.")
-            # Keep using existing pools
 
     def _convert_to_pool(self, pool_data: Dict) -> Pool:
         return Pool(
