@@ -2,7 +2,7 @@ import unittest
 
 from defi.stats import DefiMetrics
 from defi.types import Chain, Pool, PoolQuery
-from agent.tools import (
+from defi.defillama_tools import (
     show_defi_llama_protocols,
     show_defi_llama_protocol,
     show_defi_llama_global_tvl,

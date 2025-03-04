@@ -1,13 +1,13 @@
 from typing import List, Tuple, Dict, Any, Type, Optional
 
 from langgraph.graph.graph import RunnableConfig
-from langchain_core.tools import BaseTool, tool, StructuredTool
+from langchain_core.tools import BaseTool, tool
 
 from defi.types import Pool
-from defi.stats import DefiMetrics
+from agent.defi_agent import DeFiDataScientistAgent
 
-defi_metrics = DefiMetrics()
-
+# Singleton instance of the DeFi agent
+defi_agent = DeFiDataScientistAgent()
 
 @tool(response_format="content_and_artifact")
 def show_pools(pool_ids: List[str], config: RunnableConfig) -> Tuple[str, List]:
@@ -19,46 +19,42 @@ def show_pools(pool_ids: List[str], config: RunnableConfig) -> Tuple[str, List]:
 
     return f"Showing pools to user: {pool_ids}", pools
 
+@tool()
+def get_protocol_insights(protocol_slug: str) -> Dict[str, Any]:
+    """
+    Get comprehensive insights about a specific DeFi protocol
+    """
+    return defi_agent.get_protocol_insights(protocol_slug)
 
 @tool()
-def show_defi_llama_protocols() -> List[Dict[str, Any]]:
-    """Show a list of all DeFi protocols"""
-    return defi_metrics.get_protocols()
-
-
-@tool()
-def show_defi_llama_protocol(protocol_slug: str) -> Dict[str, Any]:
-    """Show details for a specific DeFi protocol by slug"""
-    return defi_metrics.get_protocol(protocol_slug)
-
+def get_global_tvl() -> Dict[str, Any]:
+    """
+    Get the current global Total Value Locked (TVL) across all DeFi protocols
+    """
+    return defi_agent.get_global_tvl()
 
 @tool()
-def show_defi_llama_global_tvl() -> Dict[str, Any]:
-    """Show current global TVL across all DeFi protocols"""
-    return defi_metrics.get_global_tvl()
-
-
-@tool()
-def show_defi_llama_chain_tvl(chain: str) -> Dict[str, Any]:
-    """Show TVL for a specific blockchain"""
-    return defi_metrics.get_chain_tvl(chain)
-
+def get_chain_tvl(chain: str) -> Dict[str, Any]:
+    """
+    Get the Total Value Locked (TVL) for a specific blockchain
+    """
+    return defi_agent.get_chain_tvl(chain)
 
 @tool()
-def show_defi_llama_top_pools(limit: int = 10) -> List[Dict[str, Any]]:
-    """Show top DeFi pools ranked by APY"""
-    return defi_metrics.get_top_pools(limit)
-
+def compare_pools(limit: int = 10) -> List[Dict[str, Any]]:
+    """
+    Compare top yield-generating pools across different protocols
+    """
+    return defi_agent.compare_pools(limit)
 
 # Define the tools the agent can use
 def create_agent_toolkit() -> List[BaseTool]:
     tools = [
         show_pools,
-        show_defi_llama_protocols,
-        show_defi_llama_protocol,
-        show_defi_llama_global_tvl,
-        show_defi_llama_chain_tvl,
-        show_defi_llama_top_pools
+        get_protocol_insights,
+        get_global_tvl,
+        get_chain_tvl,
+        compare_pools,
     ]
 
     return tools
