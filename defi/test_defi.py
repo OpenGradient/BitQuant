@@ -1,6 +1,4 @@
 import unittest
-import json
-from pprint import pprint
 
 from defi.stats import DefiMetrics
 from defi.types import Chain, Pool, PoolQuery
