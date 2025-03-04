@@ -73,19 +73,40 @@ class DefiMetrics:
     def get_protocol(self, protocol_slug: str) -> Dict[str, Any]:
         """Get details for a specific protocol by slug"""
         try:
-            # Add a more specific timeout
             protocol_data = self.llama.get_protocol(protocol_slug)
             if not protocol_data:
-                # Fallback to getting the protocol current TVL
                 try:
                     protocol_tvl = self.llama.get_protocol_current_tvl(protocol_slug)
                     return {"name": protocol_slug, "tvl": protocol_tvl.get("tvl", 0)}
                 except:
-                    pass
+                    return {"name": protocol_slug, "tvl": 0}
+            
+            if protocol_data and 'tvl' in protocol_data:
+                if isinstance(protocol_data['tvl'], list):
+                    last_entry = protocol_data['tvl'][-1] if protocol_data['tvl'] else 0
+                    if isinstance(last_entry, dict) and 'totalLiquidityUSD' in last_entry:
+                        protocol_data['tvl'] = last_entry['totalLiquidityUSD']
+                    elif isinstance(last_entry, (int, float, str)):
+                        protocol_data['tvl'] = float(last_entry)
+                    else:
+                        protocol_data['tvl'] = 0
+                elif isinstance(protocol_data['tvl'], dict):
+                    if 'tvl' in protocol_data['tvl']:
+                        protocol_data['tvl'] = protocol_data['tvl']['tvl']
+                    elif 'totalLiquidityUSD' in protocol_data['tvl']:
+                        protocol_data['tvl'] = protocol_data['tvl']['totalLiquidityUSD']
+                    else:
+                        for k, v in protocol_data['tvl'].items():
+                            if isinstance(v, (int, float, str)) and str(v).replace('.', '', 1).isdigit():
+                                protocol_data['tvl'] = float(v)
+                                break
+                        else:
+                            protocol_data['tvl'] = 0
+            
             return protocol_data
-        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
-            print(f"Warning: Error when getting protocol {protocol_slug}: {e}. Returning empty dict.")
-            return {}
+        except Exception as e:
+            print(f"Warning: Error with protocol {protocol_slug}: {e}")
+            return {"name": protocol_slug, "tvl": 0}
     
     def get_global_tvl(self) -> Dict[str, Any]:
         """Get current global TVL across all DeFi protocols"""
