@@ -4,10 +4,11 @@ OpenGradient's DeFAI Agent is an AI system that helps users manage their DeFi op
 
 ## Structure
 
-- `agent`: contains the agent logic
-- `plugins`: plugins for integrating with different DeFi protocols
+- `agent`: contains the agent logic and tool definitions
+- `defi`: DeFi protocol metrics and toolkit
 - `server`: contains Flask server that exposes API to interact with agent
 - `strategies`: contains different strategies for portfolio allocation and optimization to be used by the agent
+- `static`: contains the list of Solana tokens the agent currently supports
 - `templates`: LLM prompt templates for agent
 
 ## Setup
