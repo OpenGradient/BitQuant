@@ -7,6 +7,8 @@ from defi.types import Pool
 import requests
 import numpy as np
 import pandas as pd
+from binance.spot import Spot
+from datetime import datetime, timedelta
 
 
 @tool(response_format="content_and_artifact")
@@ -19,6 +21,104 @@ def show_pools(pool_ids: List[str], config: RunnableConfig) -> Tuple[str, List]:
 
     return f"Showing pools to user: {pool_ids}", pools
 
+
+@tool()
+def show_crypto_price_history(coin_id: str = "bitcoin", vs_currency: str = "usd", days: int = 365, config=None) -> Dict[str, Any]:
+    """
+    Retrieves historical price data for a cryptocurrency using the CoinGecko API.
+    
+    Args:
+        coin_id: The CoinGecko ID for the cryptocurrency (e.g., "bitcoin", "ethereum")
+        vs_currency: The currency to show results in (e.g., "usd", "eur")
+        days: Number of days of data to retrieve
+        config: Runtime configuration
+        
+    Returns:
+        Dictionary containing price history data, current price, and price metrics
+    """
+    url = f"https://api.coingecko.com/api/v3/coins/{coin_id}/market_chart"
+    
+    params = {
+        "vs_currency": vs_currency,
+        "days": days,
+        "interval": "daily"
+    }
+    
+    try:
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
+        
+        # Extract price data
+        price_data = data["prices"]
+        timestamps = [datetime.fromtimestamp(ts[0]/1000) for ts in price_data]
+        prices = [float(price[1]) for price in price_data]
+        
+        # Get current price (last entry)
+        current_price = prices[-1]
+        
+        # Calculate percent changes
+        if len(prices) >= 2:
+            day_change = ((prices[-1] / prices[-2]) - 1) * 100
+        else:
+            day_change = 0
+            
+        if len(prices) >= 7:
+            week_change = ((prices[-1] / prices[-7]) - 1) * 100
+        else:
+            week_change = 0
+            
+        if len(prices) >= 30:
+            month_change = ((prices[-1] / prices[-30]) - 1) * 100
+        else:
+            month_change = 0
+        
+        # Calculate statistics
+        mean_price = np.mean(prices)
+        median_price = np.median(prices)
+        min_price = np.min(prices)
+        max_price = np.max(prices)
+        std_dev = np.std(prices)
+        volatility = std_dev / mean_price
+        
+        # Format dates for display
+        formatted_dates = [ts.strftime("%Y-%m-%d") for ts in timestamps]
+        
+        # Prepare response with proper string formatting
+        response = {
+            "coin_id": coin_id,
+            "currency": vs_currency,
+            "current_price": f"${current_price:.2f}",
+            "price_changes": {
+                "24h_change": f"{day_change:.2f}%",
+                "7d_change": f"{week_change:.2f}%",
+                "30d_change": f"{month_change:.2f}%"
+            },
+            "statistics": {
+                "mean": f"${mean_price:.2f}",
+                "median": f"${median_price:.2f}",
+                "min": f"${min_price:.2f}",
+                "max": f"${max_price:.2f}",
+                "std_dev": f"${std_dev:.2f}",
+                "volatility": f"{volatility:.2f}"  # Removed $ since volatility is a ratio
+            },
+            "data_points": len(prices),
+            "sample_data": {
+                "first_3": {formatted_dates[i]: f"${prices[i]:.2f}" for i in range(min(3, len(prices)))},
+                "last_3": {formatted_dates[len(prices)-i-1]: f"${prices[len(prices)-i-1]:.2f}" for i in range(min(3, len(prices)))}
+            }
+        }
+        
+        return response
+        
+    except Exception as e:
+        import traceback
+        return {
+            "error": f"Failed to get price history: {str(e)}",
+            "traceback": traceback.format_exc(),
+            "coin_id": coin_id,
+            "currency": vs_currency
+        }
 
 @tool()
 def show_binance_price_history(pair: str, granularity: str = '1d', rows: int = 365) -> Dict[str, Any]:
@@ -135,6 +235,7 @@ def single_close_price_series(
 def create_agent_toolkit() -> List[BaseTool]:
     tools = [
         show_pools,
+        show_crypto_price_history,
         show_binance_price_history
     ]
 
