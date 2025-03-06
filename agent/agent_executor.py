@@ -13,7 +13,7 @@ MAX_TOKENS = 1000
 
 
 def create_suggestions_executor() -> CompiledGraph:
-    openai_model = ChatOpenAI(model="gpt-4o", temperature=0)
+    openai_model = ChatOpenAI(model="o3-mini")
 
     # Create agent
     agent_executor = create_react_agent(model=openai_model, tools=[])
@@ -22,9 +22,8 @@ def create_suggestions_executor() -> CompiledGraph:
 
 
 def create_agent_executor() -> CompiledGraph:
-    openai_model = ChatOpenAI(model="gpt-4o", temperature=0)
+    openai_model = ChatOpenAI(model="o3-mini")
 
-    # Create regular agent with standard toolkit
     agent_executor = create_react_agent(
         model=openai_model,
         tools=create_agent_toolkit(),
@@ -32,12 +31,9 @@ def create_agent_executor() -> CompiledGraph:
 
     return agent_executor
 
-
 def create_analytics_executor() -> CompiledGraph:
-    """Creates a specialized analytics agent"""
-    openai_model = ChatOpenAI(model="gpt-4o", temperature=0)
+    openai_model = ChatOpenAI(model="o3-mini")
 
-    # Create analytics agent with the specialized analytics toolkit
     analytics_executor = create_react_agent(
         model=openai_model,
         tools=create_analytics_agent_toolkit(),  

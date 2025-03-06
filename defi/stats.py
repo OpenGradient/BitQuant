@@ -74,11 +74,8 @@ class DefiMetrics:
         try:
             protocol_data = self.llama.get_protocol(protocol_slug)
             if not protocol_data:
-                try:
-                    protocol_tvl = self.llama.get_protocol_current_tvl(protocol_slug)
-                    return {"name": protocol_slug, "tvl": protocol_tvl.get("tvl", 0)}
-                except:
-                    return {"name": protocol_slug, "tvl": 0}
+                protocol_tvl = self.llama.get_protocol_current_tvl(protocol_slug)
+                return {"name": protocol_slug, "tvl": protocol_tvl.get("tvl", 0)}
             
             if protocol_data and 'tvl' in protocol_data:
                 if isinstance(protocol_data['tvl'], list):
@@ -105,9 +102,9 @@ class DefiMetrics:
             return protocol_data
         except Exception as e:
             print(f"Warning: Error with protocol {protocol_slug}: {e}")
-            return {"name": protocol_slug, "tvl": 0}
+            raise
     
-    def get_global_tvl(self) -> Dict[str, Any]:
+    def get_global_tvl(self) -> float:
         """Get current global TVL across all DeFi protocols"""
         try:
             # Use get_chains_current_tvl which returns the current TVL for all chains
@@ -116,13 +113,12 @@ class DefiMetrics:
             # Calculate the total TVL across all chains
             total_tvl = sum(float(chain_data.get("tvl", 0)) for chain_data in chains_tvl)
             
-            # Format like the original method expected
-            return {"totalLiquidityUSD": total_tvl}
+            return total_tvl
         except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
-            print(f"Warning: Error when getting global TVL: {e}. Returning empty dict.")
-            return {"totalLiquidityUSD": 0}
+            print(f"Warning: Error when getting global TVL: {e}. Returning 0.")
+            return 0
     
-    def get_chain_tvl(self, chain: str) -> Dict[str, Any]:
+    def get_chain_tvl(self, chain: str) -> float:
         """Get TVL for a specific blockchain"""
         try:
             # Use get_chains_current_tvl which returns the current TVL for all chains
@@ -131,13 +127,13 @@ class DefiMetrics:
             # Find the specific chain we're looking for
             for chain_data in chains_tvl:
                 if chain_data.get("name", "").lower() == chain.lower():
-                    return {"totalLiquidityUSD": chain_data.get("tvl", 0)}
+                    return float(chain_data.get("tvl", 0))
             
-            # If chain not found, return empty result
-            return {"totalLiquidityUSD": 0}
+            # If chain not found, return 0
+            return 0
         except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
-            print(f"Warning: Error when getting TVL for chain {chain}: {e}. Returning empty dict.")
-            return {"totalLiquidityUSD": 0}
+            print(f"Warning: Error when getting TVL for chain {chain}: {e}. Returning 0.")
+            return 0
     
     def get_top_pools(self, limit: int = 10) -> List[Dict[str, Any]]:
         """Get top DeFi pools ranked by APY"""
@@ -150,10 +146,8 @@ class DefiMetrics:
                     reverse=True
                 )
                 return sorted_pools[:limit]
-            return []
         except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
             print(f"Warning: Error when getting top pools: {e}. Returning empty list.")
-            return []
 
     def refresh_metrics(self):
         try:
