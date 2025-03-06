@@ -1,7 +1,9 @@
 from typing import Dict, Any, List
 import traceback
 from binance.spot import Spot
+from langchain_core.tools import tool
 
+@tool
 def get_binance_price_history(pair: str = "BTCUSDT", interval: str = "1d", limit: int = 365) -> Dict[str, Any]:
     """
     Retrieves historical price data for a cryptocurrency directly from Binance API.
@@ -51,6 +53,7 @@ def get_binance_price_history(pair: str = "BTCUSDT", interval: str = "1d", limit
             "traceback": traceback.format_exc()
         }
 
+@tool
 def analyze_price_trend(pair: str, interval: str = "1d", limit: int = 30) -> Dict[str, Any]:
     """
     Analyze price trends for a cryptocurrency pair.
@@ -158,7 +161,8 @@ def analyze_price_trend(pair: str, interval: str = "1d", limit: int = 30) -> Dic
             "error": f"Error analyzing price trend for {pair}: {str(e)}",
             "traceback": traceback.format_exc()
         }
-
+        
+@tool
 def compare_assets(pairs: List[str], interval: str = "1d", limit: int = 30) -> Dict[str, Any]:
     """
     Compare performance of multiple cryptocurrency assets.
