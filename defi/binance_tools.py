@@ -3,14 +3,14 @@ import traceback
 from binance.spot import Spot
 from langchain_core.tools import tool
 
-@tool
+@tool()
 def get_binance_price_history(pair: str = "BTCUSDT", interval: str = "1d", limit: int = 365) -> Dict[str, Any]:
     """
     Retrieves historical price data for a cryptocurrency directly from Binance API.
     
     Args:
         pair: The trading pair (e.g., "BTCUSDT", "ETHUSDT")
-        interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
+           interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
         limit: Number of candlesticks to retrieve (max 1000)
         
     Returns:
@@ -53,7 +53,7 @@ def get_binance_price_history(pair: str = "BTCUSDT", interval: str = "1d", limit
             "traceback": traceback.format_exc()
         }
 
-@tool
+@tool()
 def analyze_price_trend(pair: str, interval: str = "1d", limit: int = 30) -> Dict[str, Any]:
     """
     Analyze price trends for a cryptocurrency pair.
@@ -162,7 +162,7 @@ def analyze_price_trend(pair: str, interval: str = "1d", limit: int = 30) -> Dic
             "traceback": traceback.format_exc()
         }
         
-@tool
+@tool()
 def compare_assets(pairs: List[str], interval: str = "1d", limit: int = 30) -> Dict[str, Any]:
     """
     Compare performance of multiple cryptocurrency assets.
