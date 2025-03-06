@@ -51,7 +51,7 @@ def get_binance_price_history(pair: str = "BTCUSDT", interval: str = "1d", limit
             "traceback": traceback.format_exc()
         }
 
-def analyze_price_trend(pair: str = "BTCUSDT", interval: str = "1d", limit: int = 30) -> Dict[str, Any]:
+def analyze_price_trend(pair: str, interval: str = "1d", limit: int = 30) -> Dict[str, Any]:
     """
     Analyze price trends for a cryptocurrency pair.
     
@@ -64,17 +64,13 @@ def analyze_price_trend(pair: str = "BTCUSDT", interval: str = "1d", limit: int 
         Dictionary containing trend analysis including moving averages,
         volatility metrics, and basic technical indicators.
     """
-    # Get the price history first
-    price_data = get_binance_price_history(pair, interval, limit)
-    
-    # If there was an error, return the error
-    if "error" in price_data:
-        return price_data
-    
-    # Extract relevant data for analysis
-    raw_data = price_data["data"]
-    
     try:
+        # Get the price history first
+        price_data = get_binance_price_history(pair, interval, limit)
+        
+        # Extract relevant data for analysis
+        raw_data = price_data["data"]
+        
         close_prices = [float(candle[4]) for candle in raw_data]
         
         # Calculate technical indicators and moving averages
@@ -159,7 +155,7 @@ def analyze_price_trend(pair: str = "BTCUSDT", interval: str = "1d", limit: int 
         }
     except Exception as e:
         return {
-            "error": f"Error analyzing price data for {pair}: {str(e)}",
+            "error": f"Error analyzing price trend for {pair}: {str(e)}",
             "traceback": traceback.format_exc()
         }
 
