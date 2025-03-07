@@ -5,9 +5,6 @@ import logging
 
 from api.api_types import Pool, PoolQuery
 
-# Import all supported protocols here
-from defi.pools.solana.orca_protocol import OrcaProtocol
-
 
 class Protocol(ABC):
 

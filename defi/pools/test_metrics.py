@@ -1,10 +1,10 @@
 import unittest
 
-from defi.pools.defillama_protocols import DefiLlamaProtocols
+from defi.pools.defillama_source import DefiLlamaProtocols
 from api.api_types import Chain, Pool, PoolQuery
 
 
-class TestDefiLlamaProtocols(unittest.TestCase):
+class TestDefiLlamaSource(unittest.TestCase):
 
     def test_defillama(self):
         metrics = DefiLlamaProtocols()
