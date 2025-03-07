@@ -85,7 +85,7 @@ class ProtocolRegistry:
         Get pools that match the query criteria
         """
         # Collect all pools from relevant protocols
-        all_pools = []
+        all_pools: List[Pool] = []
         for protocol_name, pools in self.pools_cache.items():
             if query.protocols and protocol_name not in query.protocols:
                 continue
@@ -99,20 +99,7 @@ class ProtocolRegistry:
 
             # Token filter (match any token by address or symbol)
             if query.tokens:
-                pool_token_addresses = [t.address.lower() for t in pool.tokens]
-                pool_token_symbols = [t.symbol.lower() for t in pool.tokens]
-
-                token_match = False
-                for token in query.tokens:
-                    token_lower = token.lower()
-                    if (
-                        token_lower in pool_token_addresses
-                        or token_lower in pool_token_symbols
-                    ):
-                        token_match = True
-                        break
-
-                if not token_match:
+                if not all([t.address in query.tokens for t in pool.tokens]):
                     continue
 
             # Stablecoin filter
