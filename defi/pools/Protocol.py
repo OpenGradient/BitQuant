@@ -30,9 +30,6 @@ class ProtocolRegistry:
     refresh_interval = 60 * 60  # 1 hour in seconds
 
     def __init__(self):
-        if self._initialized:
-            return
-
         self.logger = logging.getLogger("ProtocolRegistry")
         self._refresh_thread = None
         self._stop_event = threading.Event()

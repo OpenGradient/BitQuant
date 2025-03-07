@@ -2,10 +2,12 @@ import logging
 from dotenv import load_dotenv
 from server import create_flask_app
 
+from defi.pools.solana.orca_protocol import OrcaProtocol
+
 # Load environment variables
 load_dotenv()
 
-protocols = ["orca"]
+protocols = [OrcaProtocol.PROTOCOL_NAME]
 
 # Create flask app
 app = create_flask_app(protocols)
