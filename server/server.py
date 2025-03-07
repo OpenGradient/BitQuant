@@ -26,7 +26,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
 
 
-def create_flask_app() -> Flask:
+def create_flask_app(protocols: List[str]) -> Flask:
     """Create and configure the Flask application with routes."""
     app = Flask(__name__)
     CORS(app)
@@ -69,7 +69,9 @@ def create_flask_app() -> Flask:
         request_data = request.get_json()
         agent_request = AgentChatRequest(**request_data)
 
-        response = handle_agent_chat_request(protocol_registry, agent_request, agent)
+        response = handle_agent_chat_request(
+            protocol_registry, protocols, agent_request, agent
+        )
 
         return jsonify(response.model_dump())
 
@@ -79,7 +81,7 @@ def create_flask_app() -> Flask:
         agent_request = AgentChatRequest(**request_data)
 
         suggestions = handle_suggestions_request(
-            protocol_registry, agent_request, suggestions_agent
+            protocol_registry, protocols, agent_request, suggestions_agent
         )
 
         return jsonify({"suggestions": suggestions})
@@ -89,6 +91,7 @@ def create_flask_app() -> Flask:
 
 def handle_agent_chat_request(
     protocol_registry: ProtocolRegistry,
+    protocols: List[str],
     request: AgentChatRequest,
     agent: CompiledGraph,
 ) -> AgentMessage:
@@ -96,7 +99,7 @@ def handle_agent_chat_request(
     compatible_pools = protocol_registry.get_pools(
         PoolQuery(
             chain=Chain.SOLANA,
-            protocols=["save", "kamino-lend"],
+            protocols=protocols,
             tokens=[token.address for token in request.context.tokens],
         )
     )
@@ -141,6 +144,7 @@ def handle_agent_chat_request(
 
 def handle_suggestions_request(
     protocol_registry: ProtocolRegistry,
+    protocols: List[str],
     request: AgentChatRequest,
     suggestions_agent: CompiledGraph,
 ) -> List[str]:
@@ -148,14 +152,14 @@ def handle_suggestions_request(
     compatible_pools = protocol_registry.get_pools(
         PoolQuery(
             chain=Chain.SOLANA,
-            protocols=["save", "kamino-lend"],
+            protocols=protocols,
             tokens=[token.address for token in request.context.tokens],
         )
     )
 
     # Build suggestions agent system prompt
     suggestions_system_prompt = get_suggestions_prompt(
-        protocol="Save",
+        protocol=",".join(protocols),
         tokens=request.context.tokens,
         poolDeposits=request.context.poolPositions,
         availablePools=compatible_pools,
