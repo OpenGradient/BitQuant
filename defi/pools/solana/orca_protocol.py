@@ -44,16 +44,7 @@ class OrcaProtocol(Protocol):
         return self._convert_to_pools(data["data"])
 
     def _convert_to_pools(self, orca_pools: List[Dict[str, Any]]) -> List[Pool]:
-        """
-        Convert Orca API pool format to internal Pool model
-
-        Args:
-            orca_pools: List of pools from Orca API
-
-        Returns:
-            List of Pool objects in the internal format
-        """
-        result = []
+        result: List[Pool] = []
 
         for orca_pool in orca_pools:
             # Convert tokens
@@ -89,9 +80,7 @@ class OrcaProtocol(Protocol):
 
             # Calculate APR based on fees and rewards
             apr_last_day = self._calculate_apr(stats.get("24h", {}), tvl_usdc)
-
             apr_last_week = self._calculate_apr(stats.get("7d", {}), tvl_usdc, days=7)
-
             apr_last_month = self._calculate_apr(
                 stats.get("30d", {}), tvl_usdc, days=30
             )
