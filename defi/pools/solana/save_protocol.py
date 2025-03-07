@@ -57,6 +57,10 @@ class SaveProtocol(Protocol):
 
             pool_id = reserve.get("pubkey", "")
 
+            is_stale = reserve.get("lastUpdate").get("stale") == 1
+            if is_stale:
+                continue
+
             # Get liquidity info
             liquidity = reserve.get("liquidity", {})
             token_address = liquidity.get("mintPubkey", "")
@@ -70,7 +74,7 @@ class SaveProtocol(Protocol):
             try:
                 supply_apr = float(supply_interest.replace(",", ""))
             except (ValueError, AttributeError):
-                supply_apr = 0.0
+                continue
 
             # Calculate TVL
             available_amount = int(liquidity.get("availableAmount", "0"))
