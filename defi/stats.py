@@ -3,7 +3,7 @@ import json
 
 from defillama import DefiLlama
 
-from defi.types import Pool, Chain, PoolQuery, Token
+from api.types import Pool, Chain, PoolQuery, Token
 
 
 class DefiMetrics:

@@ -8,7 +8,7 @@ import json
 from functools import wraps
 
 from defi.stats import DefiMetrics
-from defi.types import (
+from api.types import (
     AgentChatRequest,
     PoolQuery,
     Chain,

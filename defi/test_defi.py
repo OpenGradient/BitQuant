@@ -1,7 +1,7 @@
 import unittest
 
 from defi.stats import DefiMetrics
-from defi.types import Chain, Pool, PoolQuery
+from api.types import Chain, Pool, PoolQuery
 
 
 class TestPlugins(unittest.TestCase):
