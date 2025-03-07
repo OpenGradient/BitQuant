@@ -7,5 +7,5 @@ from api.api_types import Pool
 class Protocol(ABC):
 
     @abstractmethod
-    def get_pools() -> List[Pool]:
+    def get_pools(self) -> List[Pool]:
         pass
