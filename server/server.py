@@ -7,7 +7,7 @@ from langgraph.graph.graph import CompiledGraph, RunnableConfig
 import json
 from functools import wraps
 
-from defi.stats import DefiMetrics
+from defi.pools.defillama_metrics import DefiLlamaMetrics
 from api.types import (
     AgentChatRequest,
     PoolQuery,
@@ -34,7 +34,7 @@ def create_flask_app() -> Flask:
     suggestions_agent = create_suggestions_executor()
 
     # Initialize metrics service
-    defi_metrics = DefiMetrics()
+    defi_metrics = DefiLlamaMetrics()
     defi_metrics.refresh_metrics()
 
     # Set up error handlers for production environment
@@ -85,7 +85,7 @@ def create_flask_app() -> Flask:
 
 
 def handle_agent_chat_request(
-    defi_metrics: DefiMetrics,
+    defi_metrics: DefiLlamaMetrics,
     request: AgentChatRequest,
     agent: CompiledGraph,
 ) -> AgentMessage:
@@ -137,7 +137,7 @@ def handle_agent_chat_request(
 
 
 def handle_suggestions_request(
-    defi_metrics: DefiMetrics,
+    defi_metrics: DefiLlamaMetrics,
     request: AgentChatRequest,
     suggestions_agent: CompiledGraph,
 ) -> List[str]:

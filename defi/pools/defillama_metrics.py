@@ -6,7 +6,7 @@ from defillama import DefiLlama
 from api.types import Pool, Chain, PoolQuery, Token
 
 
-class DefiMetrics:
+class DefiLlamaMetrics:
 
     llama: DefiLlama
     pools: List[Pool]
@@ -64,7 +64,7 @@ class DefiMetrics:
     def _convert_to_pool(self, pool_data: Dict) -> Pool:
         return Pool(
             id=pool_data["pool"],
-            chain=DefiMetrics._get_chain(pool_data["chain"]),
+            chain=DefiLlamaMetrics._get_chain(pool_data["chain"]),
             tokens=[
                 Token(
                     address=token_address,
