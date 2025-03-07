@@ -9,6 +9,7 @@ from functools import wraps
 
 from defi.pools.protocol import ProtocolRegistry
 from defi.pools.solana.orca_protocol import OrcaProtocol
+from defi.pools.solana.save_protocol import SaveProtocol
 
 from api.api_types import (
     AgentChatRequest,
@@ -38,6 +39,7 @@ def create_flask_app(protocols: List[str]) -> Flask:
     # Initialize protocol registry
     protocol_registry = ProtocolRegistry()
     protocol_registry.register_protocol(OrcaProtocol())
+    protocol_registry.register_protocol(SaveProtocol())
     protocol_registry.initialize()
 
     # Set up error handlers for production environment

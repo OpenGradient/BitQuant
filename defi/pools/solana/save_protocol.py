@@ -8,13 +8,13 @@ from api.api_types import Pool, Token, Chain
 from defi.pools.protocol import Protocol
 
 
-class DriftProtocol(Protocol):
+class SaveProtocol(Protocol):
 
-    PROTOCOL_NAME = "orca"
+    PROTOCOL_NAME = "save"
 
     def __init__(self, chain_id: str = "solana"):
         """
-        Initialize the DriftProtocol client
+        Initialize the SaveProtocol client
 
         Args:
             chain_id: The chain ID to use (default: "solana")
