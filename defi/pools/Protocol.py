@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List, Dict, Optional
 import asyncio
 import logging
+import time
 
 from api.api_types import Pool, PoolQuery
 
@@ -10,12 +11,13 @@ class Protocol(ABC):
 
     @abstractmethod
     def get_pools(self) -> List[Pool]:
+        """Return all pools supported by the protocol."""
         pass
 
     @property
     @abstractmethod
     def name(self) -> str:
-        """Get the protocol name"""
+        """Get the protocol name."""
         pass
 
 
@@ -28,7 +30,8 @@ class ProtocolRegistry:
         self.protocols: Dict[str, Protocol] = {}
         self.pools_cache: Dict[str, List[Pool]] = {}
         self.last_refresh: Dict[str, float] = {}
-        self.refresh_interval = 3600  # 1 hour in seconds
+        self.refresh_interval = 60 * 60  # 1 hour in seconds
+
         self.logger = logging.getLogger("ProtocolRegistry")
         self._initialized = True
 
@@ -36,7 +39,6 @@ class ProtocolRegistry:
         """
         Register a new protocol.
         """
-
         protocol_name = protocol.name
         if protocol_name in self.protocols:
             self.logger.warning(
@@ -46,8 +48,10 @@ class ProtocolRegistry:
         self.protocols[protocol_name] = protocol
         self.logger.info(f"Registered protocol: {protocol_name}")
 
-    async def refresh_pools(self, protocol_name: Optional[str] = None) -> None:
-        """Refresh pools for a specific protocol or all protocols"""
+    async def refresh_pools(self, protocol_name: Optional[str] = None):
+        """
+        Refresh pools for a specific protocol or all protocols.
+        """
         if protocol_name:
             if protocol_name not in self.protocols:
                 self.logger.error(f"Protocol {protocol_name} not found")
@@ -66,9 +70,7 @@ class ProtocolRegistry:
             except Exception as e:
                 self.logger.error(f"Error refreshing pools for {name}: {str(e)}")
 
-    # Removed _update_indices method as we're using direct filtering
-
-    async def ensure_fresh_data(self, protocol_name: Optional[str] = None) -> None:
+    async def ensure_fresh_data(self, protocol_name: Optional[str] = None):
         """Check if data needs refreshing and refresh if necessary"""
         current_time = time.time()
 
@@ -95,28 +97,20 @@ class ProtocolRegistry:
             await asyncio.gather(*refresh_tasks)
 
     async def get_pools(self, query: PoolQuery) -> List[Pool]:
-        """Get pools that match the query criteria"""
-        # Ensure data is fresh
-        await self.ensure_fresh_data()
-
-        # Collect all pools
+        """
+        Get pools that match the query criteria
+        """
+        # Collect all pools from relevant protocols
         all_pools = []
         for protocol_name, pools in self.pools_cache.items():
-            # Skip if protocols filter is set and this protocol isn't in it
             if query.protocols and protocol_name not in query.protocols:
                 continue
             all_pools.extend(pools)
 
-        # Simple linear filtering - straightforward and efficient enough for reasonable pool counts
         result = []
-
         for pool in all_pools:
-            # Check all filter criteria
-            matches = True
-
             # Chain filter
             if query.chain is not None and pool.chain != query.chain:
-                matches = False
                 continue
 
             # Token filter (match any token by address or symbol)
@@ -135,7 +129,6 @@ class ProtocolRegistry:
                         break
 
                 if not token_match:
-                    matches = False
                     continue
 
             # Stablecoin filter
@@ -143,7 +136,6 @@ class ProtocolRegistry:
                 query.isStableCoin is not None
                 and pool.isStableCoin != query.isStableCoin
             ):
-                matches = False
                 continue
 
             # Impermanent loss risk filter
@@ -151,31 +143,16 @@ class ProtocolRegistry:
                 query.impermanentLossRisk is not None
                 and pool.impermanentLossRisk != query.impermanentLossRisk
             ):
-                matches = False
                 continue
 
             # If we got here, the pool matches all criteria
-            if matches:
-                result.append(pool)
+            result.append(pool)
 
         return result
 
     def get_all_protocols(self) -> List[str]:
         """Get list of all registered protocol names"""
         return list(self.protocols.keys())
-
-    async def initialize(self) -> None:
-        """Initialize the registry with default protocols and perform initial refresh"""
-        # Register default protocols
-        self.register_protocol(OrcaProtocol())
-
-        # TODO: Register other protocols here
-
-        # Perform initial refresh
-        await self.refresh_pools()
-
-        # Start background refresh task
-        asyncio.create_task(self._background_refresh())
 
     async def _background_refresh(self) -> None:
         """Background task to refresh pool data periodically"""
