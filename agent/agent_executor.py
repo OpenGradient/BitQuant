@@ -22,7 +22,7 @@ def create_suggestions_executor() -> CompiledGraph:
 
 
 def create_agent_executor() -> CompiledGraph:
-    openai_model = ChatOpenAI(model="o3-mini")
+    openai_model = ChatOpenAI(model="gpt-4o-mini")
 
     # Create agent
     agent_executor = create_react_agent(

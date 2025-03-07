@@ -12,13 +12,11 @@ suggestions_template = env.get_template("suggestions.jinja2")
 
 
 def get_agent_prompt(
-    protocol: str,
     tokens: List[WalletTokenHolding],
     poolDeposits: List[WalletPoolPosition],
     availablePools: List[Pool],
 ) -> str:
     agent_prompt = agent_template.render(
-        protocolName=protocol,
         tokens=tokens,
         poolDeposits=poolDeposits,
         availablePools=availablePools,
@@ -28,13 +26,11 @@ def get_agent_prompt(
 
 
 def get_suggestions_prompt(
-    protocol: str,
     tokens: List[WalletTokenHolding],
     poolDeposits: List[WalletPoolPosition],
     availablePools: List[Pool],
 ) -> str:
     agent_prompt = suggestions_template.render(
-        protocolName=protocol,
         tokens=tokens,
         poolDeposits=poolDeposits,
         availablePools=availablePools,

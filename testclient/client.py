@@ -19,19 +19,22 @@ def main():
 
     while True:
         # read input from command line
-        message = input("\nUser: ")
+        message = {"type": "user", "message": input("\nUser: ")}
 
         # send to agent
-        response = make_request({"userInput": message, "context": context})
+        response = make_request({
+            "message": message,
+            "context": context
+        })
         response.raise_for_status()
 
         agent_output = response.json()
         answer = agent_output["message"]
-        actions = agent_output["recommendedActions"]
+        pools = agent_output["pools"]
 
         # print results
         print(f"Two-Ligma: {answer}")
-        print(actions)
+        print(pools)
 
         # append to history
         context["conversationHistory"].append(message)

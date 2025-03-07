@@ -108,7 +108,6 @@ def handle_agent_chat_request(
 
     # Build main agent system prompt
     main_system_prompt = get_agent_prompt(
-        protocol="Save",
         tokens=request.context.tokens,
         poolDeposits=request.context.poolPositions,
         availablePools=compatible_pools,
@@ -161,7 +160,6 @@ def handle_suggestions_request(
 
     # Build suggestions agent system prompt
     suggestions_system_prompt = get_suggestions_prompt(
-        protocol=",".join(protocols),
         tokens=request.context.tokens,
         poolDeposits=request.context.poolPositions,
         availablePools=compatible_pools,
