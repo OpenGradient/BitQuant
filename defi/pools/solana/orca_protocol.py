@@ -14,6 +14,7 @@ class OrcaProtocol(Protocol):
     API docs: https://api.orca.so/docs
     """
 
+    PROTOCOL_NAME = "orca"
     BASE_URL = "https://api.orca.so/v2"
 
     chain_id: str
@@ -26,6 +27,10 @@ class OrcaProtocol(Protocol):
             chain_id: The chain ID to use (default: "solana")
         """
         self.chain_id = chain_id
+
+    @property
+    def name(self) -> str:
+        return self.PROTOCOL_NAME
 
     def get_pools(self) -> List[Pool]:
         """

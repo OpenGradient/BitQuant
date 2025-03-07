@@ -1,4 +1,4 @@
-from typing import Set, List, Any, Tuple, Dict, Optional
+from typing import Set, List, Any, Tuple, Dict
 import os
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
@@ -7,7 +7,9 @@ from langgraph.graph.graph import CompiledGraph, RunnableConfig
 import json
 from functools import wraps
 
-from defi.pools.defillama_metrics import DefiLlamaMetrics
+from defi.pools.protocol import ProtocolRegistry
+from defi.pools.solana.orca_protocol import OrcaProtocol
+
 from api.api_types import (
     AgentChatRequest,
     PoolQuery,
@@ -34,8 +36,8 @@ def create_flask_app() -> Flask:
     suggestions_agent = create_suggestions_executor()
 
     # Initialize metrics service
-    defi_metrics = DefiLlamaMetrics()
-    defi_metrics.refresh_metrics()
+    protocol_registry = ProtocolRegistry()
+    protocol_registry.register_protocol(OrcaProtocol())
 
     # Set up error handlers for production environment
     if not app.config.get("TESTING"):
@@ -66,7 +68,7 @@ def create_flask_app() -> Flask:
         request_data = request.get_json()
         agent_request = AgentChatRequest(**request_data)
 
-        response = handle_agent_chat_request(defi_metrics, agent_request, agent)
+        response = handle_agent_chat_request(protocol_registry, agent_request, agent)
 
         return jsonify(response.model_dump())
 
@@ -76,7 +78,7 @@ def create_flask_app() -> Flask:
         agent_request = AgentChatRequest(**request_data)
 
         suggestions = handle_suggestions_request(
-            defi_metrics, agent_request, suggestions_agent
+            protocol_registry, agent_request, suggestions_agent
         )
 
         return jsonify({"suggestions": suggestions})
@@ -85,12 +87,12 @@ def create_flask_app() -> Flask:
 
 
 def handle_agent_chat_request(
-    defi_metrics: DefiLlamaMetrics,
+    protocol_registry: ProtocolRegistry,
     request: AgentChatRequest,
     agent: CompiledGraph,
 ) -> AgentMessage:
     # Get compatible pools
-    compatible_pools = defi_metrics.get_pools(
+    compatible_pools = protocol_registry.get_pools(
         PoolQuery(
             chain=Chain.SOLANA,
             protocols=["save", "kamino-lend"],
@@ -137,12 +139,12 @@ def handle_agent_chat_request(
 
 
 def handle_suggestions_request(
-    defi_metrics: DefiLlamaMetrics,
+    protocol_registry: ProtocolRegistry,
     request: AgentChatRequest,
     suggestions_agent: CompiledGraph,
 ) -> List[str]:
     # Get compatible pools
-    compatible_pools = defi_metrics.get_pools(
+    compatible_pools = protocol_registry.get_pools(
         PoolQuery(
             chain=Chain.SOLANA,
             protocols=["save", "kamino-lend"],
