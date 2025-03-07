@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import List
 
-from api.types import Pool
+from api.api_types import Pool
+
 
 class Protocol(ABC):
 

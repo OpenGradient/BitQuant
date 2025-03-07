@@ -8,7 +8,7 @@ import json
 from functools import wraps
 
 from defi.pools.defillama_metrics import DefiLlamaMetrics
-from api.types import (
+from api.api_types import (
     AgentChatRequest,
     PoolQuery,
     Chain,

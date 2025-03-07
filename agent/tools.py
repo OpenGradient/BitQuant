@@ -3,7 +3,7 @@ from typing import List, Tuple, Dict, Any, Type
 from langgraph.graph.graph import RunnableConfig
 from langchain_core.tools import BaseTool, tool, StructuredTool
 
-from api.types import Pool
+from api.api_types import Pool
 
 
 @tool(response_format="content_and_artifact")
