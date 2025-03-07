@@ -27,7 +27,7 @@ class ProtocolRegistry:
     protocols: Dict[str, Protocol] = {}
     pools_cache: Dict[str, List[Pool]] = {}
     last_refresh: Dict[str, float] = {}
-    refresh_interval = 60 * 60  # 1 hour in seconds
+    refresh_interval = 10 * 60  # Refresh every 10 mins
 
     def __init__(self):
         self.logger = logging.getLogger("ProtocolRegistry")
