@@ -96,13 +96,13 @@ class OrcaProtocol(Protocol):
                 chain=Chain.SOLANA,
                 protocol="Orca",
                 tokens=tokens,
-                type="AMM" if orca_pool.get("poolType") == "whirlpool" else "Unknown",
+                type="AMM",
                 TVL=tvl_usdc,
                 APRLastDay=apr_last_day,
                 APRLastWeek=apr_last_week,
                 APRLastMonth=apr_last_month,
                 isStableCoin=is_stablecoin,
-                impermanentLossRisk=not is_stablecoin,  # Higher risk for non-stablecoin pools
+                impermanentLossRisk=not is_stablecoin, 
                 risk="Low" if is_stablecoin else "Medium",
             )
 
