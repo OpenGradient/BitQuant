@@ -16,6 +16,8 @@ class OrcaProtocol(Protocol):
 
     BASE_URL = "https://api.orca.so/v2"
 
+    chain_id: str
+
     def __init__(self, chain_id: str = "solana"):
         """
         Initialize the OrcaProtocol client
@@ -25,40 +27,12 @@ class OrcaProtocol(Protocol):
         """
         self.chain_id = chain_id
 
-    def get_pools(
-        self,
-        addresses: Optional[List[str]] = None,
-        token: Optional[str] = None,
-        tokens_both_of: Optional[List[str]] = None,
-        limit: int = 100,
-        sort_by: str = "volume",
-        sort_direction: str = "desc",
-    ) -> List[Pool]:
+    def get_pools(self) -> List[Pool]:
         """
         Fetch pools from Orca API and convert to the internal Pool model
-
-        Args:
-            addresses: Optional list of pool addresses to filter by
-            token: Optional token mint address to find pools containing this token
-            tokens_both_of: Optional list of at least two token mint addresses
-            limit: Maximum number of items to return (default: 100, max: 1000)
-            sort_by: Field by which to sort (volume, rewards, tvl, fees_earned)
-            sort_direction: Direction to sort (asc, desc)
-
-        Returns:
-            List of Pool objects
         """
-        # Build query parameters
-        params = {"limit": limit, "sortBy": sort_by, "sortDirection": sort_direction}
-
-        if addresses:
-            params["addresses"] = ",".join(addresses)
-
-        if token:
-            params["token"] = token
-
-        if tokens_both_of:
-            params["tokensBothOf"] = ",".join(tokens_both_of)
+        # Empty query, return all
+        params = {}
 
         # Make API request
         url = f"{self.BASE_URL}/{self.chain_id}/pools"
