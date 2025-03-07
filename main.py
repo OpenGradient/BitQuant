@@ -7,6 +7,7 @@ from defi.pools.solana.orca_protocol import OrcaProtocol
 # Load environment variables
 load_dotenv()
 
+# Define protocols enabled
 protocols = [OrcaProtocol.PROTOCOL_NAME]
 
 # Create flask app
