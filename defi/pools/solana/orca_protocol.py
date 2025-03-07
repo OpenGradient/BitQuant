@@ -36,12 +36,9 @@ class OrcaProtocol(Protocol):
         """
         Fetch pools from Orca API and convert to the internal Pool model
         """
-        # Empty query, return all
-        params = {}
-
         # Make API request
         url = f"{self.BASE_URL}/{self.chain_id}/pools"
-        response = requests.get(url, params=params)
+        response = requests.get(url)
         response.raise_for_status()  # Raise exception for non-200 responses
 
         # Parse response

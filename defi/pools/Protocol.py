@@ -3,6 +3,7 @@ from typing import List, Dict, Optional
 import asyncio
 import logging
 import time
+import threading
 
 from api.api_types import Pool, PoolQuery
 
@@ -23,17 +24,18 @@ class Protocol(ABC):
 
 class ProtocolRegistry:
 
+    protocols: Dict[str, Protocol] = {}
+    pools_cache: Dict[str, List[Pool]] = {}
+    last_refresh: Dict[str, float] = {}
+    refresh_interval = 60 * 60  # 1 hour in seconds
+
     def __init__(self):
         if self._initialized:
             return
 
-        self.protocols: Dict[str, Protocol] = {}
-        self.pools_cache: Dict[str, List[Pool]] = {}
-        self.last_refresh: Dict[str, float] = {}
-        self.refresh_interval = 60 * 60  # 1 hour in seconds
-
         self.logger = logging.getLogger("ProtocolRegistry")
-        self._initialized = True
+        self._refresh_thread = None
+        self._stop_event = threading.Event()
 
     def register_protocol(self, protocol: Protocol) -> None:
         """
@@ -48,10 +50,8 @@ class ProtocolRegistry:
         self.protocols[protocol_name] = protocol
         self.logger.info(f"Registered protocol: {protocol_name}")
 
-    async def refresh_pools(self, protocol_name: Optional[str] = None):
-        """
-        Refresh pools for a specific protocol or all protocols.
-        """
+    def refresh_pools(self, protocol_name: Optional[str] = None) -> None:
+        """Refresh pools for a specific protocol or all protocols"""
         if protocol_name:
             if protocol_name not in self.protocols:
                 self.logger.error(f"Protocol {protocol_name} not found")
@@ -63,27 +63,17 @@ class ProtocolRegistry:
         for name, protocol in protocols_to_refresh.items():
             try:
                 self.logger.info(f"Refreshing pools for {name}")
-                pools = await protocol.get_pools()
+                pools = protocol.get_pools()
                 self.pools_cache[name] = pools
                 self.last_refresh[name] = time.time()
                 self.logger.info(f"Refreshed {len(pools)} pools for {name}")
             except Exception as e:
                 self.logger.error(f"Error refreshing pools for {name}: {str(e)}")
 
-    async def ensure_fresh_data(self, protocol_name: Optional[str] = None):
+    def ensure_fresh_data(self) -> None:
         """Check if data needs refreshing and refresh if necessary"""
         current_time = time.time()
-
-        if protocol_name:
-            if protocol_name not in self.protocols:
-                self.logger.error(f"Protocol {protocol_name} not found")
-                return
-
-            protocols_to_check = {protocol_name: self.protocols[protocol_name]}
-        else:
-            protocols_to_check = self.protocols
-
-        refresh_tasks = []
+        protocols_to_check = self.protocols
 
         for name in protocols_to_check:
             last_refresh_time = self.last_refresh.get(name, 0)
@@ -91,12 +81,9 @@ class ProtocolRegistry:
                 current_time - last_refresh_time > self.refresh_interval
                 or name not in self.pools_cache
             ):
-                refresh_tasks.append(self.refresh_pools(name))
+                self.refresh_pools(name)
 
-        if refresh_tasks:
-            await asyncio.gather(*refresh_tasks)
-
-    async def get_pools(self, query: PoolQuery) -> List[Pool]:
+    def get_pools(self, query: PoolQuery) -> List[Pool]:
         """
         Get pools that match the query criteria
         """
@@ -154,13 +141,63 @@ class ProtocolRegistry:
         """Get list of all registered protocol names"""
         return list(self.protocols.keys())
 
-    async def _background_refresh(self) -> None:
-        """Background task to refresh pool data periodically"""
-        while True:
-            await asyncio.sleep(self.refresh_interval)
+    def _background_refresh(self) -> None:
+        """Background thread to refresh pool data periodically"""
+        self.logger.info("Background refresh thread started")
+
+        # Do initial refresh
+        try:
+            self.refresh_pools()
+        except Exception as e:
+            self.logger.error(f"Error in initial pool refresh: {str(e)}")
+
+        # Periodic refresh loop
+        while not self._stop_event.is_set():
+            # Sleep for the refresh interval, but check for stop event periodically
+            for _ in range(
+                36
+            ):  # Check every 100 seconds (36 * 100 = 3600 seconds = 1 hour)
+                if self._stop_event.is_set():
+                    break
+                time.sleep(100)
+
+            if self._stop_event.is_set():
+                break
+
+            # Refresh pools
             self.logger.info("Starting scheduled pool refresh")
             try:
-                await self.refresh_pools()
+                self.refresh_pools()
                 self.logger.info("Scheduled pool refresh completed successfully")
             except Exception as e:
                 self.logger.error(f"Error in scheduled pool refresh: {str(e)}")
+
+        self.logger.info("Background refresh thread stopped")
+
+    def initialize(self) -> None:
+        """Initialize the registry with default protocols and start refresh thread"""
+        # Perform initial refresh if not already done
+        if not self.pools_cache:
+            self.refresh_pools()
+
+        # Start background refresh thread if not already running
+        if self._refresh_thread is None or not self._refresh_thread.is_alive():
+            self._stop_event.clear()
+            self._refresh_thread = threading.Thread(
+                target=self._background_refresh,
+                daemon=True,
+                name="ProtocolRegistryThread",
+            )
+            self._refresh_thread.start()
+            self.logger.info("Started background refresh thread")
+
+    def shutdown(self) -> None:
+        """Shutdown the registry and stop background thread"""
+        if self._refresh_thread and self._refresh_thread.is_alive():
+            self.logger.info("Stopping background refresh thread...")
+            self._stop_event.set()
+            self._refresh_thread.join(timeout=10)  # Wait up to 10 seconds
+            if self._refresh_thread.is_alive():
+                self.logger.warning("Background refresh thread did not stop gracefully")
+            else:
+                self.logger.info("Background refresh thread stopped successfully")

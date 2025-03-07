@@ -35,9 +35,10 @@ def create_flask_app() -> Flask:
     agent = create_agent_executor()
     suggestions_agent = create_suggestions_executor()
 
-    # Initialize metrics service
+    # Initialize protocol registry
     protocol_registry = ProtocolRegistry()
     protocol_registry.register_protocol(OrcaProtocol())
+    protocol_registry.initialize()
 
     # Set up error handlers for production environment
     if not app.config.get("TESTING"):
