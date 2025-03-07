@@ -3,7 +3,7 @@ import json
 
 from defillama import DefiLlama
 
-from api.api_types import Pool, Chain, PoolQuery, Token
+from api.api_types import Pool, Chain, PoolQuery, Token, PoolType
 
 
 class DefiLlamaProtocols:
@@ -89,7 +89,7 @@ class DefiLlamaProtocols:
             protocol=pool_data["project"],
             isStableCoin=pool_data["stablecoin"],
             impermanentLossRisk=pool_data["ilRisk"],
-            type="Lending",
+            type=PoolType.LENDING,
             risk="Low",
         )
 

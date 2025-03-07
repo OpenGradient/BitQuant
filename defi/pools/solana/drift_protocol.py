@@ -7,6 +7,7 @@ import requests
 from api.api_types import Pool, Token, Chain
 from defi.pools.protocol import Protocol
 
+
 class DriftProtocol(Protocol):
 
     PROTOCOL_NAME = "orca"
@@ -25,4 +26,4 @@ class DriftProtocol(Protocol):
         return self.PROTOCOL_NAME
 
     def get_pools(self) -> List[Pool]:
-        pass
+        return []

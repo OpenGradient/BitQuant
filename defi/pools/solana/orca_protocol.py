@@ -4,7 +4,7 @@ from enum import IntEnum
 from pydantic import BaseModel
 import requests
 
-from api.api_types import Pool, Token, Chain
+from api.api_types import Pool, Token, Chain, PoolType
 from defi.pools.protocol import Protocol
 
 
@@ -96,13 +96,13 @@ class OrcaProtocol(Protocol):
                 chain=Chain.SOLANA,
                 protocol="Orca",
                 tokens=tokens,
-                type="AMM",
+                type=PoolType.AMM,
                 TVL=tvl_usdc,
                 APRLastDay=apr_last_day,
                 APRLastWeek=apr_last_week,
                 APRLastMonth=apr_last_month,
                 isStableCoin=is_stablecoin,
-                impermanentLossRisk=not is_stablecoin, 
+                impermanentLossRisk=not is_stablecoin,
                 risk="Low" if is_stablecoin else "Medium",
             )
 
