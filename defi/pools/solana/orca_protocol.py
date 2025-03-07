@@ -4,7 +4,7 @@ from enum import IntEnum
 from pydantic import BaseModel
 import requests
 
-from api.api_types import Pool, Token, Chain
+from api.api_types import Pool, Token, Chain, PoolType
 from defi.pools.protocol import Protocol
 
 
@@ -14,6 +14,7 @@ class OrcaProtocol(Protocol):
     API docs: https://api.orca.so/docs
     """
 
+    PROTOCOL_NAME = "orca"
     BASE_URL = "https://api.orca.so/v2"
 
     chain_id: str
@@ -27,16 +28,17 @@ class OrcaProtocol(Protocol):
         """
         self.chain_id = chain_id
 
+    @property
+    def name(self) -> str:
+        return self.PROTOCOL_NAME
+
     def get_pools(self) -> List[Pool]:
         """
         Fetch pools from Orca API and convert to the internal Pool model
         """
-        # Empty query, return all
-        params = {}
-
         # Make API request
         url = f"{self.BASE_URL}/{self.chain_id}/pools"
-        response = requests.get(url, params=params)
+        response = requests.get(url)
         response.raise_for_status()  # Raise exception for non-200 responses
 
         # Parse response
@@ -94,13 +96,13 @@ class OrcaProtocol(Protocol):
                 chain=Chain.SOLANA,
                 protocol="Orca",
                 tokens=tokens,
-                type="AMM" if orca_pool.get("poolType") == "whirlpool" else "Unknown",
+                type=PoolType.AMM,
                 TVL=tvl_usdc,
                 APRLastDay=apr_last_day,
                 APRLastWeek=apr_last_week,
                 APRLastMonth=apr_last_month,
                 isStableCoin=is_stablecoin,
-                impermanentLossRisk=not is_stablecoin,  # Higher risk for non-stablecoin pools
+                impermanentLossRisk=not is_stablecoin,
                 risk="Low" if is_stablecoin else "Medium",
             )
 

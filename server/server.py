@@ -1,4 +1,4 @@
-from typing import Set, List, Any, Tuple, Dict, Optional
+from typing import Set, List, Any, Tuple, Dict
 import os
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
@@ -7,7 +7,10 @@ from langgraph.graph.graph import CompiledGraph, RunnableConfig
 import json
 from functools import wraps
 
-from defi.pools.defillama_metrics import DefiLlamaMetrics
+from defi.pools.protocol import ProtocolRegistry
+from defi.pools.solana.orca_protocol import OrcaProtocol
+from defi.pools.solana.save_protocol import SaveProtocol
+
 from api.api_types import (
     AgentChatRequest,
     PoolQuery,
@@ -24,7 +27,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
 
 
-def create_flask_app() -> Flask:
+def create_flask_app(protocols: List[str]) -> Flask:
     """Create and configure the Flask application with routes."""
     app = Flask(__name__)
     CORS(app)
@@ -33,9 +36,11 @@ def create_flask_app() -> Flask:
     agent = create_agent_executor()
     suggestions_agent = create_suggestions_executor()
 
-    # Initialize metrics service
-    defi_metrics = DefiLlamaMetrics()
-    defi_metrics.refresh_metrics()
+    # Initialize protocol registry
+    protocol_registry = ProtocolRegistry()
+    protocol_registry.register_protocol(OrcaProtocol())
+    protocol_registry.register_protocol(SaveProtocol())
+    protocol_registry.initialize()
 
     # Set up error handlers for production environment
     if not app.config.get("TESTING"):
@@ -66,7 +71,9 @@ def create_flask_app() -> Flask:
         request_data = request.get_json()
         agent_request = AgentChatRequest(**request_data)
 
-        response = handle_agent_chat_request(defi_metrics, agent_request, agent)
+        response = handle_agent_chat_request(
+            protocol_registry, protocols, agent_request, agent
+        )
 
         return jsonify(response.model_dump())
 
@@ -76,7 +83,7 @@ def create_flask_app() -> Flask:
         agent_request = AgentChatRequest(**request_data)
 
         suggestions = handle_suggestions_request(
-            defi_metrics, agent_request, suggestions_agent
+            protocol_registry, protocols, agent_request, suggestions_agent
         )
 
         return jsonify({"suggestions": suggestions})
@@ -85,15 +92,16 @@ def create_flask_app() -> Flask:
 
 
 def handle_agent_chat_request(
-    defi_metrics: DefiLlamaMetrics,
+    protocol_registry: ProtocolRegistry,
+    protocols: List[str],
     request: AgentChatRequest,
     agent: CompiledGraph,
 ) -> AgentMessage:
     # Get compatible pools
-    compatible_pools = defi_metrics.get_pools(
+    compatible_pools = protocol_registry.get_pools(
         PoolQuery(
             chain=Chain.SOLANA,
-            protocols=["save", "kamino-lend"],
+            protocols=protocols,
             tokens=[token.address for token in request.context.tokens],
         )
     )
@@ -137,22 +145,23 @@ def handle_agent_chat_request(
 
 
 def handle_suggestions_request(
-    defi_metrics: DefiLlamaMetrics,
+    protocol_registry: ProtocolRegistry,
+    protocols: List[str],
     request: AgentChatRequest,
     suggestions_agent: CompiledGraph,
 ) -> List[str]:
     # Get compatible pools
-    compatible_pools = defi_metrics.get_pools(
+    compatible_pools = protocol_registry.get_pools(
         PoolQuery(
             chain=Chain.SOLANA,
-            protocols=["save", "kamino-lend"],
+            protocols=protocols,
             tokens=[token.address for token in request.context.tokens],
         )
     )
 
     # Build suggestions agent system prompt
     suggestions_system_prompt = get_suggestions_prompt(
-        protocol="Save",
+        protocol=",".join(protocols),
         tokens=request.context.tokens,
         poolDeposits=request.context.poolPositions,
         availablePools=compatible_pools,
