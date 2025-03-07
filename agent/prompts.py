@@ -3,7 +3,7 @@ import logging
 
 import jinja2
 
-from api.types import WalletTokenHolding, Pool, WalletPoolPosition
+from api.api_types import WalletTokenHolding, Pool, WalletPoolPosition
 
 env = jinja2.Environment(loader=jinja2.FileSystemLoader("templates/"))
 

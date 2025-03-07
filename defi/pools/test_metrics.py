@@ -1,7 +1,7 @@
 import unittest
 
 from defi.pools.defillama_metrics import DefiLlamaMetrics
-from api.types import Chain, Pool, PoolQuery
+from api.api_types import Chain, Pool, PoolQuery
 
 
 class TestDefiLlamaMetrics(unittest.TestCase):
