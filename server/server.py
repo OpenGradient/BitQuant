@@ -50,8 +50,6 @@ def create_flask_app(protocols: List[str]) -> Flask:
     protocol_registry.register_protocol(SaveProtocol())
     protocol_registry.initialize()
 
-    defi_metrics = DefiLlamaMetrics()
-
     # Set up error handlers for production environment
     if not app.config.get("TESTING"):
 
@@ -105,7 +103,7 @@ def create_flask_app(protocols: List[str]) -> Flask:
         agent_request = AgentChatRequest(**request_data)
 
         response = handle_analytics_chat_request(
-            defi_metrics, agent_request, analytics_agent
+            agent_request, analytics_agent
         )
 
         return jsonify(response.model_dump())
@@ -268,25 +266,16 @@ def extract_pools(messages: List[Any]) -> List[Pool]:
 
 
 def handle_analytics_chat_request(
-    defi_metrics: DefiLlamaMetrics,
     request: AgentChatRequest,
     agent: CompiledGraph,
 ) -> AgentMessage:
-    # Get compatible pools
-    compatible_pools = defi_metrics.get_pools(
-        PoolQuery(
-            chain=Chain.SOLANA,
-            tokens=[token.address for token in request.context.tokens],
-            protocols=["save", "kamino-lend", "raydium", "orca"],
-        )
-    )
 
     # Build analytics agent system prompt
     analytics_system_prompt = get_analytics_prompt(
         protocol="Save",
         tokens=request.context.tokens,
         poolDeposits=request.context.poolPositions,
-        availablePools=compatible_pools,
+        availablePools=[],
     )
 
     # Prepare message history
@@ -306,7 +295,7 @@ def handle_analytics_chat_request(
         configurable={
             "tokens": request.context.tokens,
             "positions": request.context.poolPositions,
-            "available_pools": compatible_pools,
+            "available_pools": [],
         }
     )
 
@@ -323,7 +312,7 @@ def run_analytics_agent(
     agent: CompiledGraph, messages: List, config: RunnableConfig
 ) -> Dict[str, Any]:
     # Run agent directly
-    result = agent.invoke({"messages": messages}, config=config)
+    result = agent.invoke({"messages": messages}, config=config, debug=True)
 
     # Extract final state and last message
     last_message = result["messages"][-1]
