@@ -312,7 +312,7 @@ def run_analytics_agent(
     agent: CompiledGraph, messages: List, config: RunnableConfig
 ) -> Dict[str, Any]:
     # Run agent directly
-    result = agent.invoke({"messages": messages}, config=config, debug=True)
+    result = agent.invoke({"messages": messages}, config=config, debug=False)
 
     # Extract final state and last message
     last_message = result["messages"][-1]
