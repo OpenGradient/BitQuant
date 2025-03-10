@@ -102,9 +102,7 @@ def create_flask_app(protocols: List[str]) -> Flask:
         request_data = request.get_json()
         agent_request = AgentChatRequest(**request_data)
 
-        response = handle_analytics_chat_request(
-            agent_request, analytics_agent
-        )
+        response = handle_analytics_chat_request(agent_request, analytics_agent)
 
         return jsonify(response.model_dump())
 

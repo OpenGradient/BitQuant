@@ -21,26 +21,28 @@ class DefiLlamaMetrics:
             limited to the top 50 protocols by TVL.
         """
         protocols_data = self.llama.get_all_protocols()
-        
+
         # Filter down to just essential information
         simplified_data = []
         for protocol in protocols_data:
-            simplified_data.append({
-                "name": protocol.get("name", "Unknown"),
-                "slug": protocol.get("slug", ""),
-                "tvl": protocol.get("tvl", 0),
-                "chain": protocol.get("chain", "Unknown"),
-                "category": protocol.get("category", "Other")
-            })
-        
+            simplified_data.append(
+                {
+                    "name": protocol.get("name", "Unknown"),
+                    "slug": protocol.get("slug", ""),
+                    "tvl": protocol.get("tvl", 0),
+                    "chain": protocol.get("chain", "Unknown"),
+                    "category": protocol.get("category", "Other"),
+                }
+            )
+
         # Ensure no None TVL values before sorting
         for protocol in simplified_data:
             if protocol.get("tvl") is None:
                 protocol["tvl"] = 0
-        
+
         # Now safe to sort
         simplified_data.sort(key=lambda x: x.get("tvl", 0), reverse=True)
-        
+
         # Return only top 50 protocols to prevent data overload
         return simplified_data[:50]
 
@@ -55,35 +57,38 @@ class DefiLlamaMetrics:
             chain, category, and audit info if available.
         """
         protocol_data = self.llama.get_protocol(protocol_slug)
-        
+
         # If no data returned, get basic TVL info
         if not protocol_data:
             protocol_tvl = self.llama.get_protocol_current_tvl(protocol_slug)
             return {"name": protocol_slug, "tvl": protocol_tvl.get("tvl", 0)}
-        
+
         # Extract and format TVL data
-        if protocol_data and 'tvl' in protocol_data:
-            if isinstance(protocol_data['tvl'], list):
-                last_entry = protocol_data['tvl'][-1] if protocol_data['tvl'] else 0
-                if isinstance(last_entry, dict) and 'totalLiquidityUSD' in last_entry:
-                    protocol_data['tvl'] = last_entry['totalLiquidityUSD']
+        if protocol_data and "tvl" in protocol_data:
+            if isinstance(protocol_data["tvl"], list):
+                last_entry = protocol_data["tvl"][-1] if protocol_data["tvl"] else 0
+                if isinstance(last_entry, dict) and "totalLiquidityUSD" in last_entry:
+                    protocol_data["tvl"] = last_entry["totalLiquidityUSD"]
                 elif isinstance(last_entry, (int, float, str)):
-                    protocol_data['tvl'] = float(last_entry)
+                    protocol_data["tvl"] = float(last_entry)
                 else:
-                    protocol_data['tvl'] = 0
-            elif isinstance(protocol_data['tvl'], dict):
-                if 'tvl' in protocol_data['tvl']:
-                    protocol_data['tvl'] = protocol_data['tvl']['tvl']
-                elif 'totalLiquidityUSD' in protocol_data['tvl']:
-                    protocol_data['tvl'] = protocol_data['tvl']['totalLiquidityUSD']
+                    protocol_data["tvl"] = 0
+            elif isinstance(protocol_data["tvl"], dict):
+                if "tvl" in protocol_data["tvl"]:
+                    protocol_data["tvl"] = protocol_data["tvl"]["tvl"]
+                elif "totalLiquidityUSD" in protocol_data["tvl"]:
+                    protocol_data["tvl"] = protocol_data["tvl"]["totalLiquidityUSD"]
                 else:
-                    for k, v in protocol_data['tvl'].items():
-                        if isinstance(v, (int, float, str)) and str(v).replace('.', '', 1).isdigit():
-                            protocol_data['tvl'] = float(v)
+                    for k, v in protocol_data["tvl"].items():
+                        if (
+                            isinstance(v, (int, float, str))
+                            and str(v).replace(".", "", 1).isdigit()
+                        ):
+                            protocol_data["tvl"] = float(v)
                             break
                     else:
-                        protocol_data['tvl'] = 0
-        
+                        protocol_data["tvl"] = 0
+
         # Create response with only essential data
         parsed_protocol_data = {
             "name": protocol_data.get("name", protocol_slug),
@@ -94,13 +99,15 @@ class DefiLlamaMetrics:
             "category": protocol_data.get("category", "Other"),
             "url": protocol_data.get("url", ""),
             "twitter": protocol_data.get("twitter", ""),
-            "chains": protocol_data.get("chains", [])[:10]  # Limit chains to 10
+            "chains": protocol_data.get("chains", [])[:10],  # Limit chains to 10
         }
-        
+
         # If there's audit data, include a simplified version
-        if "audit_links" in protocol_data and isinstance(protocol_data["audit_links"], list):
+        if "audit_links" in protocol_data and isinstance(
+            protocol_data["audit_links"], list
+        ):
             parsed_protocol_data["has_audits"] = len(protocol_data["audit_links"]) > 0
-        
+
         return parsed_protocol_data
 
     def get_global_tvl(self) -> float:
@@ -164,24 +171,24 @@ class DefiLlamaMetrics:
         """
         try:
             chart_data = self.llama.get_pool(pool_id)
-                
+
             result = {
                 "status": chart_data.get("status", "unknown"),
                 "data": chart_data.get("data", []),
             }
-            
+
             if result["data"] and len(result["data"]) > 0:
                 latest = result["data"][-1]
                 result["latest"] = {
                     "tvl": latest.get("tvlUsd", 0),
                     "apy": latest.get("apy", 0),
-                    "timestamp": latest.get("timestamp")
+                    "timestamp": latest.get("timestamp"),
                 }
-            
+
             return result
-                
+
         except Exception as e:
             return {
                 "error": f"Failed to fetch pool with ID '{pool_id}'",
-                "details": str(e)
+                "details": str(e),
             }
