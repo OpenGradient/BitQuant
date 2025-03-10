@@ -1,20 +1,20 @@
 import unittest
 
 from api.api_types import Chain, Pool, PoolQuery
-from defi.defillama_tools import (
+from defi.analytics.defillama_tools import (
     show_defi_llama_protocols,
     show_defi_llama_protocol,
     show_defi_llama_global_tvl,
     show_defi_llama_chain_tvl,
     show_defi_llama_top_pools
 )
-from defi.defillama_source import DefiLlamaProtocols
+from defi.analytics.defillama_source import DefiLlamaMetrics
 
 
 class TestDefiLlamaSource(unittest.TestCase):
 
     def test_defillama(self):
-        metrics = DefiLlamaProtocols()
+        metrics = DefiLlamaMetrics()
         metrics.refresh_metrics()
 
         sol_pools = metrics.get_pools(

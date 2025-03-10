@@ -1,5 +1,5 @@
 import unittest
-from defi.binance_tools import get_binance_price_history
+from defi.analytics.binance_tools import get_binance_price_history
 
 class TestBinanceAPI(unittest.TestCase):
     """Test suite for Binance API functionality"""

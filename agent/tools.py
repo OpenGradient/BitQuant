@@ -3,7 +3,7 @@ from typing import List, Tuple, Dict, Any
 from langgraph.graph.graph import RunnableConfig
 from langchain_core.tools import BaseTool, tool
 
-from defi.defillama_tools import (
+from defi.analytics.defillama_tools import (
     show_defi_llama_protocols,
     show_defi_llama_protocol,
     show_defi_llama_global_tvl,
@@ -12,7 +12,7 @@ from defi.defillama_tools import (
 )
 from api.api_types import Pool
 
-from defi.binance_tools import (
+from defi.analytics.binance_tools import (
     get_binance_price_history,
     analyze_price_trend,
     compare_assets

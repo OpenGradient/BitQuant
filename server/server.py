@@ -11,7 +11,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from defi.pools.protocol import ProtocolRegistry
 from defi.pools.solana.orca_protocol import OrcaProtocol
 from defi.pools.solana.save_protocol import SaveProtocol
-from defi.defillama_source import DefiLlamaProtocols
+from defi.analytics.defillama_source import DefiLlamaMetrics
 
 from api.api_types import (
     AgentChatRequest,
@@ -46,7 +46,7 @@ def create_flask_app(protocols: List[str]) -> Flask:
     protocol_registry.register_protocol(SaveProtocol())
     protocol_registry.initialize()
 
-    defi_metrics = DefiLlamaProtocols()
+    defi_metrics = DefiLlamaMetrics()
 
     # Set up error handlers for production environment
     if not app.config.get("TESTING"):
@@ -261,7 +261,7 @@ def extract_pools(messages: List[Any]) -> List[Pool]:
     ]
 
 def handle_analytics_chat_request(
-    defi_metrics: DefiLlamaProtocols,
+    defi_metrics: DefiLlamaMetrics,
     request: AgentChatRequest,
     agent: CompiledGraph,
 ) -> AgentMessage:
