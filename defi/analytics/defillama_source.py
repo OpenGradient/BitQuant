@@ -5,6 +5,7 @@ from defillama import DefiLlama
 
 
 class DefiLlamaMetrics:
+    """Class for interacting with DefiLlama API to fetch DeFi metrics."""
 
     llama: DefiLlama
 
@@ -13,7 +14,12 @@ class DefiLlamaMetrics:
 
     @lru_cache(maxsize=1)
     def get_protocols(self) -> List[Dict[str, Any]]:
-        """Get all DeFi protocols from DefiLlama with caching"""
+        """Retrieve all DeFi protocols from DefiLlama with caching.
+
+        Returns:
+            List[Dict[str, Any]]: A list of dictionaries containing essential protocol information,
+            limited to the top 50 protocols by TVL.
+        """
         protocols_data = self.llama.get_all_protocols()
         
         # Filter down to just essential information
@@ -39,7 +45,15 @@ class DefiLlamaMetrics:
         return simplified_data[:50]
 
     def get_protocol(self, protocol_slug: str) -> Dict[str, Any]:
-        """Get details for a specific protocol by slug"""
+        """Get detailed information for a specific protocol identified by its slug.
+
+        Args:
+            protocol_slug (str): The slug of the protocol.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing the protocol's details including TVL, description,
+            chain, category, and audit info if available.
+        """
         protocol_data = self.llama.get_protocol(protocol_slug)
         
         # If no data returned, get basic TVL info
@@ -90,8 +104,10 @@ class DefiLlamaMetrics:
         return parsed_protocol_data
 
     def get_global_tvl(self) -> float:
-        """
-        Get current global TVL across all DeFi protocols
+        """Calculate the current global Total Value Locked (TVL) across all DeFi protocols.
+
+        Returns:
+            float: The global TVL as a float.
         """
         chains_tvl = self.llama.get_chains_current_tvl()
 
@@ -101,8 +117,13 @@ class DefiLlamaMetrics:
         return total_tvl
 
     def get_chain_tvl(self, chain: str) -> float:
-        """
-        Get TVL for a specific blockchain.
+        """Retrieve the TVL for a specific blockchain.
+
+        Args:
+            chain (str): The target blockchain name.
+
+        Returns:
+            float: The TVL for the specified chain. Returns 0 if the chain is not found.
         """
         chains_tvl = self.llama.get_chains_current_tvl()
 
@@ -115,8 +136,13 @@ class DefiLlamaMetrics:
         return 0
 
     def get_top_pools(self, limit: int = 10) -> List[Dict[str, Any]]:
-        """
-        Get top DeFi pools ranked by APY.
+        """Obtain the top DeFi pools ranked by Annual Percentage Yield (APY).
+
+        Args:
+            limit (int, optional): Maximum number of pools to return. Defaults to 10.
+
+        Returns:
+            List[Dict[str, Any]]: A list of dictionaries with details for each pool.
         """
         pools_data = self.llama.get_pools()
         if isinstance(pools_data, dict) and "data" in pools_data:
@@ -125,3 +151,37 @@ class DefiLlamaMetrics:
             )
             return sorted_pools[:limit]
         return []
+
+    def get_pool(self, pool_id: str) -> Dict[str, Any]:
+        """Fetch a specific DeFi pool's historical data using its unique identifier.
+
+        Args:
+            pool_id (str): The unique identifier for the pool.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing the pool's historical data if found;
+            otherwise, a dictionary with an error message.
+        """
+        try:
+            chart_data = self.llama.get_pool(pool_id)
+                
+            result = {
+                "status": chart_data.get("status", "unknown"),
+                "data": chart_data.get("data", []),
+            }
+            
+            if result["data"] and len(result["data"]) > 0:
+                latest = result["data"][-1]
+                result["latest"] = {
+                    "tvl": latest.get("tvlUsd", 0),
+                    "apy": latest.get("apy", 0),
+                    "timestamp": latest.get("timestamp")
+                }
+            
+            return result
+                
+        except Exception as e:
+            return {
+                "error": f"Failed to fetch pool with ID '{pool_id}'",
+                "details": str(e)
+            }
