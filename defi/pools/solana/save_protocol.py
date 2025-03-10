@@ -102,7 +102,7 @@ class SaveProtocol(Protocol):
             token = Token(address=token_address, name=token_name, symbol=token_symbol)
 
             # Simple risk assessment logic
-            risk = "low"
+            risk = "Low"
 
             # Check if token is a stablecoin (based on token list symbols or known addresses)
             stable_symbols = ["USDC", "USDT", "DAI", "USDH", "USDS", "AUSD"]
