@@ -101,9 +101,6 @@ class SaveProtocol(Protocol):
             # Create token object
             token = Token(address=token_address, name=token_name, symbol=token_symbol)
 
-            # Simple risk assessment logic
-            risk = "Low"
-
             # Check if token is a stablecoin (based on token list symbols or known addresses)
             stable_symbols = ["USDC", "USDT", "DAI", "USDH", "USDS", "AUSD"]
             is_stablecoin = token_symbol in stable_symbols
@@ -121,7 +118,6 @@ class SaveProtocol(Protocol):
                 APRLastMonth=None,
                 isStableCoin=is_stablecoin,
                 impermanentLossRisk=False,  # Lending pools don't have IL risk
-                risk=risk,
             )
 
             # Filter out unusable pools

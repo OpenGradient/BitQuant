@@ -103,7 +103,6 @@ class OrcaProtocol(Protocol):
                 APRLastMonth=apr_last_month,
                 isStableCoin=is_stablecoin,
                 impermanentLossRisk=not is_stablecoin,
-                risk="Low" if is_stablecoin else "Medium",
             )
 
             result.append(pool)
