@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field
 from typing import List, Union, Optional, Dict, Mapping, Literal
 from enum import IntEnum, StrEnum
 
@@ -42,7 +42,15 @@ class Pool(BaseModel):
     APRLastMonth: Optional[float]  # APR for last month (if known)
     isStableCoin: bool  # whether pool is stablecoin
     impermanentLossRisk: bool
-    risk: str  # Risk
+
+    @computed_field
+    def risk(self) -> str:
+        if not self.impermanentLossRisk:
+            return "Low"
+        elif self.isStableCoin and self.impermanentLossRisk:
+            return "Medium"
+        else:
+            return "High"
 
 
 class WalletTokenHolding(BaseModel):
