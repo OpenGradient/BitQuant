@@ -16,10 +16,10 @@ TEST_CONTEXT = {
 
 def main():
     context = TEST_CONTEXT.copy()
-    
+
     # Ask user which agent to use
     agent_type = input("Choose an agent (regular/analytics): ").strip().lower()
-    
+
     # Set endpoint based on agent type
     if agent_type == "analytics":
         endpoint = "http://127.0.0.1:5000/api/agent/analytics"
@@ -31,10 +31,7 @@ def main():
         message = {"type": "user", "message": input("\nUser: ")}
 
         # Format the request payload correctly
-        payload = {
-            "message": {"message": message},
-            "context": context
-        }
+        payload = {"message": {"message": message}, "context": context}
 
         # send to agent
         response = make_request(payload, endpoint)
@@ -47,7 +44,7 @@ def main():
         # print results
         if agent_type == "analytics":
             response_json = response.json()
-            if isinstance(response_json, dict) and 'message' in response_json:
+            if isinstance(response_json, dict) and "message" in response_json:
                 print(f"Two-Ligma: {response_json['message']}")
             else:
                 print(f"Two-Ligma: {response_json}")
@@ -73,16 +70,16 @@ def make_request(input_data: Dict[str, Any], endpoint: str) -> Any:
 def extract_final_response(response_data):
     """Extract just the final response text from the analytics response"""
     # If it's a dictionary with 'messages' key
-    if isinstance(response_data, dict) and 'messages' in response_data:
-        messages = response_data['messages']
+    if isinstance(response_data, dict) and "messages" in response_data:
+        messages = response_data["messages"]
         # Find the last non-empty assistant message
         for msg in reversed(messages):
-            if isinstance(msg, dict) and msg.get('content'):
-                return msg['content']
+            if isinstance(msg, dict) and msg.get("content"):
+                return msg["content"]
             # Handle case where it's an object with content attribute
-            elif hasattr(msg, 'content') and msg.content:
+            elif hasattr(msg, "content") and msg.content:
                 return msg.content
-    
+
     # Return the original if we can't parse it
     return response_data
 

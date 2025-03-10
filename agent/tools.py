@@ -15,8 +15,9 @@ from api.api_types import Pool
 from defi.analytics.binance_tools import (
     get_binance_price_history,
     analyze_price_trend,
-    compare_assets
+    compare_assets,
 )
+
 
 @tool(response_format="content_and_artifact")
 def show_pools(pool_ids: List[str], config: RunnableConfig) -> Tuple[str, List]:
@@ -28,10 +29,12 @@ def show_pools(pool_ids: List[str], config: RunnableConfig) -> Tuple[str, List]:
 
     return f"Showing pools to user: {pool_ids}", pools
 
+
 def create_agent_toolkit() -> List[BaseTool]:
     return [
         show_pools,
     ]
+
 
 def create_analytics_agent_toolkit() -> List[BaseTool]:
     return [

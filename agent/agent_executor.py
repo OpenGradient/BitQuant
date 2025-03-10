@@ -31,12 +31,13 @@ def create_agent_executor() -> CompiledGraph:
 
     return agent_executor
 
+
 def create_analytics_executor() -> CompiledGraph:
     openai_model = ChatOpenAI(model="o3-mini")
 
     analytics_executor = create_react_agent(
         model=openai_model,
-        tools=create_analytics_agent_toolkit(),  
+        tools=create_analytics_agent_toolkit(),
     )
 
     return analytics_executor
