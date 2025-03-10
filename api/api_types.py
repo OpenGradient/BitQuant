@@ -1,6 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field
 from typing import List, Union, Optional, Dict, Mapping, Literal
-from enum import IntEnum
+from enum import IntEnum, StrEnum
 
 
 class Token(BaseModel):
@@ -24,19 +24,33 @@ class PoolQuery(BaseModel):
     impermanentLossRisk: Optional[bool] = None
 
 
+class PoolType(StrEnum):
+    AMM = "AMM"
+    LENDING = "Lending"
+    VAULT = "Vault"
+
+
 class Pool(BaseModel):
     id: str  # unique ID
     chain: Chain  # Chain pool is deployed on
     protocol: str  # protocol name
     tokens: List[Token]  # list of tokens in pool
-    type: str  # Lending or AMM
+    type: PoolType
     TVL: str  # in USD
     APRLastDay: float  # APR for last day (must be present)
     APRLastWeek: Optional[float]  # APR for last week (if known)
     APRLastMonth: Optional[float]  # APR for last month (if known)
     isStableCoin: bool  # whether pool is stablecoin
     impermanentLossRisk: bool
-    risk: str  # Risk
+
+    @computed_field
+    def risk(self) -> str:
+        if not self.impermanentLossRisk:
+            return "Low"
+        elif self.isStableCoin and self.impermanentLossRisk:
+            return "Medium"
+        else:
+            return "High"
 
 
 class WalletTokenHolding(BaseModel):

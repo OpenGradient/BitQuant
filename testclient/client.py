@@ -28,7 +28,7 @@ def main():
 
     while True:
         # read input from command line
-        message = input("\nUser: ")
+        message = {"type": "user", "message": input("\nUser: ")}
 
         # Format the request payload correctly
         payload = {

@@ -3,7 +3,6 @@ from typing import List, Tuple, Dict, Any
 from langgraph.graph.graph import RunnableConfig
 from langchain_core.tools import BaseTool, tool
 
-from defi.types import Pool
 from defi.defillama_tools import (
     show_defi_llama_protocols,
     show_defi_llama_protocol,
@@ -11,6 +10,7 @@ from defi.defillama_tools import (
     show_defi_llama_chain_tvl,
     show_defi_llama_top_pools,
 )
+from api.api_types import Pool
 
 from defi.binance_tools import (
     get_binance_price_history,

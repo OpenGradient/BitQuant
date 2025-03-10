@@ -5,10 +5,10 @@ from functools import lru_cache
 
 from defillama import DefiLlama
 
-from defi.types import Pool, Chain, PoolQuery, Token
+from api.api_types import Pool, Chain, PoolQuery, Token, PoolType
 
 
-class DefiMetrics:
+class DefiLlamaProtocols:
 
     llama: DefiLlama
     pools: List[Pool]
@@ -136,7 +136,7 @@ class DefiMetrics:
     def _convert_to_pool(self, pool_data: Dict) -> Pool:
         return Pool(
             id=pool_data["pool"],
-            chain=DefiMetrics._get_chain(pool_data["chain"]),
+            chain=DefiLlamaProtocols._get_chain(pool_data["chain"]),
             tokens=[
                 Token(
                     address=token_address,
@@ -161,7 +161,7 @@ class DefiMetrics:
             protocol=pool_data["project"],
             isStableCoin=pool_data["stablecoin"],
             impermanentLossRisk=pool_data["ilRisk"],
-            type="Lending",
+            type=PoolType.LENDING,
             risk="Low",
         )
 

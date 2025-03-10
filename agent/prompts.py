@@ -5,7 +5,7 @@ import jinja2
 from jinja2 import Template
 import os
 
-from defi.types import WalletTokenHolding, Pool, WalletPoolPosition
+from api.api_types import WalletTokenHolding, Pool, WalletPoolPosition
 
 env = jinja2.Environment(loader=jinja2.FileSystemLoader("templates/"))
 
@@ -15,13 +15,11 @@ suggestions_template = env.get_template("suggestions.jinja2")
 
 
 def get_agent_prompt(
-    protocol: str,
     tokens: List[WalletTokenHolding],
     poolDeposits: List[WalletPoolPosition],
     availablePools: List[Pool],
 ) -> str:
     agent_prompt = agent_template.render(
-        protocolName=protocol,
         tokens=tokens,
         poolDeposits=poolDeposits,
         availablePools=availablePools,
@@ -31,13 +29,11 @@ def get_agent_prompt(
 
 
 def get_suggestions_prompt(
-    protocol: str,
     tokens: List[WalletTokenHolding],
     poolDeposits: List[WalletPoolPosition],
     availablePools: List[Pool],
 ) -> str:
     agent_prompt = suggestions_template.render(
-        protocolName=protocol,
         tokens=tokens,
         poolDeposits=poolDeposits,
         availablePools=availablePools,
