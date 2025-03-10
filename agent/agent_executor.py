@@ -8,9 +8,6 @@ from langchain_openai import ChatOpenAI
 
 from agent.tools import create_agent_toolkit, create_analytics_agent_toolkit
 
-MODEL = LLM.QWEN_2_5_72B_INSTRUCT
-MAX_TOKENS = 1000
-
 
 def create_suggestions_executor() -> CompiledGraph:
     openai_model = ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
