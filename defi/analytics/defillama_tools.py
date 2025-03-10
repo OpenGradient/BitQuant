@@ -1,8 +1,8 @@
 from typing import Dict, Any, List
 from langchain_core.tools import tool
-from defi.stats import DefiMetrics
+from defi.analytics.defillama_source import DefiLlamaMetrics
 
-defi_metrics = DefiMetrics()
+defi_metrics = DefiLlamaMetrics()
 
 
 @tool()

@@ -31,7 +31,7 @@ def main():
         message = {"type": "user", "message": input("\nUser: ")}
 
         # Format the request payload correctly
-        payload = {"message": {"message": message}, "context": context}
+        payload = {"message": message, "context": context}
 
         # send to agent
         response = make_request(payload, endpoint)
