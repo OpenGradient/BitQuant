@@ -39,23 +39,22 @@ def main():
 
         agent_output = response.json()
         answer = agent_output["message"]
-        actions = agent_output.get("recommendedActions", [])
+        pools = agent_output.get("pools", [])
 
         # print results
         if agent_type == "analytics":
             response_json = response.json()
             if isinstance(response_json, dict) and "message" in response_json:
-                print(f"Two-Ligma: {response_json['message']}")
+                print(f"Two-Ligma: {answer}")
             else:
                 print(f"Two-Ligma: {response_json}")
         else:
             # Regular handling for other responses
-            print(f"Two-Ligma: {response.json()['message']}")
-        if actions:
-            print(actions)
+            print(f"Two-Ligma: {answer}")
+            print(pools)
 
         # append to history
-        context["conversationHistory"].append({"message": message})
+        context["conversationHistory"].append(message)
         context["conversationHistory"].append(agent_output)
 
 
