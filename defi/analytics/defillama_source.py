@@ -22,7 +22,6 @@ class DefiLlamaMetrics:
         """
         protocols_data = self.llama.get_all_protocols()
         
-        # Filter down to just essential information
         simplified_data = []
         for protocol in protocols_data:
             simplified_data.append({
@@ -33,15 +32,12 @@ class DefiLlamaMetrics:
                 "category": protocol.get("category", "Other")
             })
         
-        # Ensure no None TVL values before sorting
         for protocol in simplified_data:
             if protocol.get("tvl") is None:
                 protocol["tvl"] = 0
         
-        # Now safe to sort
         simplified_data.sort(key=lambda x: x.get("tvl", 0), reverse=True)
         
-        # Return only top 50 protocols to prevent data overload
         return simplified_data[:50]
 
     def get_protocol(self, protocol_slug: str) -> Dict[str, Any]:
@@ -56,12 +52,10 @@ class DefiLlamaMetrics:
         """
         protocol_data = self.llama.get_protocol(protocol_slug)
         
-        # If no data returned, get basic TVL info
         if not protocol_data:
             protocol_tvl = self.llama.get_protocol_current_tvl(protocol_slug)
             return {"name": protocol_slug, "tvl": protocol_tvl.get("tvl", 0)}
         
-        # Extract and format TVL data
         if protocol_data and 'tvl' in protocol_data:
             if isinstance(protocol_data['tvl'], list):
                 last_entry = protocol_data['tvl'][-1] if protocol_data['tvl'] else 0
@@ -84,7 +78,6 @@ class DefiLlamaMetrics:
                     else:
                         protocol_data['tvl'] = 0
         
-        # Create response with only essential data
         parsed_protocol_data = {
             "name": protocol_data.get("name", protocol_slug),
             "slug": protocol_data.get("slug", protocol_slug),
@@ -94,10 +87,9 @@ class DefiLlamaMetrics:
             "category": protocol_data.get("category", "Other"),
             "url": protocol_data.get("url", ""),
             "twitter": protocol_data.get("twitter", ""),
-            "chains": protocol_data.get("chains", [])[:10]  # Limit chains to 10
+            "chains": protocol_data.get("chains", [])[:10]
         }
         
-        # If there's audit data, include a simplified version
         if "audit_links" in protocol_data and isinstance(protocol_data["audit_links"], list):
             parsed_protocol_data["has_audits"] = len(protocol_data["audit_links"]) > 0
         
@@ -110,10 +102,7 @@ class DefiLlamaMetrics:
             float: The global TVL as a float.
         """
         chains_tvl = self.llama.get_chains_current_tvl()
-
-        # Calculate the total TVL across all chains
         total_tvl = sum(float(chain_data.get("tvl", 0)) for chain_data in chains_tvl)
-
         return total_tvl
 
     def get_chain_tvl(self, chain: str) -> float:
@@ -127,12 +116,10 @@ class DefiLlamaMetrics:
         """
         chains_tvl = self.llama.get_chains_current_tvl()
 
-        # Find the specific chain we're looking for
         for chain_data in chains_tvl:
             if chain_data.get("name", "").lower() == chain.lower():
                 return float(chain_data.get("tvl", 0))
 
-        # If chain not found, return 0
         return 0
 
     def get_top_pools(self, limit: int = 10) -> List[Dict[str, Any]]:
@@ -185,3 +172,43 @@ class DefiLlamaMetrics:
                 "error": f"Failed to fetch pool with ID '{pool_id}'",
                 "details": str(e)
             }
+
+    def get_all_protocol_slugs(self) -> List[str]:
+        """Get a list of all protocol slugs available in DeFi Llama.
+        
+        Returns:
+            List[str]: A list of all protocol slugs.
+        """
+        protocols_data = self.llama.get_all_protocols()
+        slugs = [protocol.get("slug") for protocol in protocols_data if protocol.get("slug")]
+        return sorted(slugs)
+    
+    def get_all_pool_ids(self) -> List[Dict[str, str]]:
+        """Get a list of all pool IDs with their associated project names.
+        
+        Returns:
+            List[Dict[str, str]]: A list of dictionaries containing pool ID, project name, and symbol.
+        """
+        pools_data = self.llama.get_pools()
+        result = []
+        
+        if isinstance(pools_data, dict) and "data" in pools_data:
+            for pool in pools_data["data"]:
+                pool_id = None
+                for field in ['id', 'pool', 'identifier']:
+                    if field in pool:
+                        pool_id = pool[field]
+                        break
+                
+                if not pool_id and 'project' in pool and 'symbol' in pool:
+                    pool_id = f"{pool.get('project')}-{pool.get('symbol')}"
+                
+                if pool_id:
+                    result.append({
+                        "id": pool_id,
+                        "project": pool.get("project", "Unknown"),
+                        "symbol": pool.get("symbol", "Unknown"),
+                        "chain": pool.get("chain", "Unknown")
+                    })
+        
+        return result

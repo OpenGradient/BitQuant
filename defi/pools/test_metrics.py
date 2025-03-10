@@ -1,4 +1,6 @@
 import unittest
+import json
+import os
 from typing import List, Dict, Any
 from api.api_types import Chain, Pool, PoolQuery
 from defi.analytics.defillama_tools import (
@@ -7,7 +9,8 @@ from defi.analytics.defillama_tools import (
     show_defi_llama_global_tvl,
     show_defi_llama_chain_tvl,
     show_defi_llama_top_pools,
-    show_defi_llama_pool
+    show_defi_llama_pool,
+    search_defi_resources
 )
 
 def format_tvl(value) -> str:
@@ -18,6 +21,7 @@ def format_tvl(value) -> str:
         return f"${float(value):,.2f}"
     except (ValueError, TypeError):
         return "$0.00"
+
 
 class TestDefiLlamaSource(unittest.TestCase):
     
@@ -172,7 +176,6 @@ class TestDefiLlamaSource(unittest.TestCase):
                         print("\nOther available fields in data points:", ", ".join(other_fields))
         else:
             self.fail("Could not find any pools to test with")
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,4 +1,4 @@
-from typing import Set, List, Any, Tuple, Dict
+from typing import Set, List, Any, Tuple, Dict, Optional
 import os
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
@@ -117,14 +117,23 @@ def handle_agent_chat_request(
     request: AgentChatRequest,
     agent: CompiledGraph,
 ) -> AgentMessage:
-    # Get compatible pools
+    # Extract chain from user's query instead of hardcoding to Solana
+    target_chain = extract_chain_from_query(request.message.message)
+    
+    # Get compatible pools with the extracted chain
     compatible_pools = protocol_registry.get_pools(
         PoolQuery(
-            chain=Chain.SOLANA,
+            chain=target_chain,  # Use extracted chain instead of Chain.SOLANA
             protocols=protocols,
             tokens=[token.address for token in request.context.tokens],
         )
     )
+
+    # After extracting chain
+    print(f"DEBUG: Extracted chain: {target_chain}")
+
+    # After getting pools
+    print(f"DEBUG: Found {len(compatible_pools)} compatible pools")
 
     # Build main agent system prompt
     main_system_prompt = get_agent_prompt(
@@ -169,10 +178,14 @@ def handle_suggestions_request(
     request: AgentChatRequest,
     suggestions_agent: CompiledGraph,
 ) -> List[str]:
-    # Get compatible pools
+    # Extract chain from conversation history
+    conversation_text = " ".join([msg.message for msg in request.context.conversationHistory if hasattr(msg, 'message')])
+    target_chain = extract_chain_from_query(conversation_text)
+    
+    # Get compatible pools with the extracted chain
     compatible_pools = protocol_registry.get_pools(
         PoolQuery(
-            chain=Chain.SOLANA,
+            chain=target_chain,  # Use extracted chain instead of Chain.SOLANA
             protocols=protocols,
             tokens=[token.address for token in request.context.tokens],
         )
@@ -318,3 +331,24 @@ def run_analytics_agent(
     last_message = result["messages"][-1]
 
     return {"content": last_message.content, "messages": result["messages"]}
+
+
+def extract_chain_from_query(query: str) -> Optional[Chain]:
+    query_lower = query.lower()
+    print(f"DEBUG: Extracting chain from query: '{query_lower}'")
+    
+    if "arbitrum" in query_lower:
+        print("DEBUG: Detected Arbitrum chain, returning None to bypass filter")
+        return None
+    elif "ethereum" in query_lower or "eth" in query_lower:
+        return Chain.ETHEREUM
+    elif "solana" in query_lower or "sol" in query_lower:
+        return Chain.SOLANA  
+    elif "base" in query_lower:
+        return Chain.BASE
+    elif "polygon" in query_lower:
+        return None  # No Chain.POLYGON, so return None
+    elif "binance" in query_lower or "bsc" in query_lower:
+        return None  # No Chain.BSC, so return None
+    
+    return None  # Default to None which will get pools from all chains
