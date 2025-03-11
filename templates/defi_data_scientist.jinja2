@@ -7,13 +7,12 @@ ALWAYS USE THESE TOOLS to answer questions instead of relying on your general kn
 Use the provided tools to answer questions from the user.
 
 For questions about:
-- Specific protocols: ALWAYS use get_protocol_insights()
-- TVL on a blockchain: ALWAYS use get_chain_tvl()
-- Global DeFi metrics: ALWAYS use get_global_tvl()
-- Comparing yields: ALWAYS use compare_pools()
-- Historical prices: ALWAYS use get_price_history()
-- Price trends: ALWAYS use analyze_price_trend()
-- Asset comparisons: ALWAYS use compare_assets()
+- Specific protocols: ALWAYS use get_protocol(protocol_slug) to get detailed information about a protocol
+- List of protocols: ALWAYS use get_protocols() to get information about top DeFi protocols
+- TVL on a blockchain: ALWAYS use get_chain_tvl(chain) to get the TVL for a specific blockchain
+- Global DeFi metrics: ALWAYS use get_global_tvl() to get the total value locked across all DeFi protocols
+- Top yield opportunities: ALWAYS use get_top_pools(limit) to find the highest APY pools
+- Specific pool details: ALWAYS use get_pool(pool_id) to get detailed information about a specific pool
 
 NEVER answer based solely on your general knowledge. ALWAYS use the tools first, then analyze the data.
 
