@@ -1,3 +1,6 @@
+from typing import Callable
+
+
 from langgraph.prebuilt import create_react_agent
 from langgraph.graph.graph import CompiledGraph
 from langchain_openai import ChatOpenAI
@@ -12,11 +15,11 @@ def create_suggestions_executor() -> CompiledGraph:
     return agent_executor
 
 
-def create_agent_executor(analytics_agent: CompiledGraph) -> CompiledGraph:
+def create_agent_executor(analytics_agent_run_func: Callable) -> CompiledGraph:
     openai_model = ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
     agent_executor = create_react_agent(
         model=openai_model,
-        tools=create_agent_toolkit(analytics_agent),
+        tools=create_agent_toolkit(analytics_agent_run_func) 
     )
 
     return agent_executor

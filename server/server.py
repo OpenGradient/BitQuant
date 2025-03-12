@@ -1,17 +1,14 @@
-from typing import Set, List, Any, Tuple, Dict
+from typing import List, Any, Tuple, Dict
 import os
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from pydantic import ValidationError
 from langgraph.graph.graph import CompiledGraph, RunnableConfig
 import json
-from functools import wraps
-from langchain_core.messages import SystemMessage, HumanMessage
 
 from defi.pools.protocol import ProtocolRegistry
 from defi.pools.solana.orca_protocol import OrcaProtocol
 from defi.pools.solana.save_protocol import SaveProtocol
-from defi.analytics.defillama_source import DefiLlamaMetrics
 
 from api.api_types import (
     AgentChatRequest,
@@ -20,6 +17,7 @@ from api.api_types import (
     Pool,
     UserMessage,
     AgentMessage,
+    Context,
     Message,
 )
 from agent.agent_executor import (
@@ -43,7 +41,19 @@ def create_flask_app(protocols: List[str]) -> Flask:
     suggestions_agent = create_suggestions_executor()
 
     analytics_agent = create_analytics_executor()
-    main_agent = create_agent_executor(analytics_agent)
+
+    def analytics_agent_runner(query: str, tokens: List, positions: List):
+        return handle_analytics_chat_request(
+            AgentChatRequest(
+                message=UserMessage(query),
+                context=Context(
+                    conversationHistory=[],
+                    tokens=tokens,
+                    poolPositions=positions
+                )), 
+            analytics_agent).message
+
+    main_agent = create_agent_executor(analytics_agent_run_func=analytics_agent_runner)
 
     # Initialize protocol registry
     protocol_registry = ProtocolRegistry()
