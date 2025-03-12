@@ -18,11 +18,13 @@ def main():
     context = TEST_CONTEXT.copy()
 
     # Ask user which agent to use
-    agent_type = input("Choose an agent (regular/analytics): ").strip().lower()
+    agent_type = input("Choose an agent (regular/analytics/alphasense): ").strip().lower()
 
     # Set endpoint based on agent type
     if agent_type == "analytics":
         endpoint = "http://127.0.0.1:5000/api/agent/analytics"
+    elif agent_type == "alphasense":
+        endpoint = "http://127.0.0.1:5000/api/agent/alphasense"
     else:
         endpoint = "http://127.0.0.1:5000/api/agent/run"
 
@@ -42,7 +44,7 @@ def main():
         pools = agent_output.get("pools", [])
 
         # print results
-        if agent_type == "analytics":
+        if agent_type == "analytics" or agent_type == "alphasense":
             response_json = response.json()
             if isinstance(response_json, dict) and "message" in response_json:
                 print(f"Two-Ligma: {answer}")

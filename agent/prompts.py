@@ -12,6 +12,7 @@ env = jinja2.Environment(loader=jinja2.FileSystemLoader("templates/"))
 agent_template = env.get_template("agent.jinja2")
 analytics_agent_template = env.get_template("defi_data_scientist.jinja2")
 suggestions_template = env.get_template("suggestions.jinja2")
+alphasense_template = env.get_template("alphasense.jinja2")
 
 
 def get_agent_prompt(
@@ -56,3 +57,15 @@ def get_analytics_prompt(
     )
 
     return analytics_agent_prompt
+
+
+def get_alphasense_prompt() -> str:
+    """
+    Get the system prompt for the AlphaSense agent.
+    
+    This agent helps users interact with AlphaSense data through OpenGradient's tools.
+    
+    Returns:
+        str: The system prompt for the AlphaSense agent
+    """
+    return alphasense_template.render()

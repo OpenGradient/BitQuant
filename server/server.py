@@ -26,8 +26,14 @@ from agent.agent_executor import (
     create_agent_executor,
     create_suggestions_executor,
     create_analytics_executor,
+    create_alphasense_executor,
 )
-from agent.prompts import get_agent_prompt, get_suggestions_prompt, get_analytics_prompt
+from agent.prompts import (
+    get_agent_prompt, 
+    get_suggestions_prompt, 
+    get_analytics_prompt,
+    get_alphasense_prompt,
+)
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
@@ -43,6 +49,7 @@ def create_flask_app(protocols: List[str]) -> Flask:
     agent = create_agent_executor()
     suggestions_agent = create_suggestions_executor()
     analytics_agent = create_analytics_executor()
+    alphasense_agent = create_alphasense_executor()
 
     # Initialize protocol registry
     protocol_registry = ProtocolRegistry()
@@ -103,6 +110,16 @@ def create_flask_app(protocols: List[str]) -> Flask:
         agent_request = AgentChatRequest(**request_data)
 
         response = handle_analytics_chat_request(agent_request, analytics_agent)
+
+        return jsonify(response.model_dump())
+        
+    @app.route("/api/agent/alphasense", methods=["POST"])
+    def run_alphasense():
+        """Endpoint for the AlphaSense agent"""
+        request_data = request.get_json()
+        agent_request = AgentChatRequest(**request_data)
+
+        response = handle_alphasense_chat_request(agent_request, alphasense_agent)
 
         return jsonify(response.model_dump())
 
@@ -315,4 +332,66 @@ def run_analytics_agent(
     # Extract final state and last message
     last_message = result["messages"][-1]
 
+    return {"content": last_message.content, "messages": result["messages"]}
+
+
+def handle_alphasense_chat_request(
+    request: AgentChatRequest,
+    agent: CompiledGraph,
+) -> AgentMessage:
+    """
+    Handle a chat request for the AlphaSense agent.
+    
+    This function takes the user's request, builds a system prompt for the
+    AlphaSense agent, and runs the agent to get a response.
+    
+    Args:
+        request: The chat request from the user
+        agent: The AlphaSense agent executor
+        
+    Returns:
+        AgentMessage: The agent's response message
+    """
+    # Build AlphaSense agent system prompt
+    alphasense_system_prompt = get_alphasense_prompt()
+    
+    # Prepare message history
+    message_history = [
+        convert_to_agent_msg(m) for m in request.context.conversationHistory
+    ]
+    
+    # Create messages for AlphaSense agent
+    alphasense_messages = [
+        ("system", alphasense_system_prompt),
+        *message_history,
+        ("user", request.message.message),
+    ]
+    
+    # Run AlphaSense agent
+    alphasense_result = run_alphasense_agent(agent, alphasense_messages)
+    
+    return AgentMessage(
+        message=alphasense_result["content"],
+        pools=[],  # AlphaSense doesn't return pools
+    )
+
+def run_alphasense_agent(
+    agent: CompiledGraph, messages: List
+) -> Dict[str, Any]:
+    """
+    Run the AlphaSense agent and return the result.
+    
+    Args:
+        agent: The AlphaSense agent executor
+        messages: The messages to send to the agent
+        
+    Returns:
+        Dict containing the agent's response
+    """
+    # Run agent directly
+    result = agent.invoke({"messages": messages})
+    
+    # Extract final state and last message
+    last_message = result["messages"][-1]
+    
     return {"content": last_message.content, "messages": result["messages"]}

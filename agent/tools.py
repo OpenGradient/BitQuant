@@ -1,4 +1,5 @@
 from typing import List, Tuple, Dict, Any
+import os
 
 from langgraph.graph.graph import RunnableConfig
 from langchain_core.tools import BaseTool, tool
@@ -16,6 +17,12 @@ from defi.analytics.binance_tools import (
     get_binance_price_history,
     analyze_price_trend,
     compare_assets,
+)
+
+# Import the AlphaSense tools
+from agent.og_alphasense_tools import (
+    create_alphasense_toolkit,
+    initialize_og_sdk
 )
 
 
