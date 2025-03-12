@@ -36,7 +36,7 @@ def create_agent_toolkit(analytics_agent_func: Callable) -> List[BaseTool]:
     @tool
     def call_analytics_agent(query: str, config: RunnableConfig) -> str:
         """
-        Executes the DeFi analytics agent to perform data analysis on tokens, chains, or market conditions. Your input should be a query for the agent.
+        Calls an agent that has access to real-time metrics on DeFi, tokens, chains, protocols, or market conditions. Your input should be a query for the agent.
         """
         configurable = config["configurable"]
         tokens: List[WalletTokenHolding] = configurable["tokens"]

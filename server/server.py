@@ -244,7 +244,7 @@ def run_main_agent(
     agent: CompiledGraph, messages: List, config: RunnableConfig
 ) -> Dict[str, Any]:
     # Run agent directly
-    result = agent.invoke({"messages": messages}, config=config)
+    result = agent.invoke({"messages": messages}, config=config, debug=True)
 
     # Extract final state and last message
     last_message = result["messages"][-1]
