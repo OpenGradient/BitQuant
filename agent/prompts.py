@@ -1,13 +1,16 @@
-from typing import List
+from typing import List, Optional
 import logging
 
 import jinja2
+from jinja2 import Template
+import os
 
 from api.api_types import WalletTokenHolding, Pool, WalletPoolPosition
 
 env = jinja2.Environment(loader=jinja2.FileSystemLoader("templates/"))
 
 agent_template = env.get_template("agent.jinja2")
+analytics_agent_template = env.get_template("defi_data_scientist.jinja2")
 suggestions_template = env.get_template("suggestions.jinja2")
 
 
@@ -37,3 +40,19 @@ def get_suggestions_prompt(
     )
 
     return agent_prompt
+
+
+def get_analytics_prompt(
+    protocol: str,
+    tokens: List[WalletTokenHolding] = None,
+    poolDeposits: List[WalletPoolPosition] = None,
+    availablePools: List[Pool] = None,
+) -> str:
+    analytics_agent_prompt = analytics_agent_template.render(
+        protocolName=protocol,
+        tokens=tokens,
+        poolDeposits=poolDeposits,
+        availablePools=availablePools,
+    )
+
+    return analytics_agent_prompt

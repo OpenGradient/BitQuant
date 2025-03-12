@@ -6,10 +6,12 @@ from pydantic import ValidationError
 from langgraph.graph.graph import CompiledGraph, RunnableConfig
 import json
 from functools import wraps
+from langchain_core.messages import SystemMessage, HumanMessage
 
 from defi.pools.protocol import ProtocolRegistry
 from defi.pools.solana.orca_protocol import OrcaProtocol
 from defi.pools.solana.save_protocol import SaveProtocol
+from defi.analytics.defillama_source import DefiLlamaMetrics
 
 from api.api_types import (
     AgentChatRequest,
@@ -20,8 +22,12 @@ from api.api_types import (
     AgentMessage,
     Message,
 )
-from agent.agent_executor import create_agent_executor, create_suggestions_executor
-from agent.prompts import get_agent_prompt, get_suggestions_prompt
+from agent.agent_executor import (
+    create_agent_executor,
+    create_suggestions_executor,
+    create_analytics_executor,
+)
+from agent.prompts import get_agent_prompt, get_suggestions_prompt, get_analytics_prompt
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
@@ -30,11 +36,13 @@ STATIC_DIR = os.path.join(ROOT_DIR, "static")
 def create_flask_app(protocols: List[str]) -> Flask:
     """Create and configure the Flask application with routes."""
     app = Flask(__name__)
+    app.config["PROPAGATE_EXCEPTIONS"] = True
     CORS(app)
 
     # Initialize agents
     agent = create_agent_executor()
     suggestions_agent = create_suggestions_executor()
+    analytics_agent = create_analytics_executor()
 
     # Initialize protocol registry
     protocol_registry = ProtocolRegistry()
@@ -88,6 +96,16 @@ def create_flask_app(protocols: List[str]) -> Flask:
 
         return jsonify({"suggestions": suggestions})
 
+    @app.route("/api/agent/analytics", methods=["POST"])
+    def run_analytics():
+        """Endpoint for the DeFiDataScientist agent"""
+        request_data = request.get_json()
+        agent_request = AgentChatRequest(**request_data)
+
+        response = handle_analytics_chat_request(agent_request, analytics_agent)
+
+        return jsonify(response.model_dump())
+
     return app
 
 
@@ -138,7 +156,7 @@ def handle_agent_chat_request(
     main_result = run_main_agent(agent, main_messages, agent_config)
 
     return AgentMessage(
-        message=main_result["content"],
+        message=main_result["output"],
         pools=extract_pools(main_result["messages"]),
     )
 
@@ -243,3 +261,58 @@ def extract_pools(messages: List[Any]) -> List[Pool]:
         if hasattr(msg, "artifact") and msg.artifact
         for a in msg.artifact
     ]
+
+
+def handle_analytics_chat_request(
+    request: AgentChatRequest,
+    agent: CompiledGraph,
+) -> AgentMessage:
+
+    # Build analytics agent system prompt
+    analytics_system_prompt = get_analytics_prompt(
+        protocol="Save",
+        tokens=request.context.tokens,
+        poolDeposits=request.context.poolPositions,
+        availablePools=[],
+    )
+
+    # Prepare message history
+    message_history = [
+        convert_to_agent_msg(m) for m in request.context.conversationHistory
+    ]
+
+    # Create messages for analytics agent
+    analytics_messages = [
+        ("system", analytics_system_prompt),
+        *message_history,
+        ("user", request.message.message),
+    ]
+
+    # Create config for the agent
+    agent_config = RunnableConfig(
+        configurable={
+            "tokens": request.context.tokens,
+            "positions": request.context.poolPositions,
+            "available_pools": [],
+        }
+    )
+
+    # Run analytics agent
+    analytics_result = run_analytics_agent(agent, analytics_messages, agent_config)
+
+    return AgentMessage(
+        message=analytics_result["content"],
+        pools=extract_pools(analytics_result["messages"]),
+    )
+
+
+def run_analytics_agent(
+    agent: CompiledGraph, messages: List, config: RunnableConfig
+) -> Dict[str, Any]:
+    # Run agent directly
+    result = agent.invoke({"messages": messages}, config=config, debug=False)
+
+    # Extract final state and last message
+    last_message = result["messages"][-1]
+
+    return {"content": last_message.content, "messages": result["messages"]}

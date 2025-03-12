@@ -42,7 +42,7 @@ class SaveProtocol(Protocol):
         data = response.json()
         pools = self._convert_to_pools(data["results"])
 
-        return sorted(pools, key = lambda p: int(p.TVL), reverse=True)
+        return sorted(pools, key=lambda p: int(p.TVL), reverse=True)
 
     def _convert_to_pools(self, save_pools: List[Dict[str, Any]]) -> List[Pool]:
         result = []

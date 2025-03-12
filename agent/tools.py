@@ -1,9 +1,22 @@
-from typing import List, Tuple, Dict, Any, Type
+from typing import List, Tuple, Dict, Any
 
 from langgraph.graph.graph import RunnableConfig
-from langchain_core.tools import BaseTool, tool, StructuredTool
+from langchain_core.tools import BaseTool, tool
 
+from defi.analytics.defillama_tools import (
+    show_defi_llama_protocols,
+    show_defi_llama_protocol,
+    show_defi_llama_global_tvl,
+    show_defi_llama_chain_tvl,
+    show_defi_llama_top_pools,
+)
 from api.api_types import Pool
+
+from defi.analytics.binance_tools import (
+    get_binance_price_history,
+    analyze_price_trend,
+    compare_assets,
+)
 
 
 @tool(response_format="content_and_artifact")
@@ -17,8 +30,20 @@ def show_pools(pool_ids: List[str], config: RunnableConfig) -> Tuple[str, List]:
     return f"Showing pools to user: {pool_ids}", pools
 
 
-# Define the tools the agent can use
 def create_agent_toolkit() -> List[BaseTool]:
-    tools = [show_pools]
+    return [
+        show_pools,
+    ]
 
-    return tools
+
+def create_analytics_agent_toolkit() -> List[BaseTool]:
+    return [
+        show_defi_llama_protocols,
+        show_defi_llama_protocol,
+        show_defi_llama_global_tvl,
+        show_defi_llama_chain_tvl,
+        show_defi_llama_top_pools,
+        get_binance_price_history,
+        analyze_price_trend,
+        compare_assets,
+    ]
