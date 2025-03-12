@@ -40,9 +40,10 @@ def create_flask_app(protocols: List[str]) -> Flask:
     CORS(app)
 
     # Initialize agents
-    agent = create_agent_executor()
     suggestions_agent = create_suggestions_executor()
+
     analytics_agent = create_analytics_executor()
+    main_agent = create_agent_executor(analytics_agent)
 
     # Initialize protocol registry
     protocol_registry = ProtocolRegistry()
@@ -80,7 +81,7 @@ def create_flask_app(protocols: List[str]) -> Flask:
         agent_request = AgentChatRequest(**request_data)
 
         response = handle_agent_chat_request(
-            protocol_registry, protocols, agent_request, agent
+            protocol_registry, protocols, agent_request, main_agent
         )
 
         return jsonify(response.model_dump())

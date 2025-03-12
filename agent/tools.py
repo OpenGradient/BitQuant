@@ -1,6 +1,6 @@
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple
 
-from langgraph.graph.graph import RunnableConfig
+from langgraph.graph.graph import RunnableConfig, CompiledGraph
 from langchain_core.tools import BaseTool, tool
 
 from defi.analytics.defillama_tools import (
@@ -11,7 +11,6 @@ from defi.analytics.defillama_tools import (
     show_defi_llama_top_pools,
 )
 from api.api_types import Pool
-
 from defi.analytics.binance_tools import (
     get_binance_price_history,
     analyze_price_trend,
@@ -30,7 +29,7 @@ def show_pools(pool_ids: List[str], config: RunnableConfig) -> Tuple[str, List]:
     return f"Showing pools to user: {pool_ids}", pools
 
 
-def create_agent_toolkit() -> List[BaseTool]:
+def create_agent_toolkit(analytics_agent: CompiledGraph) -> List[BaseTool]:
     return [
         show_pools,
     ]
