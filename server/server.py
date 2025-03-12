@@ -33,8 +33,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
 
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -49,16 +48,17 @@ def create_flask_app(protocols: List[str]) -> Flask:
     suggestions_agent = create_suggestions_executor()
     analytics_agent = create_analytics_executor()
 
-    def analytics_agent_runner(query: str, tokens: List, positions: List):
+    def analytics_agent_runner(query: str, tokens: List, positions: List) -> str:
         return handle_analytics_chat_request(
             AgentChatRequest(
-                message=UserMessage(query),
+                message=UserMessage(message=query),
                 context=Context(
-                    conversationHistory=[],
-                    tokens=tokens,
-                    poolPositions=positions
-                )), 
-            analytics_agent).message
+                    conversationHistory=[], tokens=tokens, poolPositions=positions
+                ),
+            ),
+            analytics_agent,
+        ).message
+
     main_agent = create_agent_executor(analytics_agent_run_func=analytics_agent_runner)
 
     # Initialize protocol registry
@@ -78,11 +78,11 @@ def create_flask_app(protocols: List[str]) -> Flask:
         def handle_generic_error(e):
             # Get the full exception traceback
             error_traceback = traceback.format_exc()
-            
+
             # Log the full error details
             logger.error(f"500 Error: {str(e)}")
             logger.error(f"Traceback: {error_traceback}")
-            
+
             # You can also log request details
             logger.error(f"Request Path: {request.path}")
             logger.error(f"Request Method: {request.method}")
@@ -244,7 +244,7 @@ def run_main_agent(
     agent: CompiledGraph, messages: List, config: RunnableConfig
 ) -> Dict[str, Any]:
     # Run agent directly
-    result = agent.invoke({"messages": messages}, config=config, debug=True)
+    result = agent.invoke({"messages": messages}, config=config, debug=False)
 
     # Extract final state and last message
     last_message = result["messages"][-1]

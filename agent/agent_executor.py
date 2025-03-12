@@ -18,8 +18,7 @@ def create_suggestions_executor() -> CompiledGraph:
 def create_agent_executor(analytics_agent_run_func: Callable) -> CompiledGraph:
     openai_model = ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
     agent_executor = create_react_agent(
-        model=openai_model,
-        tools=create_agent_toolkit(analytics_agent_run_func) 
+        model=openai_model, tools=create_agent_toolkit(analytics_agent_run_func)
     )
 
     return agent_executor

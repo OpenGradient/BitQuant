@@ -3,6 +3,7 @@ from typing import List, Tuple, Callable
 from langgraph.graph.graph import RunnableConfig, CompiledGraph
 from langchain_core.tools import BaseTool, tool, Tool
 from pydantic import BaseModel, Field
+import traceback
 
 from defi.analytics.defillama_tools import (
     show_defi_llama_protocols,
