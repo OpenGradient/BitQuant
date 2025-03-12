@@ -5,6 +5,8 @@ from flask_cors import CORS
 from pydantic import ValidationError
 from langgraph.graph.graph import CompiledGraph, RunnableConfig
 import json
+import logging
+import traceback
 
 from defi.pools.protocol import ProtocolRegistry
 from defi.pools.solana.orca_protocol import OrcaProtocol
@@ -30,6 +32,12 @@ from agent.prompts import get_agent_prompt, get_suggestions_prompt, get_analytic
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
 
 def create_flask_app(protocols: List[str]) -> Flask:
     """Create and configure the Flask application with routes."""
@@ -39,7 +47,6 @@ def create_flask_app(protocols: List[str]) -> Flask:
 
     # Initialize agents
     suggestions_agent = create_suggestions_executor()
-
     analytics_agent = create_analytics_executor()
 
     def analytics_agent_runner(query: str, tokens: List, positions: List):
@@ -52,7 +59,6 @@ def create_flask_app(protocols: List[str]) -> Flask:
                     poolPositions=positions
                 )), 
             analytics_agent).message
-
     main_agent = create_agent_executor(analytics_agent_run_func=analytics_agent_runner)
 
     # Initialize protocol registry
@@ -70,6 +76,18 @@ def create_flask_app(protocols: List[str]) -> Flask:
 
         @app.errorhandler(Exception)
         def handle_generic_error(e):
+            # Get the full exception traceback
+            error_traceback = traceback.format_exc()
+            
+            # Log the full error details
+            logger.error(f"500 Error: {str(e)}")
+            logger.error(f"Traceback: {error_traceback}")
+            
+            # You can also log request details
+            logger.error(f"Request Path: {request.path}")
+            logger.error(f"Request Method: {request.method}")
+            logger.error(f"Request Headers: {dict(request.headers)}")
+            logger.error(f"Request Body: {request.get_data(as_text=True)}")
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/healthcheck", methods=["GET"])
@@ -167,7 +185,7 @@ def handle_agent_chat_request(
     main_result = run_main_agent(agent, main_messages, agent_config)
 
     return AgentMessage(
-        message=main_result["output"],
+        message=main_result["content"],
         pools=extract_pools(main_result["messages"]),
     )
 

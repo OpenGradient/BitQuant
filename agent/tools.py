@@ -34,9 +34,9 @@ def create_agent_toolkit(analytics_agent_func: Callable) -> List[BaseTool]:
     """Create tools that the main agent can use."""
 
     @tool
-    def run_analytics(query: str, config: RunnableConfig) -> str:
+    def call_analytics_agent(query: str, config: RunnableConfig) -> str:
         """
-        Call the DeFi analytics agent to perform data analysis on protocols, tokens, or market conditions
+        Executes the DeFi analytics agent to perform data analysis on tokens, chains, or market conditions. Your input should be a query for the agent.
         """
         configurable = config["configurable"]
         tokens: List[WalletTokenHolding] = configurable["tokens"]
@@ -45,7 +45,7 @@ def create_agent_toolkit(analytics_agent_func: Callable) -> List[BaseTool]:
 
     return [
         show_pools,
-        run_analytics,
+        call_analytics_agent,
     ]
 
 

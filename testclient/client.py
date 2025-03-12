@@ -1,5 +1,6 @@
 import requests
 from typing import Dict, Any
+import logging
 
 TEST_CONTEXT = {
     "conversationHistory": [],
@@ -35,7 +36,14 @@ def main():
 
         # send to agent
         response = make_request(payload, endpoint)
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except Exception as e:
+            logging.error(f"HTTP Error: {e}")
+            logging.error(f"Status Code: {response.status_code}")
+            logging.error(f"Response Text: {response.text}")
+            logging.error(f"Request URL: {response.request.url}")
+            raise
 
         agent_output = response.json()
         answer = agent_output["message"]
