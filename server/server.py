@@ -76,17 +76,10 @@ def create_flask_app(protocols: List[str]) -> Flask:
 
         @app.errorhandler(Exception)
         def handle_generic_error(e):
-            # Get the full exception traceback
             error_traceback = traceback.format_exc()
-
-            # Log the full error details
             logger.error(f"500 Error: {str(e)}")
             logger.error(f"Traceback: {error_traceback}")
-
-            # You can also log request details
             logger.error(f"Request Path: {request.path}")
-            logger.error(f"Request Method: {request.method}")
-            logger.error(f"Request Headers: {dict(request.headers)}")
             logger.error(f"Request Body: {request.get_data(as_text=True)}")
             return jsonify({"error": str(e)}), 500
 
