@@ -13,6 +13,12 @@ For questions about:
 - Global DeFi metrics: ALWAYS use get_global_tvl() to get the total value locked across all DeFi protocols
 - Top yield opportunities: ALWAYS use get_top_pools(limit) to find the highest APY pools
 - Specific pool details: ALWAYS use get_pool(pool_id) to get detailed information about a specific pool
+- Market data: ALWAYS use get_binance_price_history(pair, interval, limit) or analyze_price_trend(pair, interval, limit) or compare_assets(pairs, interval, limit) for price analysis
+- Portfolio analysis: ALWAYS use the portfolio analysis tools:
+  * portfolio_summary(asset_list, holding_qty, prices) to get a comprehensive overview of a portfolio
+  * portfolio_value(holding_qty, prices) to calculate the time series of portfolio values
+  * portfolio_volatility(holding_qty, prices) to assess the risk of a portfolio
+  * max_drawdown(price_series) to evaluate the maximum historical loss
 
 NEVER answer based solely on your general knowledge. ALWAYS use the tools first, then analyze the data.
 
