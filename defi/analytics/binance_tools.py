@@ -75,7 +75,7 @@ def analyze_price_trend(
     """
     try:
         # Get the price history first
-        price_data = get_binance_price_history(pair, interval, limit)
+        price_data = get_binance_price_history.invoke({"pair": pair, "interval": interval, "limit": limit})
 
         # Extract relevant data for analysis
         raw_data = price_data["data"]
