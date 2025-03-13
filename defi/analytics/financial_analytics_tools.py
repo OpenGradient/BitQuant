@@ -50,21 +50,11 @@ def extract_tokens_from_config(config: RunnableConfig):
             symbol = token_info.get("symbol")
             if not symbol:
                 continue
-                
-            # Convert to Binance trading pair format
+            
+            # Convert to Binance trading pair format by default
             trading_pair = f"{symbol}USDT"
             
-            # Some special cases for symbol mapping to Binance format
-            if symbol == "USDC" or symbol == "USDT" or symbol == "USDS" or symbol == "USDH":
-                # Skip stablecoins as they don't have price volatility to analyze
-                continue
-            elif symbol == "mSOL":
-                # Marinade SOL might need to be analyzed as SOL
-                trading_pair = "SOLUSDT"
-            elif symbol == "JitoSOL":
-                # Jito SOL might need to be analyzed as SOL
-                trading_pair = "SOLUSDT"
-                
+            # Add the token to our analysis list
             symbols.append(trading_pair)
             quantities.append(amount)
             
