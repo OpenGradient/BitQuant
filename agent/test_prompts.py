@@ -5,7 +5,6 @@ from testutils.contex import TEST_CONTEXT
 
 
 class TestAgentAPI(unittest.TestCase):
-
     def test_prompt(self):
         prompt = get_agent_prompt(
             protocol="OpenGradient",

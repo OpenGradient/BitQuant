@@ -7,7 +7,6 @@ from api.api_types import Pool, Chain, PoolQuery, Token, PoolType
 
 
 class DefiLlamaProtocols:
-
     llama: DefiLlama
     pools: List[Pool]
     tokenlist: Dict

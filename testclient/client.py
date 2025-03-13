@@ -22,10 +22,7 @@ def main():
         message = {"type": "user", "message": input("\nUser: ")}
 
         # send to agent
-        response = make_request({
-            "message": message,
-            "context": context
-        })
+        response = make_request({"message": message, "context": context})
         response.raise_for_status()
 
         agent_output = response.json()

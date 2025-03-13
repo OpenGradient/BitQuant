@@ -5,7 +5,6 @@ from api.api_types import Chain, Pool, PoolQuery
 
 
 class TestDefiLlamaSource(unittest.TestCase):
-
     def test_defillama(self):
         metrics = DefiLlamaProtocols()
         metrics.refresh_metrics()

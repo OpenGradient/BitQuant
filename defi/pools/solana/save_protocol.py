@@ -9,7 +9,6 @@ from defi.pools.protocol import Protocol
 
 
 class SaveProtocol(Protocol):
-
     PROTOCOL_NAME = "save"
     BASE_URL = "https://api.solend.fi/v1/"
     MAIN_MARKET_ADDRESS = "4UpD2fh7xH3VP9QQaXtsS1YY3bxzWhtfpks7FatyKvdY"
@@ -42,7 +41,7 @@ class SaveProtocol(Protocol):
         data = response.json()
         pools = self._convert_to_pools(data["results"])
 
-        return sorted(pools, key = lambda p: int(p.TVL), reverse=True)
+        return sorted(pools, key=lambda p: int(p.TVL), reverse=True)
 
     def _convert_to_pools(self, save_pools: List[Dict[str, Any]]) -> List[Pool]:
         result = []
