@@ -15,11 +15,11 @@ For questions about:
 - Specific pool details: ALWAYS use get_pool(pool_id) to get detailed information about a specific pool
 - Market data: ALWAYS use get_binance_price_history(pair, interval, limit) or analyze_price_trend(pair, interval, limit) or compare_assets(pairs, interval, limit) for price analysis
 - Portfolio analysis: ALWAYS use the portfolio analysis tools:
-  * portfolio_summary(asset_list, holding_qty, prices) to get a comprehensive overview of a portfolio
-  * portfolio_value(holding_qty, prices) to calculate the time series of portfolio values
-  * portfolio_volatility(holding_qty, prices) to assess the risk of a portfolio
-  * max_drawdown(price_series) to evaluate the maximum historical loss
-
+  * portfolio_summary(symbols, holding_qty, interval, limit) to get a comprehensive overview of a portfolio
+  * portfolio_value(symbols, holding_qty, interval, limit) to calculate the time series of portfolio values
+  * portfolio_volatility(symbols, holding_qty, interval, limit) to assess the risk of a portfolio
+  * max_drawdown(symbol, interval, limit) to evaluate the maximum historical loss
+  
 NEVER answer based solely on your general knowledge. ALWAYS use the tools first, then analyze the data.
 
 When responding to users:

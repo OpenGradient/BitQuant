@@ -2,29 +2,46 @@ from typing import Dict, Any, List
 import numpy as np
 import traceback
 from langchain_core.tools import tool
+from defi.analytics.binance_tools import get_binance_price_history
 
 
 @tool()
-def max_drawdown(price_series: List[float]) -> Dict[str, Any]:
+def max_drawdown(
+        symbol: str,
+        interval: str = "1d",
+        limit: int = 90) -> Dict[str, Any]:
     '''
-    Calculates the maximum drawdown in terms of return
-    in the price series. Drawdown is the greatest amount
-    of negative return following a rolling maximum, and
-    can be helpful in assessing risk
-
+    Calculates the maximum drawdown for a cryptocurrency using Binance price data
+    
     Args:
-        price_series: 1-d series of prices as a list of floats
-
+        symbol: Trading pair symbol (e.g., "BTCUSDT")
+        interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
+        limit: Number of candlesticks to retrieve (max 1000)
+        
     Returns:
         Dictionary containing the maximum drawdown value
     '''
     try:
+        # Get price data from Binance
+        price_data = get_binance_price_history.invoke({"pair": symbol, "interval": interval, "limit": limit})
+        
+        if "error" in price_data:
+            return {
+                "error": f"Failed to fetch price data for {symbol}: {price_data['error']}"
+            }
+        
+        # Extract closing prices
+        price_series = [float(candle[4]) for candle in price_data["data"]]
+        
+        # Calculate max drawdown
         price_series = np.array(price_series)
         rolling_max = np.maximum.accumulate(price_series)
         drawdowns = (rolling_max - price_series) / rolling_max
         max_dd = float(drawdowns.max())
         
         return {
+            "symbol": symbol,
+            "period": f"{interval} x {limit}",
             "max_drawdown": max_dd,
             "max_drawdown_percent": f"{max_dd * 100:.2f}%",
             "explanation": "Maximum drawdown represents the largest percentage drop from a peak to a subsequent trough"
@@ -38,33 +55,61 @@ def max_drawdown(price_series: List[float]) -> Dict[str, Any]:
 
 @tool()
 def portfolio_value(
+        symbols: List[str],
         holding_qty: List[float],
-        prices: List[List[float]]) -> Dict[str, Any]:
+        interval: str = "1d",
+        limit: int = 90) -> Dict[str, Any]:
     '''
-    Creates the time series of portfolio total value given
-    a constant quantity of each asset
-
+    Creates the time series of portfolio total value using Binance price data
+    
     Args:
-        holding_qty: 1-d array with a float for the quantity of each asset held
-        prices: 2-d array with prices of each asset over time where
-               axis 0 (row) is time and axis 1 (column) is asset,
-               most recent price last
-
+        symbols: List of trading pairs (e.g., ["BTCUSDT", "ETHUSDT"])
+        holding_qty: List with quantities of each asset held
+        interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
+        limit: Number of candlesticks to retrieve (max 1000)
+        
     Returns:
         Dictionary containing time series of portfolio total value
     '''
     try:
-        holding_qty = np.array(holding_qty)
-        prices = np.array(prices)
+        if len(symbols) != len(holding_qty):
+            return {
+                "error": "Number of symbols must match number of holdings"
+            }
         
+        # Fetch price data for each asset
+        all_price_data = []
+        
+        for symbol in symbols:
+            price_data = get_binance_price_history.invoke({"pair": symbol, "interval": interval, "limit": limit})
+            
+            if "error" in price_data:
+                return {
+                    "error": f"Failed to fetch price data for {symbol}: {price_data['error']}"
+                }
+            
+            # Extract closing prices
+            close_prices = [float(candle[4]) for candle in price_data["data"]]
+            all_price_data.append(close_prices)
+        
+        # Convert to numpy arrays and transpose to get [time][asset] format
+        prices = np.array(all_price_data).T
+        holding_qty = np.array(holding_qty)
+        
+        # Calculate portfolio values
         weighted_values = holding_qty * prices
         portfolio_values = weighted_values.sum(axis=1)
         
+        # Format asset names for output
+        asset_names = [symbol.replace("USDT", "") for symbol in symbols]
+        
         return {
+            "assets": asset_names,
             "portfolio_values": portfolio_values.tolist(),
             "initial_value": float(portfolio_values[0]),
             "final_value": float(portfolio_values[-1]),
-            "change_percent": f"{((portfolio_values[-1] / portfolio_values[0]) - 1) * 100:.2f}%"
+            "change_percent": f"{((portfolio_values[-1] / portfolio_values[0]) - 1) * 100:.2f}%",
+            "period": f"{interval} x {limit}"
         }
     except Exception as e:
         return {
@@ -75,34 +120,66 @@ def portfolio_value(
 
 @tool()
 def portfolio_volatility(
+        symbols: List[str],
         holding_qty: List[float],
-        prices: List[List[float]]) -> Dict[str, Any]:
+        interval: str = "1d",
+        limit: int = 90) -> Dict[str, Any]:
     '''
-    Calculates the volatility (standard deviation of returns) of a portfolio
-
+    Calculates the volatility (standard deviation of returns) of a portfolio using Binance price data
+    
     Args:
-        holding_qty: 1-d array with a float for the quantity of each asset held
-        prices: 2-d array with prices of each asset over time where
-               axis 0 (row) is time and axis 1 (column) is asset,
-               most recent price last
-
+        symbols: List of trading pairs (e.g., ["BTCUSDT", "ETHUSDT"])
+        holding_qty: List with quantities of each asset held
+        interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
+        limit: Number of candlesticks to retrieve (max 1000)
+        
     Returns:
         Dictionary containing portfolio volatility metrics
     '''
     try:
-        holding_qty = np.array(holding_qty)
-        prices = np.array(prices)
+        if len(symbols) != len(holding_qty):
+            return {
+                "error": "Number of symbols must match number of holdings"
+            }
         
+        # Fetch price data for each asset
+        all_price_data = []
+        
+        for symbol in symbols:
+            price_data = get_binance_price_history.invoke({"pair": symbol, "interval": interval, "limit": limit})
+            
+            if "error" in price_data:
+                return {
+                    "error": f"Failed to fetch price data for {symbol}: {price_data['error']}"
+                }
+            
+            # Extract closing prices
+            close_prices = [float(candle[4]) for candle in price_data["data"]]
+            all_price_data.append(close_prices)
+        
+        # Convert to numpy arrays and transpose to get [time][asset] format
+        prices = np.array(all_price_data).T
+        holding_qty = np.array(holding_qty)
+        
+        # Calculate portfolio values
         weighted_values = holding_qty * prices
         portfolio_values = weighted_values.sum(axis=1)
+        
+        # Calculate returns and volatility
         portfolio_returns = portfolio_values[1:]/portfolio_values[:-1] - 1
         portfolio_sd = float(portfolio_returns.std())
         
+        # Format asset names for output
+        asset_names = [symbol.replace("USDT", "") for symbol in symbols]
+        
         return {
+            "assets": asset_names,
             "portfolio_volatility": portfolio_sd,
             "annualized_volatility": float(portfolio_sd * np.sqrt(252)),  # Assuming daily data, annualized
+            "annualized_volatility_percent": f"{float(portfolio_sd * np.sqrt(252) * 100):.2f}%",
             "returns_mean": float(portfolio_returns.mean()),
-            "risk_analysis": "Higher volatility indicates higher risk but potentially higher returns"
+            "risk_analysis": "Higher volatility indicates higher risk but potentially higher returns",
+            "period": f"{interval} x {limit}"
         }
     except Exception as e:
         return {
@@ -113,24 +190,49 @@ def portfolio_volatility(
 
 @tool()
 def portfolio_summary(
-        asset_list: List[str],
+        symbols: List[str],
         holding_qty: List[float],
-        prices: List[List[float]]) -> Dict[str, Any]:
+        interval: str = "1d",
+        limit: int = 90) -> Dict[str, Any]:
     '''
-    Provides a comprehensive summary of a portfolio including value,
-    volatility, and drawdown metrics
-
+    Provides a comprehensive summary of a portfolio including value, volatility, and drawdown metrics using Binance price data
+    
     Args:
-        asset_list: List of asset names or identifiers
+        symbols: List of trading pairs (e.g., ["BTCUSDT", "ETHUSDT"])
         holding_qty: List with quantities of each asset held
-        prices: 2-d array with prices of each asset over time
-
+        interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
+        limit: Number of candlesticks to retrieve (max 1000)
+        
     Returns:
         Dictionary containing portfolio summary metrics
     '''
     try:
+        if len(symbols) != len(holding_qty):
+            return {
+                "error": "Number of symbols must match number of holdings"
+            }
+        
+        # Fetch price data for each asset
+        all_price_data = []
+        
+        for symbol in symbols:
+            price_data = get_binance_price_history.invoke({"pair": symbol, "interval": interval, "limit": limit})
+            
+            if "error" in price_data:
+                return {
+                    "error": f"Failed to fetch price data for {symbol}: {price_data['error']}"
+                }
+            
+            # Extract closing prices
+            close_prices = [float(candle[4]) for candle in price_data["data"]]
+            all_price_data.append(close_prices)
+        
+        # Convert to numpy arrays and transpose to get [time][asset] format
+        prices = np.array(all_price_data).T
         holding_qty = np.array(holding_qty)
-        prices = np.array(prices)
+        
+        # Format asset names for output
+        asset_names = [symbol.replace("USDT", "") for symbol in symbols]
         
         # Calculate portfolio values
         weighted_values = holding_qty * prices
@@ -151,7 +253,7 @@ def portfolio_summary(
         
         # Asset allocation summary
         asset_allocation = []
-        for i, asset in enumerate(asset_list):
+        for i, asset in enumerate(asset_names):
             asset_allocation.append({
                 "asset": asset,
                 "quantity": float(holding_qty[i]),
@@ -161,8 +263,9 @@ def portfolio_summary(
         
         return {
             "portfolio_summary": {
+                "period": f"{interval} x {limit}",
                 "total_value": float(total_value),
-                "asset_count": len(asset_list),
+                "asset_count": len(asset_names),
                 "performance": {
                     "initial_value": float(portfolio_values[0]),
                     "final_value": float(portfolio_values[-1]),
