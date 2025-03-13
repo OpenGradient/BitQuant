@@ -43,10 +43,6 @@ class KaminoProtocol(Protocol):
         """
         Fetch lending pools from Kamino API and convert to the internal Pool model
         """
-
-        # import requests
-        # import utils  # Assuming you have a similar utils module in Python
-
         markets = ["7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF"]
         kamino_pools = []
 
