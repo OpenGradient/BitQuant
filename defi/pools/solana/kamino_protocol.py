@@ -77,9 +77,7 @@ class KaminoProtocol(Protocol):
 
                 # Calculate TVL in USD
                 # TODO (Kyle): Confirm if this is the right calculation (maybe just use totalSupplyUsd?)
-                tvl_usd = float(r.get("totalSupplyUsd")) - float(
-                    r.get("totalBorrowUsd")
-                )
+                tvl_usd = float(r.get("totalSupplyUsd"))
 
                 # Calculate APR based on historical data
                 apr_dict = self._calculate_apr_metrics(reserve_pubkey=id)
