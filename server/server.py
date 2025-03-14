@@ -1,11 +1,12 @@
-from typing import Set, List, Any, Tuple, Dict
+from typing import List, Any, Tuple, Dict
 import os
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from pydantic import ValidationError
 from langgraph.graph.graph import CompiledGraph, RunnableConfig
 import json
-from functools import wraps
+import logging
+import traceback
 
 from defi.pools.protocol import ProtocolRegistry
 from defi.pools.solana.orca_protocol import OrcaProtocol
@@ -18,23 +19,47 @@ from api.api_types import (
     Pool,
     UserMessage,
     AgentMessage,
+    Context,
     Message,
 )
-from agent.agent_executor import create_agent_executor, create_suggestions_executor
-from agent.prompts import get_agent_prompt, get_suggestions_prompt
+from agent.agent_executor import (
+    create_agent_executor,
+    create_suggestions_executor,
+    create_analytics_executor,
+)
+from agent.prompts import get_agent_prompt, get_suggestions_prompt, get_analytics_prompt
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 
 def create_flask_app(protocols: List[str]) -> Flask:
     """Create and configure the Flask application with routes."""
     app = Flask(__name__)
+    app.config["PROPAGATE_EXCEPTIONS"] = True
     CORS(app)
 
     # Initialize agents
-    agent = create_agent_executor()
     suggestions_agent = create_suggestions_executor()
+    analytics_agent = create_analytics_executor()
+
+    def analytics_agent_runner(query: str, tokens: List, positions: List) -> str:
+        return handle_analytics_chat_request(
+            AgentChatRequest(
+                message=UserMessage(message=query),
+                context=Context(
+                    conversationHistory=[], tokens=tokens, poolPositions=positions
+                ),
+            ),
+            analytics_agent,
+        ).message
+
+    main_agent = create_agent_executor(analytics_agent_run_func=analytics_agent_runner)
 
     # Initialize protocol registry
     protocol_registry = ProtocolRegistry()
@@ -51,6 +76,11 @@ def create_flask_app(protocols: List[str]) -> Flask:
 
         @app.errorhandler(Exception)
         def handle_generic_error(e):
+            error_traceback = traceback.format_exc()
+            logger.error(f"500 Error: {str(e)}")
+            logger.error(f"Traceback: {error_traceback}")
+            logger.error(f"Request Path: {request.path}")
+            logger.error(f"Request Body: {request.get_data(as_text=True)}")
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/healthcheck", methods=["GET"])
@@ -72,7 +102,7 @@ def create_flask_app(protocols: List[str]) -> Flask:
         agent_request = AgentChatRequest(**request_data)
 
         response = handle_agent_chat_request(
-            protocol_registry, protocols, agent_request, agent
+            protocol_registry, protocols, agent_request, main_agent
         )
 
         return jsonify(response.model_dump())
@@ -87,6 +117,16 @@ def create_flask_app(protocols: List[str]) -> Flask:
         )
 
         return jsonify({"suggestions": suggestions})
+
+    @app.route("/api/agent/analytics", methods=["POST"])
+    def run_analytics():
+        """Endpoint for the DeFiDataScientist agent"""
+        request_data = request.get_json()
+        agent_request = AgentChatRequest(**request_data)
+
+        response = handle_analytics_chat_request(agent_request, analytics_agent)
+
+        return jsonify(response.model_dump())
 
     return app
 
@@ -197,7 +237,7 @@ def run_main_agent(
     agent: CompiledGraph, messages: List, config: RunnableConfig
 ) -> Dict[str, Any]:
     # Run agent directly
-    result = agent.invoke({"messages": messages}, config=config)
+    result = agent.invoke({"messages": messages}, config=config, debug=False)
 
     # Extract final state and last message
     last_message = result["messages"][-1]
@@ -243,3 +283,58 @@ def extract_pools(messages: List[Any]) -> List[Pool]:
         if hasattr(msg, "artifact") and msg.artifact
         for a in msg.artifact
     ]
+
+
+def handle_analytics_chat_request(
+    request: AgentChatRequest,
+    agent: CompiledGraph,
+) -> AgentMessage:
+
+    # Build analytics agent system prompt
+    analytics_system_prompt = get_analytics_prompt(
+        protocol="Save",
+        tokens=request.context.tokens,
+        poolDeposits=request.context.poolPositions,
+        availablePools=[],
+    )
+
+    # Prepare message history
+    message_history = [
+        convert_to_agent_msg(m) for m in request.context.conversationHistory
+    ]
+
+    # Create messages for analytics agent
+    analytics_messages = [
+        ("system", analytics_system_prompt),
+        *message_history,
+        ("user", request.message.message),
+    ]
+
+    # Create config for the agent
+    agent_config = RunnableConfig(
+        configurable={
+            "tokens": request.context.tokens,
+            "positions": request.context.poolPositions,
+            "available_pools": [],
+        }
+    )
+
+    # Run analytics agent
+    analytics_result = run_analytics_agent(agent, analytics_messages, agent_config)
+
+    return AgentMessage(
+        message=analytics_result["content"],
+        pools=extract_pools(analytics_result["messages"]),
+    )
+
+
+def run_analytics_agent(
+    agent: CompiledGraph, messages: List, config: RunnableConfig
+) -> Dict[str, Any]:
+    # Run agent directly
+    result = agent.invoke({"messages": messages}, config=config, debug=False)
+
+    # Extract final state and last message
+    last_message = result["messages"][-1]
+
+    return {"content": last_message.content, "messages": result["messages"]}

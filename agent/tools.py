@@ -1,9 +1,23 @@
-from typing import List, Tuple, Dict, Any, Type
+from typing import List, Tuple, Callable
 
-from langgraph.graph.graph import RunnableConfig
-from langchain_core.tools import BaseTool, tool, StructuredTool
+from langgraph.graph.graph import RunnableConfig, CompiledGraph
+from langchain_core.tools import BaseTool, tool, Tool
+from pydantic import BaseModel, Field
+import traceback
 
-from api.api_types import Pool
+from defi.analytics.defillama_tools import (
+    show_defi_llama_protocols,
+    show_defi_llama_protocol,
+    show_defi_llama_global_tvl,
+    show_defi_llama_chain_tvl,
+    show_defi_llama_top_pools,
+)
+from api.api_types import Pool, WalletTokenHolding
+from defi.analytics.binance_tools import (
+    get_binance_price_history,
+    analyze_price_trend,
+    compare_assets,
+)
 
 
 @tool(response_format="content_and_artifact")
@@ -17,8 +31,33 @@ def show_pools(pool_ids: List[str], config: RunnableConfig) -> Tuple[str, List]:
     return f"Showing pools to user: {pool_ids}", pools
 
 
-# Define the tools the agent can use
-def create_agent_toolkit() -> List[BaseTool]:
-    tools = [show_pools]
+def create_agent_toolkit(analytics_agent_func: Callable) -> List[BaseTool]:
+    """Create tools that the main agent can use."""
 
-    return tools
+    @tool
+    def call_analytics_agent(query: str, config: RunnableConfig) -> str:
+        """
+        Calls an agent that has access to real-time metrics on DeFi, tokens, chains, protocols, or market conditions. Your input should be a query for the agent.
+        """
+        configurable = config["configurable"]
+        tokens: List[WalletTokenHolding] = configurable["tokens"]
+
+        return analytics_agent_func(query=query, tokens=tokens, positions=[])
+
+    return [
+        show_pools,
+        call_analytics_agent,
+    ]
+
+
+def create_analytics_agent_toolkit() -> List[BaseTool]:
+    return [
+        show_defi_llama_protocols,
+        show_defi_llama_protocol,
+        show_defi_llama_global_tvl,
+        show_defi_llama_chain_tvl,
+        show_defi_llama_top_pools,
+        get_binance_price_history,
+        analyze_price_trend,
+        compare_assets,
+    ]
