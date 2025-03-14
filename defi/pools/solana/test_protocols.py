@@ -25,4 +25,4 @@ class TestProtocols(unittest.TestCase):
         kamino = KaminoProtocol()
         pools = kamino.get_pools()
 
-        self.assertGreater(len(pools), 8)
+        self.assertEqual(len(pools), 35)

@@ -9,4 +9,5 @@ stablecoin_symbols = {
     "CUSD",
     "USDS",
     "AUSD",
+    "PYUSD",
 }
