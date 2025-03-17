@@ -4,12 +4,17 @@ from server import create_flask_app
 
 from defi.pools.solana.orca_protocol import OrcaProtocol
 from defi.pools.solana.save_protocol import SaveProtocol
+from defi.pools.solana.kamino_protocol import KaminoProtocol
 
 # Load environment variables
 load_dotenv()
 
 # Define protocols enabled
-protocols = [OrcaProtocol.PROTOCOL_NAME, SaveProtocol.PROTOCOL_NAME]
+protocols = [
+    OrcaProtocol.PROTOCOL_NAME,
+    SaveProtocol.PROTOCOL_NAME,
+    KaminoProtocol.PROTOCOL_NAME,
+]
 
 # Create flask app
 app = create_flask_app(protocols)
