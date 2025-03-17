@@ -233,7 +233,6 @@ def analyze_wallet_portfolio(
         }
 
 
-# Keep existing tools for backwards compatibility
 @tool()
 def max_drawdown(
         symbol: str,
