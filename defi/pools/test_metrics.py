@@ -7,7 +7,6 @@ from defi.analytics.defillama_tools import (
     show_defi_llama_global_tvl,
     show_defi_llama_chain_tvl,
     show_defi_llama_top_pools,
-    show_defi_llama_pool,
 )
 
 
@@ -121,74 +120,6 @@ class TestDefiLlamaSource(unittest.TestCase):
                 print(f"   Stablecoin: {stable}")
 
             print("")
-
-    def test_show_defi_llama_pool(self):
-        """Test the show_defi_llama_pool tool"""
-        print("\n=== Testing show_defi_llama_pool() ===")
-
-        top_pools = show_defi_llama_top_pools.invoke({"limit": 1})
-
-        if top_pools and len(top_pools) > 0:
-            pool_id = None
-            for field in ["id", "pool", "identifier"]:
-                if field in top_pools[0]:
-                    pool_id = top_pools[0][field]
-                    break
-
-            if not pool_id:
-                pool_id = f"{top_pools[0].get('project')}-{top_pools[0].get('symbol')}"
-
-            print(f"Testing with pool ID: {pool_id}")
-
-            pool = show_defi_llama_pool.invoke({"pool_id": pool_id})
-
-            self.assertIsNotNone(pool)
-            self.assertNotIn("error", pool, "The pool should be found")
-
-            print("\nPool Details:")
-            print(f"Status: {pool.get('status', 'unknown')}")
-
-            if "latest" in pool:
-                latest = pool["latest"]
-                print("\nLatest Data:")
-                print(f"  TVL: {format_tvl(latest.get('tvl', 0))}")
-                print(f"  APY: {latest.get('apy', 0):.2f}%")
-                if "timestamp" in latest:
-                    from datetime import datetime
-
-                    timestamp = latest["timestamp"]
-                    try:
-                        if isinstance(timestamp, (int, float)):
-                            ts = datetime.fromtimestamp(timestamp)
-                        else:
-                            ts = datetime.fromisoformat(
-                                timestamp.replace("Z", "+00:00")
-                            )
-                        print(f"  Timestamp: {ts.strftime('%Y-%m-%d %H:%M:%S')}")
-                    except (ValueError, TypeError):
-                        print(f"  Timestamp: {timestamp} (raw)")
-
-            if "data" in pool and isinstance(pool["data"], list):
-                print(f"\nHistorical Data Points: {len(pool['data'])}")
-                if pool["data"] and len(pool["data"]) > 0:
-                    print("\nSample (First data point):")
-                    first = pool["data"][0]
-                    print(f"  TVL: {format_tvl(first.get('tvlUsd', 0))}")
-                    print(f"  APY: {first.get('apy', 0):.2f}%")
-
-                    other_fields = [
-                        k
-                        for k in first.keys()
-                        if k not in ["tvlUsd", "apy", "timestamp"]
-                    ]
-                    if other_fields:
-                        print(
-                            "\nOther available fields in data points:",
-                            ", ".join(other_fields),
-                        )
-        else:
-            self.fail("Could not find any pools to test with")
-
 
 if __name__ == "__main__":
     unittest.main()
