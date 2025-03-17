@@ -9,7 +9,6 @@ from api.api_types import Pool, PoolQuery
 
 
 class Protocol(ABC):
-
     @abstractmethod
     def get_pools(self) -> List[Pool]:
         """Return all pools supported by the protocol."""
@@ -23,7 +22,6 @@ class Protocol(ABC):
 
 
 class ProtocolRegistry:
-
     protocols: Dict[str, Protocol] = {}
     pools_cache: Dict[str, List[Pool]] = {}
     last_refresh: Dict[str, float] = {}
