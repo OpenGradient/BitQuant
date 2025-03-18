@@ -17,15 +17,7 @@ TEST_CONTEXT = {
 
 def main():
     context = TEST_CONTEXT.copy()
-
-    # Ask user which agent to use
-    agent_type = input("Choose an agent (regular/analytics): ").strip().lower()
-
-    # Set endpoint based on agent type
-    if agent_type == "analytics":
-        endpoint = "http://127.0.0.1:5000/api/agent/analytics"
-    else:
-        endpoint = "http://127.0.0.1:5000/api/agent/run"
+    endpoint = "http://127.0.0.1:5000/api/agent/run"
 
     while True:
         # read input from command line
@@ -50,15 +42,8 @@ def main():
         pools = agent_output.get("pools", [])
 
         # print results
-        if agent_type == "analytics":
-            response_json = response.json()
-            if isinstance(response_json, dict) and "message" in response_json:
-                print(f"Two-Ligma: {answer}")
-            else:
-                print(f"Two-Ligma: {response_json}")
-        else:
-            # Regular handling for other responses
-            print(f"Two-Ligma: {answer}")
+        print(f"Two-Ligma: {answer}")
+        if pools:
             print(pools)
 
         # append to history
