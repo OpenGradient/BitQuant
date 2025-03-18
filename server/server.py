@@ -23,7 +23,7 @@ from api.api_types import (
     Context,
     Message,
 )
-from agent.agent_executor import (
+from agent.agent_executors import (
     create_agent_executor,
     create_suggestions_executor,
     create_analytics_executor,
@@ -169,9 +169,9 @@ def handle_agent_chat_request(
         availablePools=compatible_pools,
     )
 
-    # Prepare message history
+    # Prepare message history (last 10 messages)
     message_history = [
-        convert_to_agent_msg(m) for m in request.context.conversationHistory
+        convert_to_agent_msg(m) for m in request.context.conversationHistory[-10:]
     ]
 
     # Create messages for main agent
@@ -221,9 +221,9 @@ def handle_suggestions_request(
         availablePools=compatible_pools,
     )
 
-    # Prepare message history
+    # Prepare message history (last 10 messages)
     message_history = [
-        convert_to_agent_msg(m) for m in request.context.conversationHistory
+        convert_to_agent_msg(m) for m in request.context.conversationHistory[-10:]
     ]
 
     # Create messages for suggestions agent
@@ -313,9 +313,9 @@ def handle_analytics_chat_request(
         poolDeposits=request.context.poolPositions,
     )
 
-    # Prepare message history
+    # Prepare message history (last 10 messages)
     message_history = [
-        convert_to_agent_msg(m) for m in request.context.conversationHistory
+        convert_to_agent_msg(m) for m in request.context.conversationHistory[-10:]
     ]
 
     # Create messages for analytics agent
