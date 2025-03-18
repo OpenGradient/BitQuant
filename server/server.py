@@ -54,19 +54,7 @@ def create_flask_app(protocols: List[str]) -> Flask:
     # Initialize agents
     suggestions_agent = create_suggestions_executor()
     analytics_agent = create_analytics_executor()
-
-    def analytics_agent_runner(query: str, tokens: List, positions: List) -> str:
-        return handle_analytics_chat_request(
-            AgentChatRequest(
-                message=UserMessage(message=query),
-                context=Context(
-                    conversationHistory=[], tokens=tokens, poolPositions=positions
-                ),
-            ),
-            analytics_agent,
-        ).message
-
-    main_agent = create_agent_executor(analytics_agent_run_func=analytics_agent_runner)
+    main_agent = create_agent_executor()
 
     router_model = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.0)
 
@@ -154,20 +142,10 @@ def handle_agent_chat_request(
     request: AgentChatRequest,
     agent: CompiledGraph,
 ) -> AgentMessage:
-    # Get compatible pools
-    compatible_pools = protocol_registry.get_pools(
-        PoolQuery(
-            chain=Chain.SOLANA,
-            protocols=protocols,
-            tokens=[token.address for token in request.context.tokens],
-        )
-    )
-
     # Build main agent system prompt
     main_system_prompt = get_agent_prompt(
         tokens=request.context.tokens,
         poolDeposits=request.context.poolPositions,
-        availablePools=compatible_pools,
     )
 
     # Prepare message history (last 10 messages)
@@ -187,7 +165,7 @@ def handle_agent_chat_request(
         configurable={
             "tokens": request.context.tokens,
             "positions": request.context.poolPositions,
-            "available_pools": compatible_pools,
+            "protocol_registry": protocol_registry,
         }
     )
 

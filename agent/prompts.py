@@ -18,12 +18,10 @@ router_template = env.get_template("router.jinja2")
 def get_agent_prompt(
     tokens: List[WalletTokenHolding],
     poolDeposits: List[WalletPoolPosition],
-    availablePools: List[Pool],
 ) -> str:
     agent_prompt = agent_template.render(
         tokens=tokens,
         poolDeposits=poolDeposits,
-        availablePools=availablePools,
     )
 
     return agent_prompt

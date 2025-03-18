@@ -12,7 +12,7 @@ from defi.analytics.defillama_tools import (
     show_defi_llama_chain_tvl,
     show_defi_llama_top_pools,
 )
-from api.api_types import Pool, WalletTokenHolding
+from api.api_types import Pool, WalletTokenHolding, Chain, PoolQuery
 from defi.analytics.binance_tools import (
     get_binance_price_history,
     analyze_price_trend,
@@ -25,6 +25,7 @@ from defi.analytics.financial_analytics_tools import (
     portfolio_summary,
     analyze_volatility_trend,
 )
+from defi.pools.protocol import ProtocolRegistry
 
 
 @tool(response_format="content_and_artifact")
@@ -38,22 +39,48 @@ def show_pools(pool_ids: List[str], config: RunnableConfig) -> Tuple[str, List]:
     return f"Showing pools to user: {pool_ids}", pools
 
 
-def create_agent_toolkit(analytics_agent_func: Callable) -> List[BaseTool]:
+@tool()
+def retrieve_pools(
+    tokens: List[str] = None,
+    protocols: List[str] = None,
+    is_stablecoin: bool = None,
+    impermanent_loss_risk: bool = None,
+    config: RunnableConfig = None,
+) -> List[Pool]:
+    """Retrieves pools matching the specified criteria for internal agent analysis.
+    This tool is for the agent to analyze pools without displaying them to the user.
+
+    Args:
+        tokens: List of token addresses to filter by
+        protocols: List of protocol names to filter by
+        is_stablecoin: Whether to filter for stablecoin pools
+        impermanent_loss_risk: Whether to filter for pools with impermanent loss risk
+        config: The runnable config containing available pools
+
+    Returns:
+        List of matching pools
+    """
+    configurable = config["configurable"]
+    protocol_registry: ProtocolRegistry = configurable["protocol_registry"]
+
+    # Create a query to filter pools
+    query = PoolQuery(
+        chain=Chain.SOLANA,  # Currently only supporting Solana
+        tokens=tokens or [],
+        protocols=protocols or [],
+        isStableCoin=is_stablecoin,
+        impermanentLossRisk=impermanent_loss_risk,
+    )
+
+    # Use ProtocolRegistry to get matching pools
+    return protocol_registry.get_pools(query)
+
+
+def create_agent_toolkit() -> List[BaseTool]:
     """Create tools that the main agent can use."""
-
-    @tool
-    def call_analytics_agent(query: str, config: RunnableConfig) -> str:
-        """
-        Calls an agent that has access to real-time metrics on DeFi, tokens, chains, protocols, or market conditions. Your input should be a query for the agent.
-        """
-        configurable = config["configurable"]
-        tokens: List[WalletTokenHolding] = configurable["tokens"]
-
-        return analytics_agent_func(query=query, tokens=tokens, positions=[])
-
     return [
         show_pools,
-        call_analytics_agent,
+        retrieve_pools,
     ]
 
 
