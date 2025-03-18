@@ -195,3 +195,14 @@ class ProtocolRegistry:
             else:
                 self.logger.info("Background refresh thread stopped successfully")
         self._initialized = False
+
+    def get_pools_by_ids(self, pool_ids: List[str]) -> List[Pool]:
+        """Get full pool objects by their IDs."""
+        # Collect all pools from all protocols
+        all_pools: List[Pool] = []
+        for pools in self.pools_cache.values():
+            all_pools.extend(pools)
+            
+        # Return pools that match the requested IDs
+        return [pool for pool in all_pools if pool.id in pool_ids]
+

@@ -62,7 +62,7 @@ def create_flask_app() -> Flask:
     protocol_registry = ProtocolRegistry()
     protocol_registry.register_protocol(OrcaProtocol())
     protocol_registry.register_protocol(SaveProtocol())
-    protocol_registry.register_protocol(KaminoProtocol())
+    # protocol_registry.register_protocol(KaminoProtocol())
     protocol_registry.initialize()
 
     # Load tokenlist
@@ -177,11 +177,11 @@ def handle_agent_chat_request(
     )
 
     # Run main agent
-    main_result = run_main_agent(agent, main_messages, agent_config)
+    main_result = run_main_agent(agent, main_messages, agent_config, protocol_registry)
 
     return AgentMessage(
         message=main_result["content"],
-        pools=extract_pools(main_result["messages"]),
+        pools=main_result["pools"],
     )
 
 
@@ -221,7 +221,10 @@ def handle_suggestions_request(
 
 
 def run_main_agent(
-    agent: CompiledGraph, messages: List, config: RunnableConfig
+    agent: CompiledGraph, 
+    messages: List, 
+    config: RunnableConfig,
+    protocol_registry: ProtocolRegistry,
 ) -> Dict[str, Any]:
     # Run agent directly
     result = agent.invoke({"messages": messages}, config=config, debug=False)
@@ -229,7 +232,27 @@ def run_main_agent(
     # Extract final state and last message
     last_message = result["messages"][-1]
 
-    return {"content": last_message.content, "messages": result["messages"]}
+    try:
+        # Parse the JSON response from the agent's content
+        response_data = json.loads(last_message.content)
+        print(f"Response data: {response_data}")
+
+        # Get full pool objects for the returned pool IDs
+        pool_objects = protocol_registry.get_pools_by_ids(response_data["pools"])
+        
+        return {
+            "content": response_data["text"],
+            "pools": pool_objects,
+            "messages": result["messages"]
+        }
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse agent response as JSON: {e}")
+        # Fallback to treating the entire response as text if JSON parsing fails
+        return {
+            "content": last_message.content,
+            "pools": [],
+            "messages": result["messages"]
+        }
 
 
 def run_suggestions_agent(
@@ -310,7 +333,7 @@ def handle_analytics_chat_request(
 
     return AgentMessage(
         message=analytics_result["content"],
-        pools=extract_pools(analytics_result["messages"]),
+        pools=[]
     )
 
 

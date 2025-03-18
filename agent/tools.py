@@ -28,17 +28,6 @@ from defi.analytics.financial_analytics_tools import (
 from defi.pools.protocol import ProtocolRegistry
 
 
-@tool(response_format="content_and_artifact")
-def show_pools(pool_ids: List[str], config: RunnableConfig) -> Tuple[str, List]:
-    """Displays the pools to the user with the given IDs"""
-    configurable = config["configurable"]
-    available_pools: List[Pool] = configurable["available_pools"]
-
-    pools = [pool.model_dump() for pool in available_pools if pool.id in pool_ids]
-
-    return f"Showing pools to user: {pool_ids}", pools
-
-
 @tool
 def retrieve_pools(
     tokens: List[str] = None,
@@ -49,6 +38,7 @@ def retrieve_pools(
     Retrieves pools matching the specified criteria for analysis.
     """
     configurable = config["configurable"]
+    user_tokens: List[WalletTokenHolding] = configurable["tokens"]
     protocol_registry: ProtocolRegistry = configurable["protocol_registry"]
     print(f"Using tokens: {tokens}")
 
@@ -57,6 +47,7 @@ def retrieve_pools(
         chain=Chain.SOLANA,  # Currently only supporting Solana
         tokens=tokens or [],
         impermanentLossRisk=impermanent_loss_risk,
+        user_tokens=user_tokens,  # Pass user's actual token holdings
     )
 
     # Use ProtocolRegistry to get matching pools
@@ -69,7 +60,6 @@ def retrieve_pools(
 def create_agent_toolkit() -> List[BaseTool]:
     """Create tools that the main agent can use."""
     return [
-        show_pools,
         retrieve_pools,
     ]
 

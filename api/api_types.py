@@ -16,12 +16,20 @@ class Chain(IntEnum):
     OTHER = 3
 
 
+class WalletTokenHolding(BaseModel):
+    address: str  # token address
+    amount: float  # amount of tokens held
+    symbol: Optional[str] = None  # token symbol
+    name: Optional[str] = None  # token name
+
+
 class PoolQuery(BaseModel):
     chain: Optional[Chain] = None
-    tokens: List[str] = []
+    tokens: List[str] = []  # tokens the user is asking about
     protocols: List[str] = []
     isStableCoin: Optional[bool] = None
     impermanentLossRisk: Optional[bool] = None
+    user_tokens: List[WalletTokenHolding] = []  # user's actual token holdings
 
 
 class PoolType(StrEnum):
@@ -51,13 +59,6 @@ class Pool(BaseModel):
             return "Medium"
         else:
             return "High"
-
-
-class WalletTokenHolding(BaseModel):
-    address: str  # token address
-    amount: float  # amount of tokens held
-    symbol: Optional[str] = None  # token symbol
-    name: Optional[str] = None  # token name
 
 
 class WalletPoolPosition(BaseModel):
