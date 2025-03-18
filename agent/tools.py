@@ -39,26 +39,14 @@ def show_pools(pool_ids: List[str], config: RunnableConfig) -> Tuple[str, List]:
     return f"Showing pools to user: {pool_ids}", pools
 
 
-@tool()
+@tool
 def retrieve_pools(
-    tokens: List[str] = None,
-    protocols: List[str] = None,
-    is_stablecoin: bool = None,
+    token_addresses: List[str] = None,
     impermanent_loss_risk: bool = None,
     config: RunnableConfig = None,
 ) -> List[Pool]:
-    """Retrieves pools matching the specified criteria for internal agent analysis.
-    This tool is for the agent to analyze pools without displaying them to the user.
-
-    Args:
-        tokens: List of token addresses to filter by
-        protocols: List of protocol names to filter by
-        is_stablecoin: Whether to filter for stablecoin pools
-        impermanent_loss_risk: Whether to filter for pools with impermanent loss risk
-        config: The runnable config containing available pools
-
-    Returns:
-        List of matching pools
+    """
+    Retrieves pools matching the specified criteria for analysis. token_addresses (if set) must be an address not a symbol.
     """
     configurable = config["configurable"]
     protocol_registry: ProtocolRegistry = configurable["protocol_registry"]
@@ -66,9 +54,7 @@ def retrieve_pools(
     # Create a query to filter pools
     query = PoolQuery(
         chain=Chain.SOLANA,  # Currently only supporting Solana
-        tokens=tokens or [],
-        protocols=protocols or [],
-        isStableCoin=is_stablecoin,
+        tokens=token_addresses or [],
         impermanentLossRisk=impermanent_loss_risk,
     )
 
