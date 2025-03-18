@@ -28,7 +28,8 @@ from agent.agent_executor import (
     create_suggestions_executor,
     create_analytics_executor,
 )
-from agent.prompts import get_agent_prompt, get_suggestions_prompt, get_analytics_prompt
+from agent.prompts import get_agent_prompt, get_suggestions_prompt, get_analytics_prompt, get_router_prompt
+from langchain_openai import ChatOpenAI
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
@@ -61,6 +62,9 @@ def create_flask_app(protocols: List[str]) -> Flask:
         ).message
 
     main_agent = create_agent_executor(analytics_agent_run_func=analytics_agent_runner)
+
+    # Initialize router
+    router_model = ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
 
     # Initialize protocol registry
     protocol_registry = ProtocolRegistry()
@@ -103,11 +107,25 @@ def create_flask_app(protocols: List[str]) -> Flask:
         request_data = request.get_json()
         agent_request = AgentChatRequest(**request_data)
 
-        response = handle_agent_chat_request(
-            protocol_registry, protocols, agent_request, main_agent
+        # Get router prompt
+        router_prompt = get_router_prompt(
+            message_history=agent_request.context.conversationHistory,
+            current_message=agent_request.message.message
         )
 
-        return jsonify(response.model_dump())
+        # Get router decision
+        router_response = router_model.invoke(router_prompt)
+        agent_type = router_response.content.strip().lower()
+
+        # Route to appropriate handler
+        if agent_type == "analytics":
+            response = handle_analytics_chat_request(agent_request, analytics_agent)
+        else:  # default to main agent
+            response = handle_agent_chat_request(
+                protocol_registry, protocols, agent_request, main_agent
+            )
+
+        return jsonify(response.model_dump() if hasattr(response, "model_dump") else response)
 
     @app.route("/api/agent/suggestions", methods=["POST"])
     def run_suggestions():
@@ -119,16 +137,6 @@ def create_flask_app(protocols: List[str]) -> Flask:
         )
 
         return jsonify({"suggestions": suggestions})
-
-    @app.route("/api/agent/analytics", methods=["POST"])
-    def run_analytics():
-        """Endpoint for the DeFiDataScientist agent"""
-        request_data = request.get_json()
-        agent_request = AgentChatRequest(**request_data)
-
-        response = handle_analytics_chat_request(agent_request, analytics_agent)
-
-        return jsonify(response.model_dump())
 
     return app
 
