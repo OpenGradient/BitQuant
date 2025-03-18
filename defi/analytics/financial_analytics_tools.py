@@ -6,6 +6,7 @@ import os
 from langchain_core.tools import tool
 from defi.analytics.binance_tools import get_binance_price_history
 from langgraph.graph.graph import RunnableConfig
+from sklearn.linear_model import LinearRegression
 
 
 # Load token list mapping from address to symbol
@@ -500,5 +501,99 @@ def portfolio_summary(
     except Exception as e:
         return {
             "error": f"Error calculating portfolio summary: {str(e)}",
+            "traceback": traceback.format_exc(),
+        }
+
+
+def volatility_trend(price_series):
+    '''
+    Gives some information about trend in volatility by calculating 
+    the slope of the line fit to the square root of 
+    absolute value of returns over time.
+
+    Parameters
+    ----------
+    price_series : array
+        1-d array of prices.
+
+    Returns
+    -------
+    float
+        Linear regression coefficient interpreted as 
+        the average increase or decrease of 
+        square root of absolute value of returns per day.
+    '''
+    return_series = price_series[1:]/price_series[:-1] - 1 
+    log_abs_returns = np.log(np.abs(return_series) + 1e-12)
+    index_series = np.arange(log_abs_returns.shape[0]).reshape(-1, 1)
+    linreg = LinearRegression().fit(index_series, log_abs_returns)
+    # preds = linreg.predict(index_series)
+    # se = np.sqrt(((preds-log_abs_returns)**2).sum() / ((log_abs_returns.shape[0]-2)*
+    #                   np.sum((log_abs_returns-log_abs_returns.mean())**2)))
+    # tstat = linreg.coef_[0]/se
+    return linreg.coef_[0]
+
+
+@tool()
+def analyze_volatility_trend(
+    symbol: str, interval: str = "1d", limit: int = 90
+) -> Dict[str, Any]:
+    """
+    Analyzes the trend in volatility for a cryptocurrency over time
+    
+    Args:
+        symbol: Trading pair symbol (e.g., "BTCUSDT")
+        interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
+        limit: Number of candlesticks to retrieve (max 1000)
+        
+    Returns:
+        Dictionary containing volatility trend analysis
+    """
+    try:
+        # Get price data from Binance
+        price_data = get_binance_price_history.invoke(
+            {"pair": symbol, "interval": interval, "limit": limit}
+        )
+        
+        if "error" in price_data:
+            return {
+                "error": f"Failed to fetch price data for {symbol}: {price_data['error']}"
+            }
+            
+        # Extract closing prices
+        price_series = [float(candle[4]) for candle in price_data["data"]]
+        
+        # Calculate volatility trend
+        price_series = np.array(price_series)
+        vol_trend = volatility_trend(price_series)
+        
+        # Interpret the trend
+        if vol_trend > 0:
+            interpretation = "Increasing volatility trend"
+            direction = "upward"
+        elif vol_trend < 0:
+            interpretation = "Decreasing volatility trend"
+            direction = "downward"
+        else:
+            interpretation = "Stable volatility"
+            direction = "stable"
+            
+        # Calculate standard volatility for comparison
+        returns = price_series[1:] / price_series[:-1] - 1
+        std_volatility = float(returns.std())
+        
+        return {
+            "symbol": symbol,
+            "period": f"{interval} x {limit}",
+            "volatility_trend_coefficient": float(vol_trend),
+            "trend_direction": direction,
+            "current_volatility": std_volatility,
+            "annualized_volatility": f"{float(std_volatility * np.sqrt(252) * 100):.2f}%",
+            "interpretation": interpretation,
+            "explanation": "A positive coefficient indicates volatility is increasing over time, while a negative coefficient indicates decreasing volatility."
+        }
+    except Exception as e:
+        return {
+            "error": f"Error analyzing volatility trend: {str(e)}",
             "traceback": traceback.format_exc(),
         }
