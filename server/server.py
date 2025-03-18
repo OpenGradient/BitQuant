@@ -118,9 +118,9 @@ def create_flask_app(protocols: List[str]) -> Flask:
         agent_type = router_response.content.strip().lower()
 
         # Route to appropriate handler
-        if agent_type == "analytics":
+        if agent_type == "analytics_agent":
             response = handle_analytics_chat_request(agent_request, analytics_agent)
-        else:  # default to main agent
+        else:  # default to yield agent
             response = handle_agent_chat_request(
                 protocol_registry, protocols, agent_request, main_agent
             )
