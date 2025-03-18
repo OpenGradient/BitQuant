@@ -23,4 +23,4 @@ if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Creating app with protocols enabled: {protocols}")
 
-    app.run(debug=True)
+    app.run(debug=False)

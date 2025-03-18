@@ -26,6 +26,7 @@ class ProtocolRegistry:
     pools_cache: Dict[str, List[Pool]] = {}
     last_refresh: Dict[str, float] = {}
     refresh_interval = 10 * 60  # Refresh every 10 mins
+    _initialized = False
 
     def __init__(self):
         self.logger = logging.getLogger("ProtocolRegistry")
@@ -158,6 +159,9 @@ class ProtocolRegistry:
 
     def initialize(self) -> None:
         """Initialize the registry with default protocols and start refresh thread"""
+        if self._initialized:
+            return
+
         # Perform initial refresh if not already done
         if not self.pools_cache:
             self.refresh_pools()
@@ -173,6 +177,8 @@ class ProtocolRegistry:
             self._refresh_thread.start()
             self.logger.info("Started background refresh thread")
 
+        self._initialized = True
+
     def shutdown(self) -> None:
         """Shutdown the registry and stop background thread"""
         if self._refresh_thread and self._refresh_thread.is_alive():
@@ -183,3 +189,4 @@ class ProtocolRegistry:
                 self.logger.warning("Background refresh thread did not stop gracefully")
             else:
                 self.logger.info("Background refresh thread stopped successfully")
+        self._initialized = False
