@@ -47,13 +47,11 @@ def get_analytics_prompt(
     protocol: str,
     tokens: List[WalletTokenHolding] = None,
     poolDeposits: List[WalletPoolPosition] = None,
-    availablePools: List[Pool] = None,
 ) -> str:
     analytics_agent_prompt = analytics_agent_template.render(
         protocolName=protocol,
         tokens=tokens,
         poolDeposits=poolDeposits,
-        availablePools=availablePools,
     )
 
     return analytics_agent_prompt

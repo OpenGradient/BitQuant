@@ -311,7 +311,6 @@ def handle_analytics_chat_request(
         protocol="Save",
         tokens=request.context.tokens,
         poolDeposits=request.context.poolPositions,
-        availablePools=[],
     )
 
     # Prepare message history
