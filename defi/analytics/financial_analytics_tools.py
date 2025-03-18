@@ -524,7 +524,7 @@ def volatility_trend(price_series):
         square root of absolute value of returns per day.
     '''
     return_series = price_series[1:]/price_series[:-1] - 1 
-    log_abs_returns = np.sqrt(np.abs(return_series) + 1e-12)
+    log_abs_returns = np.log(np.abs(return_series) + 1e-12)
     index_series = np.arange(log_abs_returns.shape[0]).reshape(-1, 1)
     linreg = LinearRegression().fit(index_series, log_abs_returns)
     # preds = linreg.predict(index_series)
