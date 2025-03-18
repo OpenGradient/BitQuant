@@ -28,7 +28,12 @@ from agent.agent_executor import (
     create_suggestions_executor,
     create_analytics_executor,
 )
-from agent.prompts import get_agent_prompt, get_suggestions_prompt, get_analytics_prompt, get_router_prompt
+from agent.prompts import (
+    get_agent_prompt,
+    get_suggestions_prompt,
+    get_analytics_prompt,
+    get_router_prompt,
+)
 from langchain_openai import ChatOpenAI
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -63,8 +68,7 @@ def create_flask_app(protocols: List[str]) -> Flask:
 
     main_agent = create_agent_executor(analytics_agent_run_func=analytics_agent_runner)
 
-    # Initialize router
-    router_model = ChatOpenAI(model="gpt-4o-mini", temperature=0.0)
+    router_model = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.0)
 
     # Initialize protocol registry
     protocol_registry = ProtocolRegistry()
@@ -110,7 +114,7 @@ def create_flask_app(protocols: List[str]) -> Flask:
         # Get router prompt
         router_prompt = get_router_prompt(
             message_history=agent_request.context.conversationHistory,
-            current_message=agent_request.message.message
+            current_message=agent_request.message.message,
         )
 
         # Get router decision
@@ -125,7 +129,9 @@ def create_flask_app(protocols: List[str]) -> Flask:
                 protocol_registry, protocols, agent_request, main_agent
             )
 
-        return jsonify(response.model_dump() if hasattr(response, "model_dump") else response)
+        return jsonify(
+            response.model_dump() if hasattr(response, "model_dump") else response
+        )
 
     @app.route("/api/agent/suggestions", methods=["POST"])
     def run_suggestions():
