@@ -120,6 +120,7 @@ def create_flask_app(protocols: List[str]) -> Flask:
         # Get router decision
         router_response = router_model.invoke(router_prompt)
         agent_type = router_response.content.strip().lower()
+        logger.info(f"Router response: {router_response}")
 
         # Route to appropriate handler
         if agent_type == "analytics_agent":
