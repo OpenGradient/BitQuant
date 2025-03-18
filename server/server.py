@@ -45,7 +45,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def create_flask_app(protocols: List[str]) -> Flask:
+def create_flask_app() -> Flask:
     """Create and configure the Flask application with routes."""
     app = Flask(__name__)
     app.config["PROPAGATE_EXCEPTIONS"] = True
@@ -64,6 +64,11 @@ def create_flask_app(protocols: List[str]) -> Flask:
     protocol_registry.register_protocol(SaveProtocol())
     protocol_registry.register_protocol(KaminoProtocol())
     protocol_registry.initialize()
+
+    # Load tokenlist
+    tokenlist_path = os.path.join(STATIC_DIR, "tokenlist.json")
+    with open(tokenlist_path, "r") as f:
+        tokenlist = json.load(f)
 
     # Set up error handlers for production environment
     if not app.config.get("TESTING"):
@@ -99,6 +104,9 @@ def create_flask_app(protocols: List[str]) -> Flask:
         request_data = request.get_json()
         agent_request = AgentChatRequest(**request_data)
 
+        # Enhance tokens with symbols from tokenlist
+        agent_request.context.enhance_tokens_with_symbols(tokenlist)
+
         # Get router prompt
         router_prompt = get_router_prompt(
             message_history=agent_request.context.conversationHistory,
@@ -115,7 +123,7 @@ def create_flask_app(protocols: List[str]) -> Flask:
             response = handle_analytics_chat_request(agent_request, analytics_agent)
         else:  # default to yield agent
             response = handle_agent_chat_request(
-                protocol_registry, protocols, agent_request, main_agent
+                protocol_registry, agent_request, main_agent
             )
 
         return jsonify(
@@ -128,7 +136,7 @@ def create_flask_app(protocols: List[str]) -> Flask:
         agent_request = AgentChatRequest(**request_data)
 
         suggestions = handle_suggestions_request(
-            protocol_registry, protocols, agent_request, suggestions_agent
+            agent_request, suggestions_agent
         )
 
         return jsonify({"suggestions": suggestions})
@@ -138,7 +146,6 @@ def create_flask_app(protocols: List[str]) -> Flask:
 
 def handle_agent_chat_request(
     protocol_registry: ProtocolRegistry,
-    protocols: List[str],
     request: AgentChatRequest,
     agent: CompiledGraph,
 ) -> AgentMessage:
@@ -179,25 +186,12 @@ def handle_agent_chat_request(
 
 
 def handle_suggestions_request(
-    protocol_registry: ProtocolRegistry,
-    protocols: List[str],
     request: AgentChatRequest,
     suggestions_agent: CompiledGraph,
 ) -> List[str]:
-    # Get compatible pools
-    compatible_pools = protocol_registry.get_pools(
-        PoolQuery(
-            chain=Chain.SOLANA,
-            protocols=protocols,
-            tokens=[token.address for token in request.context.tokens],
-        )
-    )
-
     # Build suggestions agent system prompt
     suggestions_system_prompt = get_suggestions_prompt(
         tokens=request.context.tokens,
-        poolDeposits=request.context.poolPositions,
-        availablePools=compatible_pools,
     )
 
     # Prepare message history (last 10 messages)
@@ -215,8 +209,6 @@ def handle_suggestions_request(
     agent_config = RunnableConfig(
         configurable={
             "tokens": request.context.tokens,
-            "positions": request.context.poolPositions,
-            "available_pools": compatible_pools,
         }
     )
 

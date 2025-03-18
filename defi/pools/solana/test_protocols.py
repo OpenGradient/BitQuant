@@ -13,7 +13,6 @@ class TestProtocols(unittest.TestCase):
         pools = save.get_pools()
 
         self.assertGreater(len(pools), 2)
-        print([p.model_dump_json() for p in pools])
 
     def test_orca(self):
         orca = OrcaProtocol()

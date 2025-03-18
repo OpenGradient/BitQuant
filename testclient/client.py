@@ -8,7 +8,7 @@ TEST_CONTEXT = {
         {"amount": 100, "address": "So11111111111111111111111111111111111111112"},
         {"amount": 45333, "address": "mSoLzYCxHdYgdzU16g5QSh3i5K3z3KZK7ytfqcJm7So"},
         {"amount": 900, "address": "USDSwr9ApdHk5bvJKMjzff41FfuX8bSxdKcR81vTwcA"},
-        {"amount": 5, "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"},
+        {"amount": 500, "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"},
         {"amount": 105454, "address": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"},
     ],
     "poolPositions": [],
@@ -45,6 +45,8 @@ def main():
         print(f"Two-Ligma: {answer}")
         if pools:
             print(pools)
+        else:
+            print(">No pools returned")
 
         # append to history
         context["conversationHistory"].append(message)

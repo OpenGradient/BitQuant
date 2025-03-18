@@ -56,6 +56,8 @@ class Pool(BaseModel):
 class WalletTokenHolding(BaseModel):
     address: str  # token address
     amount: float  # amount of tokens held
+    symbol: Optional[str] = None  # token symbol
+    name: Optional[str] = None  # token name
 
 
 class WalletPoolPosition(BaseModel):
@@ -81,6 +83,18 @@ class Context(BaseModel):
     conversationHistory: List[Message]
     tokens: List[WalletTokenHolding]
     poolPositions: List[WalletPoolPosition]
+
+    def enhance_tokens_with_symbols(self, tokenlist: Dict[str, Dict[str, str]]) -> None:
+        """Enhance tokens with their symbols from the tokenlist.
+        
+        Args:
+            tokenlist: Dictionary mapping token addresses to their metadata (name, symbol)
+        """
+        for token in self.tokens:
+            if token.address in tokenlist:
+                token_data = tokenlist[token.address]
+                token.symbol = token_data["symbol"]
+                token.name = token_data["name"]
 
 
 class AgentChatRequest(BaseModel):

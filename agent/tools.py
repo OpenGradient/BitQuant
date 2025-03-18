@@ -41,25 +41,29 @@ def show_pools(pool_ids: List[str], config: RunnableConfig) -> Tuple[str, List]:
 
 @tool
 def retrieve_pools(
-    token_addresses: List[str] = None,
+    tokens: List[str] = None,
     impermanent_loss_risk: bool = None,
     config: RunnableConfig = None,
 ) -> List[Pool]:
     """
-    Retrieves pools matching the specified criteria for analysis. token_addresses (if set) must be an address not a symbol.
+    Retrieves pools matching the specified criteria for analysis.
     """
     configurable = config["configurable"]
     protocol_registry: ProtocolRegistry = configurable["protocol_registry"]
+    print(f"Using tokens: {tokens}")
 
     # Create a query to filter pools
     query = PoolQuery(
         chain=Chain.SOLANA,  # Currently only supporting Solana
-        tokens=token_addresses or [],
+        tokens=tokens or [],
         impermanentLossRisk=impermanent_loss_risk,
     )
 
     # Use ProtocolRegistry to get matching pools
-    return protocol_registry.get_pools(query)
+    pools = protocol_registry.get_pools(query)
+    print(f"Returning pools: {pools}")
+
+    return pools
 
 
 def create_agent_toolkit() -> List[BaseTool]:

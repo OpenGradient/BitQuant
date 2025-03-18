@@ -96,9 +96,14 @@ class ProtocolRegistry:
             if query.chain is not None and pool.chain != query.chain:
                 continue
 
-            # Token filter (match any token by address or symbol)
+            # Token filter (match any token by address OR symbol)
             if query.tokens:
-                if not all([t.address in query.tokens for t in pool.tokens]):
+                token_matches = False
+                for pool_token in pool.tokens:
+                    if pool_token.symbol in query.tokens or pool_token.address in query.tokens:
+                        token_matches = True
+                        break
+                if not token_matches:
                     continue
 
             # Stablecoin filter

@@ -17,7 +17,7 @@ protocols = [
 ]
 
 # Create flask app
-app = create_flask_app(protocols)
+app = create_flask_app()
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
