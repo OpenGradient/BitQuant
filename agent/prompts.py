@@ -29,13 +29,9 @@ def get_agent_prompt(
 
 def get_suggestions_prompt(
     tokens: List[WalletTokenHolding],
-    poolDeposits: List[WalletPoolPosition],
-    availablePools: List[Pool],
 ) -> str:
     agent_prompt = suggestions_template.render(
         tokens=tokens,
-        poolDeposits=poolDeposits,
-        availablePools=availablePools,
     )
 
     return agent_prompt
