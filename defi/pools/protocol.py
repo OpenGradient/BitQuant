@@ -5,7 +5,7 @@ import logging
 import time
 import threading
 
-from api.api_types import Pool, PoolQuery
+from api.api_types import Pool, PoolQuery, PoolType
 
 
 class Protocol(ABC):
@@ -81,7 +81,8 @@ class ProtocolRegistry:
 
     def get_pools(self, query: PoolQuery) -> List[Pool]:
         """
-        Get pools that match the query criteria
+        Get pools that match the query criteria.
+        For AMM pools, only return pools where the user has both tokens in the pair.
         """
         # Collect all pools from relevant protocols
         all_pools: List[Pool] = []
@@ -104,6 +105,16 @@ class ProtocolRegistry:
                         token_matches = True
                         break
                 if not token_matches:
+                    continue
+
+            # For AMM pools, check if user has both tokens
+            if pool.type == PoolType.AMM:
+                # Get all token addresses in the pool
+                pool_token_addresses = {token.address for token in pool.tokens}
+                # Get all token addresses from user's holdings
+                user_token_addresses = {token.address for token in query.user_tokens}
+                # Only include if user has all tokens needed for the pool
+                if not pool_token_addresses.issubset(user_token_addresses):
                     continue
 
             # Stablecoin filter

@@ -40,7 +40,6 @@ def retrieve_pools(
     configurable = config["configurable"]
     user_tokens: List[WalletTokenHolding] = configurable["tokens"]
     protocol_registry: ProtocolRegistry = configurable["protocol_registry"]
-    print(f"Using tokens: {tokens}")
 
     # Create a query to filter pools
     query = PoolQuery(
@@ -51,10 +50,7 @@ def retrieve_pools(
     )
 
     # Use ProtocolRegistry to get matching pools
-    pools = protocol_registry.get_pools(query)
-    print(f"Returning pools: {pools}")
-
-    return pools
+    return protocol_registry.get_pools(query)
 
 
 def create_agent_toolkit() -> List[BaseTool]:
