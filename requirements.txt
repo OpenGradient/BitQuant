@@ -12,3 +12,4 @@ flask-cors==5.0.0
 DeFiLlama>=2.0.0
 langchain-openai>=0.3.7
 binance-connector>=3.12.0
+scikit-learn>=1.6.0

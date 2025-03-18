@@ -23,6 +23,7 @@ from defi.analytics.financial_analytics_tools import (
     portfolio_value,
     portfolio_volatility,
     portfolio_summary,
+    analyze_volatility_trend,
 )
 
 
@@ -70,4 +71,5 @@ def create_analytics_agent_toolkit() -> List[BaseTool]:
         portfolio_value,
         portfolio_volatility,
         portfolio_summary,
+        analyze_volatility_trend,
     ]
