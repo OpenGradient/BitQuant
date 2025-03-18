@@ -62,7 +62,7 @@ def create_flask_app() -> Flask:
     protocol_registry = ProtocolRegistry()
     protocol_registry.register_protocol(OrcaProtocol())
     protocol_registry.register_protocol(SaveProtocol())
-    # protocol_registry.register_protocol(KaminoProtocol())
+    protocol_registry.register_protocol(KaminoProtocol())
     protocol_registry.initialize()
 
     # Load tokenlist
