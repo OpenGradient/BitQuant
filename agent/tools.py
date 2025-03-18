@@ -18,6 +18,12 @@ from defi.analytics.binance_tools import (
     analyze_price_trend,
     compare_assets,
 )
+from defi.analytics.financial_analytics_tools import (
+    max_drawdown,
+    portfolio_value,
+    portfolio_volatility,
+    portfolio_summary,
+)
 
 
 @tool(response_format="content_and_artifact")
@@ -60,4 +66,8 @@ def create_analytics_agent_toolkit() -> List[BaseTool]:
         get_binance_price_history,
         analyze_price_trend,
         compare_assets,
+        max_drawdown,
+        portfolio_value,
+        portfolio_volatility,
+        portfolio_summary,
     ]

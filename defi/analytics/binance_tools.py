@@ -1,6 +1,6 @@
 from typing import Dict, Any, List
 import traceback
-from binance.spot import Spot
+from binance.spot import Spot  # type: ignore
 from langchain_core.tools import tool
 
 
@@ -75,7 +75,9 @@ def analyze_price_trend(
     """
     try:
         # Get the price history first
-        price_data = get_binance_price_history(pair, interval, limit)
+        price_data = get_binance_price_history.invoke(
+            {"pair": pair, "interval": interval, "limit": limit}
+        )
 
         # Extract relevant data for analysis
         raw_data = price_data["data"]
@@ -105,14 +107,14 @@ def analyze_price_trend(
             for i in range(1, 14):
                 change = close_prices[i] - close_prices[i - 1]
                 if change >= 0:
-                    gains.append(change)
-                    losses.append(0)
+                    gains.append(float(change))
+                    losses.append(0.0)
                 else:
                     gains.append(0)
-                    losses.append(abs(change))
+                    losses.append(float(abs(change)))
 
-            avg_gain = sum(gains) / 14 if gains else 0
-            avg_loss = sum(losses) / 14 if losses else 0
+            avg_gain = float(sum(gains) / 14 if gains else 0)
+            avg_loss = float(sum(losses) / 14 if losses else 0)
 
             if avg_loss > 0:
                 rs = avg_gain / avg_loss
@@ -201,7 +203,9 @@ def compare_assets(
     results = {}
 
     for pair in pairs:
-        analysis = analyze_price_trend(pair, interval, limit)
+        analysis = analyze_price_trend.invoke(
+            {"pair": pair, "interval": interval, "limit": limit}
+        )
 
         # Skip if there was an error
         if "error" in analysis:

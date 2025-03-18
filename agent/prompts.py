@@ -10,7 +10,7 @@ from api.api_types import WalletTokenHolding, Pool, WalletPoolPosition
 env = jinja2.Environment(loader=jinja2.FileSystemLoader("templates/"))
 
 agent_template = env.get_template("agent.jinja2")
-analytics_agent_template = env.get_template("defi_data_scientist.jinja2")
+analytics_agent_template = env.get_template("analytics_agent.jinja2")
 suggestions_template = env.get_template("suggestions.jinja2")
 
 
