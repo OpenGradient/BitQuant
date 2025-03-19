@@ -31,11 +31,10 @@ from defi.pools.protocol import ProtocolRegistry
 @tool
 def retrieve_pools(
     tokens: List[str] = None,
-    impermanent_loss_risk: bool = None,
     config: RunnableConfig = None,
 ) -> List[Pool]:
     """
-    Retrieves pools matching the specified criteria for analysis.
+    Retrieves pools matching the specified criteria.
     """
     configurable = config["configurable"]
     user_tokens: List[WalletTokenHolding] = configurable["tokens"]
@@ -45,7 +44,6 @@ def retrieve_pools(
     query = PoolQuery(
         chain=Chain.SOLANA,  # Currently only supporting Solana
         tokens=tokens or [],
-        impermanentLossRisk=impermanent_loss_risk,
         user_tokens=user_tokens,  # Pass user's actual token holdings
     )
 
