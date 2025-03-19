@@ -10,14 +10,9 @@ from agent.tools import create_agent_toolkit, create_analytics_agent_toolkit
 
 def create_suggestions_executor() -> CompiledGraph:
     openai_model = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.0)
-    
-    # Get all available tools from both toolkits
-    all_tools = create_agent_toolkit() + create_analytics_agent_toolkit()
-    
     agent_executor = create_react_agent(
         model=openai_model, 
         tools=[],
-        config={"tools": all_tools}  # Pass raw tools list
     )
 
     return agent_executor

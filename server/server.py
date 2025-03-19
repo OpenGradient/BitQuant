@@ -15,12 +15,9 @@ from defi.pools.solana.kamino_protocol import KaminoProtocol
 
 from api.api_types import (
     AgentChatRequest,
-    PoolQuery,
-    Chain,
     Pool,
     UserMessage,
     AgentMessage,
-    Context,
     Message,
 )
 from agent.agent_executors import (
@@ -33,6 +30,10 @@ from agent.prompts import (
     get_suggestions_prompt,
     get_analytics_prompt,
     get_router_prompt,
+)
+from agent.tools import (
+    create_agent_toolkit,
+    create_analytics_agent_toolkit,
 )
 from langchain_openai import ChatOpenAI
 
@@ -190,7 +191,7 @@ def handle_suggestions_request(
     suggestions_agent: CompiledGraph,
 ) -> List[str]:
     # Get tools from agent config and format them
-    tools = suggestions_agent.config["configurable"]["tools"]
+    tools = create_agent_toolkit() + create_analytics_agent_toolkit()
     tools_list = "\n".join([f"- {tool.name}: {tool.description}" for tool in tools])
 
     # Build suggestions agent system prompt
