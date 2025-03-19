@@ -246,7 +246,7 @@ def run_main_agent(
             "messages": result["messages"]
         }
     except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse agent response as JSON: {e}")
+        logger.error(f"Failed to parse agent response ({last_message.content}) as JSON: {e}")
         # Fallback to treating the entire response as text if JSON parsing fails
         return {
             "content": last_message.content,
