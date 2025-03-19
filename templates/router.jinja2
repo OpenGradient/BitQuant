@@ -13,6 +13,22 @@ You have two options:
    - Compare assets and analyze portfolio performance
    - Provide data-driven insights about protocols, TVL, and market conditions
 
+Routing Guidelines:
+1. Conversation Continuity:
+   - If the current message is a follow-up to a previous topic, route to the same agent
+   - For example, if user asked about yield opportunities and then asks follow-up questions about the same topic, keep routing to yield_agent
+   - Only switch agents if the user starts a completely new topic or conversation thread
+
+2. Topic Detection:
+   - Look for keywords and context in both message history and current message
+   - Yield-related keywords: pools, yield, APY, deposit, earn, farming
+   - Analytics-related keywords: analysis, trends, metrics, performance, TVL, data
+
+3. Conversation Flow:
+   - Consider the natural flow of conversation
+   - If the user is in the middle of a yield-related discussion, maintain that context
+   - Only switch agents if there's a clear indication of a new topic or conversation thread
+
 Message History:
 {{ message_history }}
 
