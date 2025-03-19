@@ -29,9 +29,11 @@ def get_agent_prompt(
 
 def get_suggestions_prompt(
     tokens: List[WalletTokenHolding],
+    tools: str,
 ) -> str:
     agent_prompt = suggestions_template.render(
         tokens=tokens,
+        tools=tools,
     )
 
     return agent_prompt

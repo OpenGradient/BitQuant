@@ -189,9 +189,14 @@ def handle_suggestions_request(
     request: AgentChatRequest,
     suggestions_agent: CompiledGraph,
 ) -> List[str]:
+    # Get tools from agent config and format them
+    tools = suggestions_agent.config["configurable"]["tools"]
+    tools_list = "\n".join([f"- {tool.name}: {tool.description}" for tool in tools])
+
     # Build suggestions agent system prompt
     suggestions_system_prompt = get_suggestions_prompt(
         tokens=request.context.tokens,
+        tools=tools_list,
     )
 
     # Prepare message history (last 10 messages)
