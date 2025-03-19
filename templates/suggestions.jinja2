@@ -14,23 +14,31 @@ Keep the suggestions concise and to the point, 2-4 words max!
 Guidelines for suggestions:
 
 1. Context-Aware Suggestions:
-- If user is asking about specific tokens/pools: Provide related analytics or yield opportunities
-- If user is viewing analytics: Suggest complementary yield opportunities or deeper analysis
-- If user is exploring yield: Suggest relevant analytics or risk assessment tools
+- If user is asking about yield: Suggest specific tokens from their wallet
+- If user mentions a token: Suggest related pools or analytics
+- If user is viewing analytics: Suggest complementary yield opportunities
+- If user is exploring yield: Suggest relevant analytics or risk assessment
 
-2. User State-Based Suggestions:
-- For new users: Focus on educational suggestions ("What is TVL?", "How do pools work?")
-- For experienced users: Focus on advanced features ("Compare protocols", "Analyze portfolio")
-- For users with positions: Focus on portfolio management ("Track performance", "Find similar pools")
-
-3. Conversation Flow Suggestions:
+2. Conversation Flow Suggestions:
+- If user needs token selection: Suggest tokens from their wallet
 - If user needs clarification: Suggest explanatory topics
 - If user is ready to act: Suggest next steps
 - If user is overwhelmed: Suggest simplified options
 
+3. User State-Based Suggestions:
+- For new users: Focus on educational suggestions ("What is TVL?", "How do pools work?")
+- For experienced users: Focus on advanced features ("Compare protocols", "Analyze portfolio")
+- For users with positions: Focus on portfolio management ("Track performance", "Find similar pools")
+
 4. Risk Profile Suggestions:
 - For conservative users: Focus on stable pools and risk metrics
 - For aggressive users: Focus on high-yield opportunities and market analysis
+
+CRITICAL RULES:
+1. Suggestions MUST be directly relevant to the last user message
+2. If user is asking about yield, ALWAYS suggest tokens from their wallet
+3. If user mentions a specific token, suggest related actions for that token
+4. Keep suggestions natural and conversational
 
 Always return your suggestions as an array. For example: ['suggestion_a', 'suggestion_b']
 ONLY RETURN THE ARRAY, NOTHING ELSE!
