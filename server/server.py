@@ -108,24 +108,10 @@ def create_flask_app() -> Flask:
         # Enhance tokens with symbols from tokenlist
         agent_request.context.enhance_tokens_with_symbols(tokenlist)
 
-        # Get router prompt
-        router_prompt = get_router_prompt(
-            message_history=agent_request.context.conversationHistory,
-            current_message=agent_request.message.message,
+        # Always use the main agent for now
+        response = handle_agent_chat_request(
+            protocol_registry, agent_request, main_agent
         )
-
-        # Get router decision
-        router_response = router_model.invoke(router_prompt)
-        agent_type = router_response.content.strip().lower()
-        logger.info(f"Router response: {router_response.content}")
-
-        # Route to appropriate handler
-        if agent_type == "analytics_agent":
-            response = handle_analytics_chat_request(agent_request, analytics_agent)
-        else:  # default to yield agent
-            response = handle_agent_chat_request(
-                protocol_registry, agent_request, main_agent
-            )
 
         return jsonify(
             response.model_dump() if hasattr(response, "model_dump") else response
