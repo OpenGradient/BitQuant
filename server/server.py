@@ -273,7 +273,7 @@ def convert_to_agent_msg(message: Message) -> Tuple[str, str]:
     if isinstance(message, UserMessage):
         return ("user", message.message)
     elif isinstance(message, AgentMessage):
-        return ("assistant", json.dumps({"text": message.message, "pools": [pool.id for pool in message.pools]}))
+        return ("assistant", json.dumps({"text": message.message, "solana_pools": [pool.id for pool in message.pools]}))
     else:
         raise TypeError(f"Unexpected message type: {type(message)}")
 
