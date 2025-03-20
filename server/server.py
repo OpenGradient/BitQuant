@@ -230,7 +230,7 @@ def run_main_agent(
         print(f"Response data: {response_data}")
 
         # Get full pool objects for the returned pool IDs
-        pool_objects = protocol_registry.get_pools_by_ids(response_data["pools"])
+        pool_objects = protocol_registry.get_pools_by_ids(response_data["solana_pools"])
         
         return {
             "content": response_data["text"],

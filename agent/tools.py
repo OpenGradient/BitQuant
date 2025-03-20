@@ -29,12 +29,12 @@ from defi.pools.protocol import ProtocolRegistry
 
 
 @tool
-def retrieve_pools(
+def retrieve_solana_pools(
     tokens: List[str] = None,
     config: RunnableConfig = None,
 ) -> List[Pool]:
     """
-    Retrieves pools matching the specified criteria.
+    Retrieves Solana pools matching the specified criteria that the user can invest in.
     """
     configurable = config["configurable"]
     user_tokens: List[WalletTokenHolding] = configurable["tokens"]
@@ -54,8 +54,7 @@ def retrieve_pools(
 def create_agent_toolkit() -> List[BaseTool]:
     """Create tools that the main agent can use."""
     return [
-        retrieve_pools,
-        show_defi_llama_protocols,
+        retrieve_solana_pools,
         show_defi_llama_protocol,
         show_defi_llama_global_tvl,
         show_defi_llama_chain_tvl,
