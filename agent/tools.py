@@ -55,6 +55,19 @@ def create_agent_toolkit() -> List[BaseTool]:
     """Create tools that the main agent can use."""
     return [
         retrieve_pools,
+        show_defi_llama_protocols,
+        show_defi_llama_protocol,
+        show_defi_llama_global_tvl,
+        show_defi_llama_chain_tvl,
+        show_defi_llama_top_pools,
+        get_binance_price_history,
+        analyze_price_trend,
+        compare_assets,
+        max_drawdown,
+        portfolio_value,
+        portfolio_volatility,
+        portfolio_summary,
+        analyze_volatility_trend,
     ]
 
 
