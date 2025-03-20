@@ -142,10 +142,11 @@ class DefiLlamaMetrics:
         # If chain not found, return 0
         return 0
 
-    def get_top_pools(self, limit: int = 10) -> List[Dict[str, Any]]:
-        """Obtain the top DeFi pools ranked by Annual Percentage Yield (APY).
+    def get_top_pools(self, chain: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Obtain the top DeFi pools ranked by Annual Percentage Yield (APY) on the given chain.
 
         Args:
+            chain (str): The target blockchain name.
             limit (int, optional): Maximum number of pools to return. Defaults to 10.
 
         Returns:
@@ -156,6 +157,12 @@ class DefiLlamaMetrics:
             sorted_pools = sorted(
                 pools_data["data"], key=lambda x: x.get("apy", 0), reverse=True
             )
+            sorted_pools = [
+                pool
+                for pool in sorted_pools
+                if pool.get("chain", "").lower() == chain.lower()
+            ]
+
             return sorted_pools[:limit]
         return []
 

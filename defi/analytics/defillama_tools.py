@@ -32,9 +32,9 @@ def show_defi_llama_chain_tvl(chain: str) -> Dict[str, Any]:
 
 
 @tool()
-def show_defi_llama_top_pools(limit: int = 10) -> List[Dict[str, Any]]:
-    """Show top DeFi pools ranked by APY"""
-    return defi_metrics.get_top_pools(limit)
+def show_defi_llama_top_pools(chain: str, limit: int = 10) -> List[Dict[str, Any]]:
+    """Show top DeFi pools ranked by APY for a specific chain (eg Solana, Ethereum, BSC)"""
+    return defi_metrics.get_top_pools(chain, limit)
 
 
 @tool()
