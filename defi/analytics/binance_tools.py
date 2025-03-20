@@ -6,7 +6,7 @@ from langchain_core.tools import tool
 
 @tool()
 def get_binance_price_history(
-    token_symbol: str, candle_interval: str = "1d", num_candles: int = 365
+    token_symbol: str, candle_interval: str, num_candles: int
 ) -> Dict[str, Any]:
     """
     Retrieves historical price data for a token directly from Binance API.
@@ -40,12 +40,12 @@ def get_binance_price_history(
         }
 
     except Exception as e:
-        return f"Error fetching Binance data for {token_symbol}: {e}"
+        return {"error": f"Error fetching Binance data for {token_symbol}: {e}"}
 
 
 @tool()
 def analyze_price_trend(
-    token_symbol: str, candle_interval: str = "1d", num_candles: int = 30
+    token_symbol: str, candle_interval: str, num_candles: int
 ) -> Dict[str, Any]:
     """
     Analyzes price trends for a token analysis including moving averages, volatility metrics, and basic technical indicators.
@@ -165,7 +165,7 @@ def analyze_price_trend(
 
 @tool()
 def compare_assets(
-    token_symbols: List[str], candle_interval: str = "1d", num_candles: int = 30
+    token_symbols: List[str], candle_interval: str, num_candles: int
 ) -> Dict[str, Any]:
     """
     Compare performance of multiple tokens, including basic price trends, best and worst performers.
