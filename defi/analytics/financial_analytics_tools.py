@@ -236,14 +236,6 @@ def analyze_wallet_portfolio(
 
 
 @tool()
-def max_drawdown(token_symbol: str, candle_interval: str = "1d", num_candles: int = 90) -> Dict[str, Any]:
-    """
-    Calculates the maximum drawdown for a cryptocurrency using Binance price data over the specified time period.
-    """
-    return max_drawdown_for_token(token_symbol, candle_interval, num_candles)
-
-
-@tool()
 def portfolio_value(
     token_symbols: List[str], token_quantities: List[float], candle_interval: str = "1d", num_candles: int = 90
 ) -> Dict[str, Any]:
