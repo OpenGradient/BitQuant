@@ -296,26 +296,26 @@ def portfolio_value(
 
 @tool()
 def portfolio_volatility(
-    symbols: List[str], holding_qty: List[float], interval: str = "1d", limit: int = 90
+    token_symbols: List[str], token_quantities: List[float], candle_interval: str = "1d", num_candles: int = 90
 ) -> Dict[str, Any]:
     """
     Calculates the volatility (standard deviation of returns) of a portfolio using Binance price data over the specified time period.
     """
     try:
-        if len(symbols) != len(holding_qty):
+        if len(token_symbols) != len(token_quantities):
             return {"error": "Number of symbols must match number of holdings"}
 
         # Fetch price data for each asset
         all_price_data = []
 
-        for symbol in symbols:
+        for token_symbol in token_symbols:
             price_data = get_binance_price_history.invoke(
-                {"pair": symbol, "interval": interval, "limit": limit}
+                {"token_symbol": token_symbol, "candle_interval": candle_interval, "num_candles": num_candles}
             )
 
             if "error" in price_data:
                 return {
-                    "error": f"Failed to fetch price data for {symbol}: {price_data['error']}"
+                    "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}"
                 }
 
             # Extract closing prices
@@ -324,7 +324,7 @@ def portfolio_volatility(
 
         # Convert to numpy arrays and transpose to get [time][asset] format
         prices = np.array(all_price_data).T
-        holding_qty = np.array(holding_qty)
+        holding_qty = np.array(token_quantities)
 
         # Calculate portfolio values
         weighted_values = holding_qty * prices
@@ -334,11 +334,8 @@ def portfolio_volatility(
         portfolio_returns = portfolio_values[1:] / portfolio_values[:-1] - 1
         portfolio_sd = float(portfolio_returns.std())
 
-        # Format asset names for output
-        asset_names = [symbol.replace("USDT", "") for symbol in symbols]
-
         return {
-            "assets": asset_names,
+            "assets": token_symbols,
             "portfolio_volatility": portfolio_sd,
             "annualized_volatility": float(
                 portfolio_sd * np.sqrt(252)
@@ -346,7 +343,7 @@ def portfolio_volatility(
             "annualized_volatility_percent": f"{float(portfolio_sd * np.sqrt(252) * 100):.2f}%",
             "returns_mean": float(portfolio_returns.mean()),
             "risk_analysis": "Higher volatility indicates higher risk but potentially higher returns",
-            "period": f"{interval} x {limit}",
+            "period": f"{candle_interval} x {num_candles}",
         }
     except Exception as e:
         return {
@@ -385,7 +382,7 @@ def portfolio_summary(
 
         # Convert to numpy arrays and transpose to get [time][asset] format
         prices = np.array(all_price_data).T
-        holding_qty = np.array(holding_qty)
+        holding_qty = np.array(token_quantities)
 
         # Calculate portfolio values
         weighted_values = holding_qty * prices
