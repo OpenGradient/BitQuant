@@ -1,9 +1,7 @@
-from typing import List, Tuple, Callable
+from typing import List
 
-from langgraph.graph.graph import RunnableConfig, CompiledGraph
-from langchain_core.tools import BaseTool, tool, Tool
-from pydantic import BaseModel, Field
-import traceback
+from langgraph.graph.graph import RunnableConfig
+from langchain_core.tools import BaseTool, tool
 
 from defi.analytics.defillama_tools import (
     show_defi_llama_protocol,
@@ -58,7 +56,6 @@ def create_investor_agent_toolkit() -> List[BaseTool]:
 
 def create_analytics_agent_toolkit() -> List[BaseTool]:
     return [
-        # show_defi_llama_protocols,
         show_defi_llama_protocol,
         show_defi_llama_global_tvl,
         show_defi_llama_chain_tvl,

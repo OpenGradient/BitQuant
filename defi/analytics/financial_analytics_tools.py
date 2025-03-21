@@ -28,44 +28,29 @@ def load_token_list():
 TOKEN_LIST = load_token_list()
 
 
-# Helper function to extract tokens from config
 def extract_tokens_from_config(config: RunnableConfig) -> Tuple[List[str], List[float]]:
     """Extract token holdings from the configurable context"""
-    try:
-        configurable = config["configurable"]
-        tokens = configurable.get("tokens", [])
+    configurable = config["configurable"]
+    tokens = configurable["tokens"]
 
-        symbols = []
-        quantities = []
+    symbols = []
+    quantities = []
 
-        for token in tokens:
-            address = token.get("address")
-            amount = token.get("amount", 0)
+    for token in tokens:
+        address = token.get("address")
+        amount = token.get("amount")
 
-            # Skip if address is missing or amount is 0
-            if not address or amount <= 0:
-                continue
+        # Look up token symbol from the address
+        token_info = TOKEN_LIST.get(address)
+        if not token_info:
+            continue
 
-            # Look up token symbol from the address
-            token_info = TOKEN_LIST.get(address)
-            if not token_info:
-                continue
+        symbol = token_info.get("symbol")
 
-            symbol = token_info.get("symbol")
-            if not symbol:
-                continue
+        symbols.append(symbol)
+        quantities.append(amount)
 
-            # Convert to Binance trading pair format by default
-            trading_pair = f"{symbol}USDT"
-
-            # Add the token to our analysis list
-            symbols.append(trading_pair)
-            quantities.append(amount)
-
-        return symbols, quantities
-    except Exception as e:
-        print(f"Error extracting tokens: {e}")
-        return [], []
+    return symbols, quantities
 
 
 @tool()
@@ -123,26 +108,22 @@ def max_drawdown_for_token(
 
 @tool()
 def analyze_wallet_portfolio(
-    config: RunnableConfig,
     candle_interval: str = "1d",
     num_candles: int = 90,
+    config: RunnableConfig = None,
 ) -> Dict[str, Any]:
     """
     Analyzes the user's wallet portfolio using Binance price data. Returns a dictionary containing comprehensive portfolio analysis.
     """
-    try:
 
+    try:
         # Extract tokens from config
         symbols, holding_qty = extract_tokens_from_config(config)
 
-        # Check if we found any tokens
         if not symbols or not holding_qty:
             return {
                 "error": "No analyzable tokens found in wallet. Your wallet may contain only stablecoins or tokens not supported on Binance. Please provide custom_symbols and custom_quantities."
             }
-
-        if len(symbols) != len(holding_qty):
-            return {"error": "Number of symbols must match number of holdings"}
 
         # Fetch price data for each asset
         all_price_data = []
@@ -237,10 +218,7 @@ def analyze_wallet_portfolio(
             }
         }
     except Exception as e:
-        return {
-            "error": f"Error analyzing portfolio: {str(e)}",
-            "traceback": traceback.format_exc(),
-        }
+        return {"error": f"Error analyzing portfolio: {e}"}
 
 
 @tool()
