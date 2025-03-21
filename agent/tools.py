@@ -41,10 +41,9 @@ def retrieve_solana_pools(
     query = PoolQuery(
         chain=Chain.SOLANA,  # Currently only supporting Solana
         tokens=tokens or [],
-        user_tokens=user_tokens,  # Pass user's actual token holdings
+        user_tokens=user_tokens,
     )
 
-    # Use ProtocolRegistry to get matching pools
     return protocol_registry.get_pools(query)
 
 
