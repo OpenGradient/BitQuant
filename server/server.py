@@ -33,7 +33,7 @@ from agent.prompts import (
     get_router_prompt,
 )
 from agent.tools import (
-    create_agent_toolkit,
+    create_investor_agent_toolkit,
     create_analytics_agent_toolkit,
 )
 from langchain_openai import ChatOpenAI
@@ -218,7 +218,7 @@ def handle_suggestions_request(
     suggestions_agent: CompiledGraph,
 ) -> List[str]:
     # Get tools from agent config and format them
-    tools = create_agent_toolkit() + create_analytics_agent_toolkit()
+    tools = create_investor_agent_toolkit() + create_analytics_agent_toolkit()
     tools_list = "\n".join([f"- {tool.name}: {tool.description}" for tool in tools])
 
     # Build suggestions agent system prompt
@@ -271,7 +271,7 @@ def run_main_agent(
         print(f"Response data: {response_data}")
 
         # Get full pool objects for the returned pool IDs
-        pool_objects = protocol_registry.get_pools_by_ids(response_data["solana_pools"])
+        pool_objects = protocol_registry.get_pools_by_ids(response_data["pools"])
 
         return {
             "content": response_data["text"],
@@ -321,7 +321,7 @@ def convert_to_agent_msg(message: Message) -> Tuple[str, str]:
             json.dumps(
                 {
                     "text": message.message,
-                    "solana_pools": [pool.id for pool in message.pools],
+                    "pools": [pool.id for pool in message.pools],
                 }
             ),
         )

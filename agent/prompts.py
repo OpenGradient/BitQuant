@@ -20,7 +20,7 @@ def get_investor_agent_prompt(
     poolDeposits: List[WalletPoolPosition],
 ) -> str:
     agent_prompt = investor_agent_template.render(
-        tokens=tokens,
+        tokens=tokens or "Wallet not connected",
         poolDeposits=poolDeposits,
     )
 
