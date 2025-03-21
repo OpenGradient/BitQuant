@@ -139,9 +139,6 @@ def analyze_price_trend(
                 trend_strength = "Moderate Downward"
 
         return {
-            "token_symbol": price_data["token_symbol"],
-            "candle_interval": price_data["candle_interval"],
-            "num_candles": price_data["num_candles"],
             "trend": trend,
             "trend_strength": trend_strength,
             "change_percent": (
@@ -166,8 +163,7 @@ def analyze_price_trend(
         }
     except Exception as e:
         return {
-            "error": f"Error analyzing price trend for {token_symbol}: {str(e)}",
-            "traceback": traceback.format_exc(),
+            "error": f"Error analyzing price trend for {token_symbol}: {e}",
         }
 
 
@@ -217,7 +213,6 @@ def compare_assets(
 
         # Add comparative analysis
         return {
-            "assets": results,
             "best_performer": {
                 "token_symbol": best_performer[0],
                 "change_percent": best_performer[1]["change_percent"],
@@ -229,4 +224,4 @@ def compare_assets(
             "period": f"{candle_interval} x {num_candles}",
         }
 
-    return {"assets": results, "error": "No valid assets for comparison"}
+    return {"error": "No valid assets for comparison"}
