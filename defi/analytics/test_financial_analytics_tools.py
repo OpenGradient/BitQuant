@@ -17,6 +17,8 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
         response = get_binance_price_history.invoke(
             {"token_symbol": "BTC", "candle_interval": "1d", "num_candles": 30}
         )
+
+        self.assertNotIn("error", response)
         print(response)
 
     def test_portfolio_value(self):
@@ -28,17 +30,21 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
                 "num_candles": 30,
             }
         )
+
+        self.assertNotIn("error", response)
         print(response)
 
     def test_portfolio_volatility(self):
         response = portfolio_volatility.invoke(
             {
-                "token_symbols": ["BTC", "ETH"],
-                "token_quantities": [1, 2],
+                "token_symbols": ["BTC", "ETH", "USDT"],
+                "token_quantities": [1, 2, 3],
                 "candle_interval": "1d",
                 "num_candles": 30,
             }
         )
+
+        self.assertNotIn("error", response)
         print(response)
 
     def test_portfolio_summary(self):
@@ -48,27 +54,35 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
                 "token_quantities": [1, 2],
             }
         )
+
+        self.assertNotIn("error", response)
         print(response)
 
     def test_analyze_volatility_trend(self):
         response = analyze_volatility_trend.invoke(
             {"token_symbol": "BTC", "candle_interval": "1d", "num_candles": 30}
         )
+
+        self.assertNotIn("error", response)
         print(response)
 
     def test_analyze_wallet_portfolio(self):
         response = analyze_wallet_portfolio.invoke(
             {
-                "token_symbols": ["BTC", "ETH"],
-                "token_quantities": [1, 2],
+                "token_symbols": ["BTC", "ETH", "USDT"],
+                "token_quantities": [1, 2, 3],
             }
         )
+
+        self.assertNotIn("error", response)
         print(response)
 
     def test_max_drawdown_for_token(self):
         response = max_drawdown_for_token.invoke(
             {"token_symbol": "BTC", "candle_interval": "1d", "num_candles": 30}
         )
+
+        self.assertNotIn("error", response)
         print(response)
 
 
