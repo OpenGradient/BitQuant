@@ -5,107 +5,86 @@ from defi.analytics.binance_tools import get_binance_price_history
 class TestBinanceAPI(unittest.TestCase):
     """Test suite for Binance API functionality"""
 
-    def test_show_binance_price_history(self):
-        """Test fetching raw price history from Binance"""
-        print("\n========== Testing Binance Price History (Raw API Data) ==========")
+    def test_btc_price_history_basic(self):
+        """Test fetching Bitcoin price history with default parameters"""
+        btc_history = get_binance_price_history.invoke(
+            {"token_symbol": "BTC", "candle_interval": "1d", "num_candles": 30}
+        )
 
-        # Test case 1: Standard case with Bitcoin
-        try:
-            btc_history = get_binance_price_history(pair="BTCUSDT")
-            self.assertIsNotNone(btc_history)
+        # Verify response structure
+        self.assertIsNotNone(btc_history)
+        self.assertIn("data", btc_history)
+        self.assertIn("columns", btc_history)
+        self.assertIn("token_symbol", btc_history)
+        self.assertEqual(btc_history["token_symbol"], "BTC")
 
-            # Verify the structure of the response
-            self.assertIn("data", btc_history)
-            self.assertIn("columns", btc_history)
-            self.assertIn("pair", btc_history)
-            self.assertEqual(btc_history["pair"], "BTCUSDT")
+        # Verify data content
+        data = btc_history.get("data", [])
+        self.assertTrue(isinstance(data, list))
+        self.assertTrue(len(data) > 0)
+        self.assertEqual(len(data), 30)
 
-            # Verify the data is a list of candlesticks
-            data = btc_history.get("data", [])
-            self.assertTrue(isinstance(data, list))
-            self.assertTrue(len(data) > 0)
+    def test_eth_custom_interval(self):
+        """Test fetching Ethereum price history with custom time interval"""
+        eth_history = get_binance_price_history.invoke(
+            {"token_symbol": "ETH", "candle_interval": "4h", "num_candles": 30}
+        )
 
-            # Print some info about the data
-            print(f"\nBitcoin Price Data Summary:")
-            print(f"Trading Pair: {btc_history.get('pair')}")
-            print(f"Interval: {btc_history.get('interval')}")
-            print(f"Number of candlesticks: {len(data)}")
+        self.assertIsNotNone(eth_history)
+        self.assertIn("data", eth_history)
 
-            # Display column information
-            columns = btc_history.get("columns", [])
-            print("\nData Structure:")
-            print(f"Columns: {', '.join(columns)}")
+        data = eth_history.get("data", [])
+        self.assertEqual(len(data), 30, "Should respect the limit parameter")
 
-            # Display a sample candlestick
-            if data:
-                print("\nSample Candlestick (First data point):")
-                sample = data[0]
-                for i, col in enumerate(columns):
-                    if i < len(sample):
-                        if col in ["open", "high", "low", "close"]:
-                            print(f"  {col}: ${float(sample[i]):.2f}")
-                        elif col in ["open_time", "close_time"]:
-                            print(f"  {col}: {sample[i]} (ms)")
-                        else:
-                            print(f"  {col}: {sample[i]}")
+    def test_invalid_token_symbol(self):
+        """Test error handling for invalid token symbol"""
+        response = get_binance_price_history.invoke(
+            {"token_symbol": "INVALIDTOKEN", "candle_interval": "1d", "num_candles": 30}
+        )
+        self.assertTrue(response.startswith("Error fetching Binance data"))
 
-                # Calculate and show current price from the last candlestick
-                if len(data) > 0 and len(data[-1]) > 4:
-                    current_price = float(data[-1][4])  # Close price
-                    print(
-                        f"\nCurrent Price (from last candlestick): ${current_price:.2f}"
-                    )
+    def test_small_data_limit(self):
+        """Test fetching price history with a small number of candles"""
+        small_limit = 5
+        small_history = get_binance_price_history.invoke(
+            {"token_symbol": "BTC", "num_candles": small_limit}
+        )
 
-        except Exception as e:
-            print(f"Error testing BTC: {e}")
-            raise
+        self.assertIn("data", small_history)
+        data = small_history.get("data", [])
+        actual_points = len(data)
+        self.assertEqual(
+            actual_points,
+            small_limit,
+            f"Should return {small_limit} data points, got {actual_points}",
+        )
 
-        # Test case 2: Different time interval and crypto
-        try:
-            eth_history = get_binance_price_history(
-                pair="ETHUSDT", interval="4h", limit=30
+    def test_candlestick_data_structure(self):
+        """Test the structure and content of individual candlesticks"""
+        btc_history = get_binance_price_history.invoke(
+            {"token_symbol": "BTC", "candle_interval": "1d", "num_candles": 1}
+        )
+
+        data = btc_history.get("data", [])
+        columns = btc_history.get("columns", [])
+
+        self.assertTrue(len(data) > 0)
+        sample = data[0]
+
+        # Verify all expected columns are present
+        expected_columns = {"open", "high", "low", "close", "open_time", "close_time"}
+        self.assertTrue(all(col in columns for col in expected_columns))
+
+        # Verify data types
+        price_indices = [columns.index(col) for col in ["open", "high", "low", "close"]]
+        for idx in price_indices:
+            self.assertTrue(float(sample[idx]) > 0, "Price values should be positive")
+
+        time_indices = [columns.index(col) for col in ["open_time", "close_time"]]
+        for idx in time_indices:
+            self.assertTrue(
+                isinstance(sample[idx], (int, float)), "Time values should be numeric"
             )
-            self.assertIsNotNone(eth_history)
-            self.assertIn("data", eth_history)
-
-            data = eth_history.get("data", [])
-            print(f"\nEthereum tested with 4h interval - {len(data)} data points")
-            self.assertEqual(len(data), 30, "Should respect the limit parameter")
-        except Exception as e:
-            print(f"Error testing ETH with custom interval: {e}")
-            raise
-
-        # Test case 3: Error handling - invalid pair
-        try:
-            # This should raise a ValueError
-            get_binance_price_history(pair="INVALIDPAIR")
-            print("Warning: Invalid pair did not trigger an exception")
-            self.fail("Should have raised an exception for invalid pair")
-        except ValueError as e:
-            print(f"\nCorrectly detected invalid pair: {str(e)}")
-        except Exception as e:
-            print(
-                f"Unexpected error type for invalid pair: {type(e).__name__}: {str(e)}"
-            )
-            self.fail(f"Expected ValueError but got {type(e).__name__}")
-
-        # Test case 4: Test with very small limit
-        try:
-            small_limit = 5
-            small_history = get_binance_price_history(pair="BTCUSDT", limit=small_limit)
-            self.assertIn("data", small_history)
-
-            data = small_history.get("data", [])
-            actual_points = len(data)
-            print(f"\nTested with limit={small_limit}: got {actual_points} data points")
-            self.assertEqual(
-                actual_points,
-                small_limit,
-                f"Should return {small_limit} data points, got {actual_points}",
-            )
-        except Exception as e:
-            print(f"Error testing with small limit: {e}")
-            raise
 
 
 if __name__ == "__main__":

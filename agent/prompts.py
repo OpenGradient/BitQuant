@@ -9,18 +9,18 @@ from api.api_types import WalletTokenHolding, Pool, WalletPoolPosition, Message
 
 env = jinja2.Environment(loader=jinja2.FileSystemLoader("templates/"))
 
-agent_template = env.get_template("agent.jinja2")
+investor_agent_template = env.get_template("investor_agent.jinja2")
 analytics_agent_template = env.get_template("analytics_agent.jinja2")
 suggestions_template = env.get_template("suggestions.jinja2")
 router_template = env.get_template("router.jinja2")
 
 
-def get_agent_prompt(
+def get_investor_agent_prompt(
     tokens: List[WalletTokenHolding],
     poolDeposits: List[WalletPoolPosition],
 ) -> str:
-    agent_prompt = agent_template.render(
-        tokens=tokens,
+    agent_prompt = investor_agent_template.render(
+        tokens=tokens or "Wallet not connected",
         poolDeposits=poolDeposits,
     )
 

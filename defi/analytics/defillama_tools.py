@@ -6,12 +6,6 @@ defi_metrics = DefiLlamaMetrics()
 
 
 @tool()
-def show_defi_llama_protocols() -> List[Dict[str, Any]]:
-    """Show a list of all DeFi protocols"""
-    return defi_metrics.get_protocols()
-
-
-@tool()
 def show_defi_llama_protocol(protocol_slug: str) -> Dict[str, Any]:
     """Show details for a specific DeFi protocol by slug"""
     return defi_metrics.get_protocol(protocol_slug)

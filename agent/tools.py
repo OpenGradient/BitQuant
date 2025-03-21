@@ -6,7 +6,6 @@ from pydantic import BaseModel, Field
 import traceback
 
 from defi.analytics.defillama_tools import (
-    show_defi_llama_protocols,
     show_defi_llama_protocol,
     show_defi_llama_global_tvl,
     show_defi_llama_chain_tvl,
@@ -19,7 +18,7 @@ from defi.analytics.binance_tools import (
     compare_assets,
 )
 from defi.analytics.financial_analytics_tools import (
-    max_drawdown,
+    max_drawdown_for_token,
     portfolio_value,
     portfolio_volatility,
     portfolio_summary,
@@ -51,28 +50,15 @@ def retrieve_solana_pools(
     return protocol_registry.get_pools(query)
 
 
-def create_agent_toolkit() -> List[BaseTool]:
-    """Create tools that the main agent can use."""
+def create_investor_agent_toolkit() -> List[BaseTool]:
     return [
         retrieve_solana_pools,
-        show_defi_llama_protocol,
-        show_defi_llama_global_tvl,
-        show_defi_llama_chain_tvl,
-        show_defi_llama_top_pools,
-        get_binance_price_history,
-        analyze_price_trend,
-        compare_assets,
-        max_drawdown,
-        portfolio_value,
-        portfolio_volatility,
-        portfolio_summary,
-        analyze_volatility_trend,
     ]
 
 
 def create_analytics_agent_toolkit() -> List[BaseTool]:
     return [
-        show_defi_llama_protocols,
+        # show_defi_llama_protocols,
         show_defi_llama_protocol,
         show_defi_llama_global_tvl,
         show_defi_llama_chain_tvl,
@@ -80,7 +66,7 @@ def create_analytics_agent_toolkit() -> List[BaseTool]:
         get_binance_price_history,
         analyze_price_trend,
         compare_assets,
-        max_drawdown,
+        max_drawdown_for_token,
         portfolio_value,
         portfolio_volatility,
         portfolio_summary,

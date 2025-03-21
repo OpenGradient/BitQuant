@@ -6,31 +6,24 @@ from langchain_core.tools import tool
 
 @tool()
 def get_binance_price_history(
-    pair: str = "BTCUSDT", interval: str = "1d", limit: int = 365
+    token_symbol: str, candle_interval: str, num_candles: int
 ) -> Dict[str, Any]:
     """
-    Retrieves historical price data for a cryptocurrency directly from Binance API.
-
-    Args:
-        pair: The trading pair (e.g., "BTCUSDT", "ETHUSDT")
-           interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
-        limit: Number of candlesticks to retrieve (max 1000)
-
-    Returns:
-        Dictionary containing the raw klines data from Binance API
+    Retrieves historical price data for a token directly from Binance API.
     """
     # Min value of 2 ensures we have at least two data points for calculating trends
-    limit = min(max(2, int(limit)), 1000)
+    limit = min(max(2, int(num_candles)), 1000)
 
     try:
         client = Spot(base_url="https://api.binance.us")
-
-        klines = client.klines(symbol=pair.upper(), interval=interval, limit=limit)
+        klines = client.klines(
+            symbol=f"{token_symbol.upper()}USDT", interval=candle_interval, limit=limit
+        )
 
         return {
-            "pair": pair,
-            "interval": interval,
-            "limit": limit,
+            "token_symbol": token_symbol,
+            "candle_interval": candle_interval,
+            "num_candles": num_candles,
             "data": klines,
             "columns": [
                 "open_time",
@@ -49,34 +42,24 @@ def get_binance_price_history(
         }
 
     except Exception as e:
-        error_msg = str(e)
-
-        return {
-            "error": f"Error fetching Binance data for {pair}: {error_msg}",
-            "traceback": traceback.format_exc(),
-        }
+        return {"error": f"Error fetching Binance data for {token_symbol}: {e}"}
 
 
 @tool()
 def analyze_price_trend(
-    pair: str, interval: str = "1d", limit: int = 30
+    token_symbol: str, candle_interval: str, num_candles: int
 ) -> Dict[str, Any]:
     """
-    Analyze price trends for a cryptocurrency pair.
-
-    Args:
-        pair: The trading pair (e.g., "BTCUSDT", "ETHUSDT")
-        interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
-        limit: Number of candlesticks to analyze
-
-    Returns:
-        Dictionary containing trend analysis including moving averages,
-        volatility metrics, and basic technical indicators.
+    Analyzes price trends for a token analysis including moving averages, volatility metrics, and basic technical indicators.
     """
     try:
         # Get the price history first
         price_data = get_binance_price_history.invoke(
-            {"pair": pair, "interval": interval, "limit": limit}
+            {
+                "token_symbol": token_symbol,
+                "candle_interval": candle_interval,
+                "num_candles": num_candles,
+            }
         )
 
         # Extract relevant data for analysis
@@ -154,8 +137,9 @@ def analyze_price_trend(
                 trend_strength = "Moderate Downward"
 
         return {
-            "pair": price_data["pair"],
-            "period": f"{interval} x {limit}",
+            "token_symbol": price_data["token_symbol"],
+            "candle_interval": price_data["candle_interval"],
+            "num_candles": price_data["num_candles"],
             "trend": trend,
             "trend_strength": trend_strength,
             "change_percent": (
@@ -180,39 +164,35 @@ def analyze_price_trend(
         }
     except Exception as e:
         return {
-            "error": f"Error analyzing price trend for {pair}: {str(e)}",
+            "error": f"Error analyzing price trend for {token_symbol}: {str(e)}",
             "traceback": traceback.format_exc(),
         }
 
 
 @tool()
 def compare_assets(
-    pairs: List[str], interval: str = "1d", limit: int = 30
+    token_symbols: List[str], candle_interval: str, num_candles: int
 ) -> Dict[str, Any]:
     """
-    Compare performance of multiple cryptocurrency assets.
-
-    Args:
-        pairs: List of trading pairs to compare (e.g., ["BTCUSDT", "ETHUSDT"])
-        interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
-        limit: Number of candlesticks to analyze
-
-    Returns:
-        Dictionary with comparative performance metrics.
+    Compare performance of multiple tokens, including basic price trends, best and worst performers.
     """
     results = {}
 
-    for pair in pairs:
+    for token_symbol in token_symbols:
         analysis = analyze_price_trend.invoke(
-            {"pair": pair, "interval": interval, "limit": limit}
+            {
+                "token_symbol": token_symbol,
+                "candle_interval": candle_interval,
+                "num_candles": num_candles,
+            }
         )
 
         # Skip if there was an error
         if "error" in analysis:
-            results[pair] = {"error": analysis["error"]}
+            results[token_symbol] = {"error": analysis["error"]}
             continue
 
-        results[pair] = {
+        results[token_symbol] = {
             "trend": analysis["trend"],
             "change_percent": analysis["change_percent"],
             "current_price": analysis["current_price"],
@@ -237,14 +217,14 @@ def compare_assets(
         return {
             "assets": results,
             "best_performer": {
-                "pair": best_performer[0],
+                "token_symbol": best_performer[0],
                 "change_percent": best_performer[1]["change_percent"],
             },
             "worst_performer": {
-                "pair": worst_performer[0],
+                "token_symbol": worst_performer[0],
                 "change_percent": worst_performer[1]["change_percent"],
             },
-            "period": f"{interval} x {limit}",
+            "period": f"{candle_interval} x {num_candles}",
         }
 
     return {"assets": results, "error": "No valid assets for comparison"}

@@ -1,6 +1,6 @@
 import unittest
 
-from .prompts import get_agent_prompt
+from .prompts import get_investor_agent_prompt
 from testutils.contex import TEST_CONTEXT
 
 TEST_CONTEXT = {
@@ -18,7 +18,7 @@ TEST_CONTEXT = {
 
 class TestPrompts(unittest.TestCase):
     def test_prompt(self):
-        prompt = get_agent_prompt(
+        prompt = get_investor_agent_prompt(
             tokens=TEST_CONTEXT["tokens"],
             poolDeposits=TEST_CONTEXT["poolPositions"],
         )

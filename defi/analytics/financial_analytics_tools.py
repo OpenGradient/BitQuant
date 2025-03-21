@@ -70,15 +70,15 @@ def extract_tokens_from_config(config: RunnableConfig) -> Tuple[List[str], List[
 
 @tool()
 def max_drawdown_for_token(
-    symbol: str, interval: str = "1d", limit: int = 90
+    token_symbol: str, candle_interval: str = "1d", num_candles: int = 90
 ) -> Dict[str, Any]:
     """
     Calculates the maximum drawdown for a cryptocurrency using Binance price data
 
     Args:
-        symbol: Trading pair symbol (e.g., "BTCUSDT")
-        interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
-        limit: Number of candlesticks to retrieve (max 1000)
+        token_symbol: Token symbol (e.g., "BTC")
+        candle_interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
+        num_candles: Number of candlesticks to retrieve (max 1000)
 
     Returns:
         Dictionary containing the maximum drawdown value
@@ -86,12 +86,16 @@ def max_drawdown_for_token(
     try:
         # Get price data from Binance
         price_data = get_binance_price_history.invoke(
-            {"pair": symbol, "interval": interval, "limit": limit}
+            {
+                "token_symbol": token_symbol,
+                "candle_interval": candle_interval,
+                "num_candles": num_candles,
+            }
         )
 
         if "error" in price_data:
             return {
-                "error": f"Failed to fetch price data for {symbol}: {price_data['error']}"
+                "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}"
             }
 
         # Extract closing prices
@@ -104,8 +108,8 @@ def max_drawdown_for_token(
         max_dd = float(drawdowns.max())
 
         return {
-            "symbol": symbol,
-            "period": f"{interval} x {limit}",
+            "token_symbol": token_symbol,
+            "period": f"{candle_interval} x {num_candles}",
             "max_drawdown": max_dd,
             "max_drawdown_percent": f"{max_dd * 100:.2f}%",
             "explanation": "Maximum drawdown represents the largest percentage drop from a peak to a subsequent trough",
@@ -120,38 +124,22 @@ def max_drawdown_for_token(
 @tool()
 def analyze_wallet_portfolio(
     config: RunnableConfig,
-    interval: str = "1d",
-    limit: int = 90,
-    custom_symbols: Optional[List[str]] = None,
-    custom_quantities: Optional[List[float]] = None,
+    candle_interval: str = "1d",
+    num_candles: int = 90,
 ) -> Dict[str, Any]:
     """
-    Analyzes the user's wallet portfolio or a custom portfolio using Binance price data
-
-    Args:
-        config: The runnable config containing user's wallet tokens
-        interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
-        limit: Number of candlesticks to retrieve (max 1000)
-        custom_symbols: Optional list of trading pairs to override wallet tokens
-        custom_quantities: Optional list of quantities to override wallet amounts
-
-    Returns:
-        Dictionary containing comprehensive portfolio analysis
+    Analyzes the user's wallet portfolio using Binance price data. Returns a dictionary containing comprehensive portfolio analysis.
     """
     try:
-        # Determine if we're using custom portfolio or wallet tokens
-        if custom_symbols and custom_quantities:
-            symbols = custom_symbols
-            holding_qty = custom_quantities
-        else:
-            # Extract tokens from config
-            symbols, holding_qty = extract_tokens_from_config(config)
 
-            # Check if we found any tokens
-            if not symbols or not holding_qty:
-                return {
-                    "error": "No analyzable tokens found in wallet. Your wallet may contain only stablecoins or tokens not supported on Binance. Please provide custom_symbols and custom_quantities."
-                }
+        # Extract tokens from config
+        symbols, holding_qty = extract_tokens_from_config(config)
+
+        # Check if we found any tokens
+        if not symbols or not holding_qty:
+            return {
+                "error": "No analyzable tokens found in wallet. Your wallet may contain only stablecoins or tokens not supported on Binance. Please provide custom_symbols and custom_quantities."
+            }
 
         if len(symbols) != len(holding_qty):
             return {"error": "Number of symbols must match number of holdings"}
@@ -163,7 +151,11 @@ def analyze_wallet_portfolio(
 
         for i, symbol in enumerate(symbols):
             price_data = get_binance_price_history.invoke(
-                {"pair": symbol, "interval": interval, "limit": limit}
+                {
+                    "token_symbol": symbol,
+                    "candle_interval": candle_interval,
+                    "num_candles": num_candles,
+                }
             )
 
             if "error" in price_data:
@@ -221,7 +213,7 @@ def analyze_wallet_portfolio(
 
         return {
             "portfolio_summary": {
-                "period": f"{interval} x {limit}",
+                "period": f"{candle_interval} x {num_candles}",
                 "total_value": float(total_value),
                 "asset_count": len(asset_names),
                 "performance": {
@@ -252,52 +244,34 @@ def analyze_wallet_portfolio(
 
 
 @tool()
-def max_drawdown(symbol: str, interval: str = "1d", limit: int = 90) -> Dict[str, Any]:
-    """
-    Calculates the maximum drawdown for a cryptocurrency using Binance price data
-
-    Args:
-        symbol: Trading pair symbol (e.g., "BTCUSDT")
-        interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
-        limit: Number of candlesticks to retrieve (max 1000)
-
-    Returns:
-        Dictionary containing the maximum drawdown value
-    """
-    return max_drawdown_for_token(symbol, interval, limit)
-
-
-@tool()
 def portfolio_value(
-    symbols: List[str], holding_qty: List[float], interval: str = "1d", limit: int = 90
+    token_symbols: List[str],
+    token_quantities: List[float],
+    candle_interval: str = "1d",
+    num_candles: int = 90,
 ) -> Dict[str, Any]:
     """
-    Creates the time series of portfolio total value using Binance price data
-
-    Args:
-        symbols: List of trading pairs (e.g., ["BTCUSDT", "ETHUSDT"])
-        holding_qty: List with quantities of each asset held
-        interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
-        limit: Number of candlesticks to retrieve (max 1000)
-
-    Returns:
-        Dictionary containing time series of portfolio total value
+    Creates the time series of portfolio total value using Binance price data over the specified time period.
     """
     try:
-        if len(symbols) != len(holding_qty):
+        if len(token_symbols) != len(token_quantities):
             return {"error": "Number of symbols must match number of holdings"}
 
         # Fetch price data for each asset
         all_price_data = []
 
-        for symbol in symbols:
+        for token_symbol in token_symbols:
             price_data = get_binance_price_history.invoke(
-                {"pair": symbol, "interval": interval, "limit": limit}
+                {
+                    "token_symbol": token_symbol,
+                    "candle_interval": candle_interval,
+                    "num_candles": num_candles,
+                }
             )
 
             if "error" in price_data:
                 return {
-                    "error": f"Failed to fetch price data for {symbol}: {price_data['error']}"
+                    "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}"
                 }
 
             # Extract closing prices
@@ -306,22 +280,19 @@ def portfolio_value(
 
         # Convert to numpy arrays and transpose to get [time][asset] format
         prices = np.array(all_price_data).T
-        holding_qty = np.array(holding_qty)
+        holding_qty = np.array(token_quantities)
 
         # Calculate portfolio values
         weighted_values = holding_qty * prices
         portfolio_values = weighted_values.sum(axis=1)
 
-        # Format asset names for output
-        asset_names = [symbol.replace("USDT", "") for symbol in symbols]
-
         return {
-            "assets": asset_names,
+            "assets": token_symbols,
             "portfolio_values": portfolio_values.tolist(),
             "initial_value": float(portfolio_values[0]),
             "final_value": float(portfolio_values[-1]),
             "change_percent": f"{((portfolio_values[-1] / portfolio_values[0]) - 1) * 100:.2f}%",
-            "period": f"{interval} x {limit}",
+            "period": f"{candle_interval} x {num_candles}",
         }
     except Exception as e:
         return {
@@ -332,35 +303,33 @@ def portfolio_value(
 
 @tool()
 def portfolio_volatility(
-    symbols: List[str], holding_qty: List[float], interval: str = "1d", limit: int = 90
+    token_symbols: List[str],
+    token_quantities: List[float],
+    candle_interval: str = "1d",
+    num_candles: int = 90,
 ) -> Dict[str, Any]:
     """
-    Calculates the volatility (standard deviation of returns) of a portfolio using Binance price data
-
-    Args:
-        symbols: List of trading pairs (e.g., ["BTCUSDT", "ETHUSDT"])
-        holding_qty: List with quantities of each asset held
-        interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
-        limit: Number of candlesticks to retrieve (max 1000)
-
-    Returns:
-        Dictionary containing portfolio volatility metrics
+    Calculates the volatility (standard deviation of returns) of a portfolio using Binance price data over the specified time period.
     """
     try:
-        if len(symbols) != len(holding_qty):
+        if len(token_symbols) != len(token_quantities):
             return {"error": "Number of symbols must match number of holdings"}
 
         # Fetch price data for each asset
         all_price_data = []
 
-        for symbol in symbols:
+        for token_symbol in token_symbols:
             price_data = get_binance_price_history.invoke(
-                {"pair": symbol, "interval": interval, "limit": limit}
+                {
+                    "token_symbol": token_symbol,
+                    "candle_interval": candle_interval,
+                    "num_candles": num_candles,
+                }
             )
 
             if "error" in price_data:
                 return {
-                    "error": f"Failed to fetch price data for {symbol}: {price_data['error']}"
+                    "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}"
                 }
 
             # Extract closing prices
@@ -369,7 +338,7 @@ def portfolio_volatility(
 
         # Convert to numpy arrays and transpose to get [time][asset] format
         prices = np.array(all_price_data).T
-        holding_qty = np.array(holding_qty)
+        holding_qty = np.array(token_quantities)
 
         # Calculate portfolio values
         weighted_values = holding_qty * prices
@@ -379,11 +348,8 @@ def portfolio_volatility(
         portfolio_returns = portfolio_values[1:] / portfolio_values[:-1] - 1
         portfolio_sd = float(portfolio_returns.std())
 
-        # Format asset names for output
-        asset_names = [symbol.replace("USDT", "") for symbol in symbols]
-
         return {
-            "assets": asset_names,
+            "assets": token_symbols,
             "portfolio_volatility": portfolio_sd,
             "annualized_volatility": float(
                 portfolio_sd * np.sqrt(252)
@@ -391,7 +357,7 @@ def portfolio_volatility(
             "annualized_volatility_percent": f"{float(portfolio_sd * np.sqrt(252) * 100):.2f}%",
             "returns_mean": float(portfolio_returns.mean()),
             "risk_analysis": "Higher volatility indicates higher risk but potentially higher returns",
-            "period": f"{interval} x {limit}",
+            "period": f"{candle_interval} x {num_candles}",
         }
     except Exception as e:
         return {
@@ -402,35 +368,33 @@ def portfolio_volatility(
 
 @tool()
 def portfolio_summary(
-    symbols: List[str], holding_qty: List[float], interval: str = "1d", limit: int = 90
+    token_symbols: List[str],
+    token_quantities: List[float],
+    candle_interval: str = "1d",
+    num_candles: int = 90,
 ) -> Dict[str, Any]:
     """
-    Provides a comprehensive summary of a portfolio including value, volatility, and drawdown metrics using Binance price data
-
-    Args:
-        symbols: List of trading pairs (e.g., ["BTCUSDT", "ETHUSDT"])
-        holding_qty: List with quantities of each asset held
-        interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
-        limit: Number of candlesticks to retrieve (max 1000)
-
-    Returns:
-        Dictionary containing portfolio summary metrics
+    Provides a comprehensive summary of a portfolio including value, volatility, and drawdown metrics using Binance price data over the specified time period.
     """
     try:
-        if len(symbols) != len(holding_qty):
+        if len(token_symbols) != len(token_quantities):
             return {"error": "Number of symbols must match number of holdings"}
 
         # Fetch price data for each asset
         all_price_data = []
 
-        for symbol in symbols:
+        for token_symbol in token_symbols:
             price_data = get_binance_price_history.invoke(
-                {"pair": symbol, "interval": interval, "limit": limit}
+                {
+                    "token_symbol": token_symbol,
+                    "candle_interval": candle_interval,
+                    "num_candles": num_candles,
+                }
             )
 
             if "error" in price_data:
                 return {
-                    "error": f"Failed to fetch price data for {symbol}: {price_data['error']}"
+                    "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}"
                 }
 
             # Extract closing prices
@@ -439,10 +403,7 @@ def portfolio_summary(
 
         # Convert to numpy arrays and transpose to get [time][asset] format
         prices = np.array(all_price_data).T
-        holding_qty = np.array(holding_qty)
-
-        # Format asset names for output
-        asset_names = [symbol.replace("USDT", "") for symbol in symbols]
+        holding_qty = np.array(token_quantities)
 
         # Calculate portfolio values
         weighted_values = holding_qty * prices
@@ -463,7 +424,7 @@ def portfolio_summary(
 
         # Asset allocation summary
         asset_allocation = []
-        for i, asset in enumerate(asset_names):
+        for i, asset in enumerate(token_symbols):
             asset_allocation.append(
                 {
                     "asset": asset,
@@ -475,9 +436,9 @@ def portfolio_summary(
 
         return {
             "portfolio_summary": {
-                "period": f"{interval} x {limit}",
+                "period": f"{candle_interval} x {num_candles}",
                 "total_value": float(total_value),
-                "asset_count": len(asset_names),
+                "asset_count": len(token_symbols),
                 "performance": {
                     "initial_value": float(portfolio_values[0]),
                     "final_value": float(portfolio_values[-1]),
@@ -536,28 +497,24 @@ def volatility_trend(price_series):
 
 @tool()
 def analyze_volatility_trend(
-    symbol: str, interval: str = "1d", limit: int = 90
+    token_symbol: str, candle_interval: str = "1d", num_candles: int = 90
 ) -> Dict[str, Any]:
     """
-    Analyzes the trend in volatility for a cryptocurrency over time
-
-    Args:
-        symbol: Trading pair symbol (e.g., "BTCUSDT")
-        interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
-        limit: Number of candlesticks to retrieve (max 1000)
-
-    Returns:
-        Dictionary containing volatility trend analysis
+    Analyzes the trend in volatility for a cryptocurrency over the specified time period.
     """
     try:
         # Get price data from Binance
         price_data = get_binance_price_history.invoke(
-            {"pair": symbol, "interval": interval, "limit": limit}
+            {
+                "token_symbol": token_symbol,
+                "candle_interval": candle_interval,
+                "num_candles": num_candles,
+            }
         )
 
         if "error" in price_data:
             return {
-                "error": f"Failed to fetch price data for {symbol}: {price_data['error']}"
+                "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}"
             }
 
         # Extract closing prices
@@ -583,8 +540,8 @@ def analyze_volatility_trend(
         std_volatility = float(returns.std())
 
         return {
-            "symbol": symbol,
-            "period": f"{interval} x {limit}",
+            "token_symbol": token_symbol,
+            "period": f"{candle_interval} x {num_candles}",
             "volatility_trend_coefficient": float(vol_trend),
             "trend_direction": direction,
             "current_volatility": std_volatility,
