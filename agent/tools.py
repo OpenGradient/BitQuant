@@ -6,7 +6,6 @@ from pydantic import BaseModel, Field
 import traceback
 
 from defi.analytics.defillama_tools import (
-    show_defi_llama_protocols,
     show_defi_llama_protocol,
     show_defi_llama_global_tvl,
     show_defi_llama_chain_tvl,
@@ -59,7 +58,7 @@ def create_investor_agent_toolkit() -> List[BaseTool]:
 
 def create_analytics_agent_toolkit() -> List[BaseTool]:
     return [
-        show_defi_llama_protocols,
+        # show_defi_llama_protocols,
         show_defi_llama_protocol,
         show_defi_llama_global_tvl,
         show_defi_llama_chain_tvl,
