@@ -12,12 +12,14 @@ def get_binance_price_history(
     Retrieves historical price data for a token directly from Binance API.
     """
     # Min value of 2 ensures we have at least two data points for calculating trends
-    limit = min(max(2, int(num_candles)), 1000)
+    num_candles = min(max(2, int(num_candles)), 1000)
+
+    trading_pair = f"{token_symbol.upper()}USDT"
 
     try:
         client = Spot(base_url="https://api.binance.us")
         klines = client.klines(
-            symbol=f"{token_symbol.upper()}USDT", interval=candle_interval, limit=limit
+            symbol=trading_pair, interval=candle_interval, limit=num_candles
         )
 
         return {

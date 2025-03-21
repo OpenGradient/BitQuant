@@ -38,8 +38,8 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
     def test_portfolio_volatility(self):
         response = portfolio_volatility.invoke(
             {
-                "token_symbols": ["BTC", "ETH", "USDT"],
-                "token_quantities": [1, 2, 3],
+                "token_symbols": ["BTC", "ETH"],
+                "token_quantities": [1, 2],
                 "candle_interval": "1d",
                 "num_candles": 30,
             }

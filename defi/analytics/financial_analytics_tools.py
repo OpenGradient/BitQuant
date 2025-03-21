@@ -287,7 +287,7 @@ def portfolio_volatility(
     num_candles: int = 90,
 ) -> Dict[str, Any]:
     """
-    Calculates the volatility (standard deviation of returns) of a portfolio using Binance price data over the specified time period.
+    Calculates the volatility (standard deviation of returns) of a portfolio over the specified time period. Do not pass in stablecoins.
     """
     try:
         if len(token_symbols) != len(token_quantities):
