@@ -19,6 +19,7 @@ from api.api_types import (
     UserMessage,
     AgentMessage,
     Message,
+    AgentType,
 )
 from agent.agent_executors import (
     create_agent_executor,
@@ -26,7 +27,7 @@ from agent.agent_executors import (
     create_analytics_executor,
 )
 from agent.prompts import (
-    get_agent_prompt,
+    get_investor_agent_prompt,
     get_suggestions_prompt,
     get_analytics_prompt,
     get_router_prompt,
@@ -108,9 +109,13 @@ def create_flask_app() -> Flask:
         # Enhance tokens with symbols from tokenlist
         agent_request.context.enhance_tokens_with_symbols(tokenlist)
 
-        # Always use the main agent for now
+        # Use router to select appropriate agent
         response = handle_agent_chat_request(
-            protocol_registry, agent_request, main_agent
+            protocol_registry=protocol_registry,
+            request=agent_request,
+            yield_agent=main_agent,  # main_agent is our yield-focused agent
+            analytics_agent=analytics_agent,
+            router_model=router_model
         )
 
         return jsonify(
@@ -134,22 +139,61 @@ def create_flask_app() -> Flask:
 def handle_agent_chat_request(
     protocol_registry: ProtocolRegistry,
     request: AgentChatRequest,
-    agent: CompiledGraph,
+    yield_agent: CompiledGraph,
+    analytics_agent: CompiledGraph,
+    router_model: ChatOpenAI,
 ) -> AgentMessage:
-    # Build main agent system prompt
-    main_system_prompt = get_agent_prompt(
+    # If agent is explicitly specified, bypass router
+    if request.agent is not None:
+        if request.agent == AgentType.ANALYTICS:
+            return handle_analytics_chat_request(request, analytics_agent)
+        elif request.agent == AgentType.YIELD:
+            return handle_yield_chat_request(request, yield_agent, protocol_registry)
+        else:
+            raise ValueError(f"Invalid agent type specified: {request.agent}")
+
+    # Otherwise use router to determine agent
+    router_prompt = get_router_prompt(
+        message_history=request.context.conversationHistory[-10:],
+        current_message=request.message.message
+    )
+
+    # Get agent selection from router
+    router_messages = [
+        ("system", router_prompt),
+        ("user", "Which agent should handle this request?")
+    ]
+    router_response = router_model.invoke(router_messages)
+    selected_agent = router_response.content.strip().lower()
+
+    if selected_agent == "analytics_agent":
+        return handle_analytics_chat_request(request, analytics_agent)
+    elif selected_agent == "yield_agent":
+        return handle_yield_chat_request(request, yield_agent, protocol_registry)
+    else:
+        raise ValueError(f"Invalid agent selection from router: {selected_agent}")
+
+
+def handle_yield_chat_request(
+    request: AgentChatRequest,
+    yield_agent: CompiledGraph,
+    protocol_registry: ProtocolRegistry,
+) -> AgentMessage:
+    """Handle requests for the yield-focused agent."""
+    # Build yield agent system prompt
+    yield_system_prompt = get_investor_agent_prompt(
         tokens=request.context.tokens,
         poolDeposits=request.context.poolPositions,
     )
 
-    # Prepare message history (last 10 messages)
+    # Prepare message history
     message_history = [
         convert_to_agent_msg(m) for m in request.context.conversationHistory[-10:]
     ]
 
-    # Create messages for main agent
-    main_messages = [
-        ("system", main_system_prompt),
+    # Create messages for yield agent
+    yield_messages = [
+        ("system", yield_system_prompt),
         *message_history,
         ("user", request.message.message),
     ]
@@ -163,12 +207,12 @@ def handle_agent_chat_request(
         }
     )
 
-    # Run main agent
-    main_result = run_main_agent(agent, main_messages, agent_config, protocol_registry)
+    # Run yield agent
+    yield_result = run_main_agent(yield_agent, yield_messages, agent_config, protocol_registry)
 
     return AgentMessage(
-        message=main_result["content"],
-        pools=main_result["pools"],
+        message=yield_result["content"],
+        pools=yield_result["pools"],
     )
 
 

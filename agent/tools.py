@@ -19,7 +19,7 @@ from defi.analytics.binance_tools import (
     compare_assets,
 )
 from defi.analytics.financial_analytics_tools import (
-    max_drawdown,
+    max_drawdown_for_token,
     portfolio_value,
     portfolio_volatility,
     portfolio_summary,
@@ -62,7 +62,7 @@ def create_agent_toolkit() -> List[BaseTool]:
         get_binance_price_history,
         analyze_price_trend,
         compare_assets,
-        max_drawdown,
+        max_drawdown_for_token,
         portfolio_value,
         portfolio_volatility,
         portfolio_summary,
@@ -80,7 +80,7 @@ def create_analytics_agent_toolkit() -> List[BaseTool]:
         get_binance_price_history,
         analyze_price_trend,
         compare_assets,
-        max_drawdown,
+        max_drawdown_for_token,
         portfolio_value,
         portfolio_volatility,
         portfolio_summary,

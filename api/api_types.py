@@ -16,6 +16,11 @@ class Chain(IntEnum):
     OTHER = 3
 
 
+class AgentType(StrEnum):
+    INVESTOR = "investor_agent"
+    ANALYTICS = "analytics_agent"
+
+
 class WalletTokenHolding(BaseModel):
     address: str  # token address
     amount: float  # amount of tokens held
@@ -101,3 +106,4 @@ class Context(BaseModel):
 class AgentChatRequest(BaseModel):
     context: Context
     message: UserMessage
+    agent: Optional[AgentType] = None 
