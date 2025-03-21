@@ -86,7 +86,11 @@ def max_drawdown_for_token(
     try:
         # Get price data from Binance
         price_data = get_binance_price_history.invoke(
-            {"token_symbol": token_symbol, "candle_interval": candle_interval, "num_candles": num_candles}
+            {
+                "token_symbol": token_symbol,
+                "candle_interval": candle_interval,
+                "num_candles": num_candles,
+            }
         )
 
         if "error" in price_data:
@@ -147,7 +151,11 @@ def analyze_wallet_portfolio(
 
         for i, symbol in enumerate(symbols):
             price_data = get_binance_price_history.invoke(
-                {"token_symbol": symbol, "candle_interval": candle_interval, "num_candles": num_candles}
+                {
+                    "token_symbol": symbol,
+                    "candle_interval": candle_interval,
+                    "num_candles": num_candles,
+                }
             )
 
             if "error" in price_data:
@@ -237,7 +245,10 @@ def analyze_wallet_portfolio(
 
 @tool()
 def portfolio_value(
-    token_symbols: List[str], token_quantities: List[float], candle_interval: str = "1d", num_candles: int = 90
+    token_symbols: List[str],
+    token_quantities: List[float],
+    candle_interval: str = "1d",
+    num_candles: int = 90,
 ) -> Dict[str, Any]:
     """
     Creates the time series of portfolio total value using Binance price data over the specified time period.
@@ -251,7 +262,11 @@ def portfolio_value(
 
         for token_symbol in token_symbols:
             price_data = get_binance_price_history.invoke(
-                {"token_symbol": token_symbol, "candle_interval": candle_interval, "num_candles": num_candles}
+                {
+                    "token_symbol": token_symbol,
+                    "candle_interval": candle_interval,
+                    "num_candles": num_candles,
+                }
             )
 
             if "error" in price_data:
@@ -288,7 +303,10 @@ def portfolio_value(
 
 @tool()
 def portfolio_volatility(
-    token_symbols: List[str], token_quantities: List[float], candle_interval: str = "1d", num_candles: int = 90
+    token_symbols: List[str],
+    token_quantities: List[float],
+    candle_interval: str = "1d",
+    num_candles: int = 90,
 ) -> Dict[str, Any]:
     """
     Calculates the volatility (standard deviation of returns) of a portfolio using Binance price data over the specified time period.
@@ -302,7 +320,11 @@ def portfolio_volatility(
 
         for token_symbol in token_symbols:
             price_data = get_binance_price_history.invoke(
-                {"token_symbol": token_symbol, "candle_interval": candle_interval, "num_candles": num_candles}
+                {
+                    "token_symbol": token_symbol,
+                    "candle_interval": candle_interval,
+                    "num_candles": num_candles,
+                }
             )
 
             if "error" in price_data:
@@ -346,7 +368,10 @@ def portfolio_volatility(
 
 @tool()
 def portfolio_summary(
-    token_symbols: List[str], token_quantities: List[float], candle_interval: str = "1d", num_candles: int = 90
+    token_symbols: List[str],
+    token_quantities: List[float],
+    candle_interval: str = "1d",
+    num_candles: int = 90,
 ) -> Dict[str, Any]:
     """
     Provides a comprehensive summary of a portfolio including value, volatility, and drawdown metrics using Binance price data over the specified time period.
@@ -360,7 +385,11 @@ def portfolio_summary(
 
         for token_symbol in token_symbols:
             price_data = get_binance_price_history.invoke(
-                {"token_symbol": token_symbol, "candle_interval": candle_interval, "num_candles": num_candles}
+                {
+                    "token_symbol": token_symbol,
+                    "candle_interval": candle_interval,
+                    "num_candles": num_candles,
+                }
             )
 
             if "error" in price_data:
@@ -476,7 +505,11 @@ def analyze_volatility_trend(
     try:
         # Get price data from Binance
         price_data = get_binance_price_history.invoke(
-            {"token_symbol": token_symbol, "candle_interval": candle_interval, "num_candles": num_candles}
+            {
+                "token_symbol": token_symbol,
+                "candle_interval": candle_interval,
+                "num_candles": num_candles,
+            }
         )
 
         if "error" in price_data:

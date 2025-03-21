@@ -1,7 +1,7 @@
 import unittest
 
 from defi.analytics.financial_analytics_tools import (
-    get_binance_price_history, 
+    get_binance_price_history,
     portfolio_value,
     portfolio_volatility,
     portfolio_summary,
@@ -14,60 +14,61 @@ from defi.analytics.financial_analytics_tools import (
 class TestFinancialAnalyticsTools(unittest.TestCase):
 
     def test_get_binance_price_history(self):
-        response = get_binance_price_history.invoke({
-            "token_symbol": "BTC",
-            "candle_interval": "1d",
-            "num_candles": 30
-        })
+        response = get_binance_price_history.invoke(
+            {"token_symbol": "BTC", "candle_interval": "1d", "num_candles": 30}
+        )
         print(response)
 
-
     def test_portfolio_value(self):
-        response = portfolio_value.invoke({
-            "token_symbols": ["BTC", "ETH"],
-            "token_quantities": [1, 2],
-            "candle_interval": "1d",
-            "num_candles": 30
-        })  
+        response = portfolio_value.invoke(
+            {
+                "token_symbols": ["BTC", "ETH"],
+                "token_quantities": [1, 2],
+                "candle_interval": "1d",
+                "num_candles": 30,
+            }
+        )
         print(response)
 
     def test_portfolio_volatility(self):
-        response = portfolio_volatility.invoke({
-            "token_symbols": ["BTC", "ETH"],
-            "token_quantities": [1, 2],
-            "candle_interval": "1d",
-            "num_candles": 30
-        }) 
+        response = portfolio_volatility.invoke(
+            {
+                "token_symbols": ["BTC", "ETH"],
+                "token_quantities": [1, 2],
+                "candle_interval": "1d",
+                "num_candles": 30,
+            }
+        )
         print(response)
 
     def test_portfolio_summary(self):
-        response = portfolio_summary.invoke({
-            "token_symbols": ["BTC", "ETH"],
-            "token_quantities": [1, 2],
-        })
+        response = portfolio_summary.invoke(
+            {
+                "token_symbols": ["BTC", "ETH"],
+                "token_quantities": [1, 2],
+            }
+        )
         print(response)
 
     def test_analyze_volatility_trend(self):
-        response = analyze_volatility_trend.invoke({
-            "token_symbol": "BTC",
-            "candle_interval": "1d",
-            "num_candles": 30
-        })
-        print(response) 
+        response = analyze_volatility_trend.invoke(
+            {"token_symbol": "BTC", "candle_interval": "1d", "num_candles": 30}
+        )
+        print(response)
 
     def test_analyze_wallet_portfolio(self):
-        response = analyze_wallet_portfolio.invoke({
-            "token_symbols": ["BTC", "ETH"],
-            "token_quantities": [1, 2],
-        })
+        response = analyze_wallet_portfolio.invoke(
+            {
+                "token_symbols": ["BTC", "ETH"],
+                "token_quantities": [1, 2],
+            }
+        )
         print(response)
 
     def test_max_drawdown_for_token(self):
-        response = max_drawdown_for_token.invoke({
-            "token_symbol": "BTC",
-            "candle_interval": "1d",
-            "num_candles": 30
-        })
+        response = max_drawdown_for_token.invoke(
+            {"token_symbol": "BTC", "candle_interval": "1d", "num_candles": 30}
+        )
         print(response)
 
 

@@ -22,7 +22,7 @@ from api.api_types import (
     AgentType,
 )
 from agent.agent_executors import (
-    create_agent_executor,
+    create_investor_executor,
     create_suggestions_executor,
     create_analytics_executor,
 )
@@ -56,7 +56,7 @@ def create_flask_app() -> Flask:
     # Initialize agents
     suggestions_agent = create_suggestions_executor()
     analytics_agent = create_analytics_executor()
-    main_agent = create_agent_executor()
+    investor_agent = create_investor_executor()
 
     router_model = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.0)
 
@@ -113,9 +113,9 @@ def create_flask_app() -> Flask:
         response = handle_agent_chat_request(
             protocol_registry=protocol_registry,
             request=agent_request,
-            yield_agent=main_agent,  # main_agent is our yield-focused agent
+            investor_agent=investor_agent,
             analytics_agent=analytics_agent,
-            router_model=router_model
+            router_model=router_model,
         )
 
         return jsonify(
@@ -127,9 +127,7 @@ def create_flask_app() -> Flask:
         request_data = request.get_json()
         agent_request = AgentChatRequest(**request_data)
 
-        suggestions = handle_suggestions_request(
-            agent_request, suggestions_agent
-        )
+        suggestions = handle_suggestions_request(agent_request, suggestions_agent)
 
         return jsonify({"suggestions": suggestions})
 
@@ -139,7 +137,7 @@ def create_flask_app() -> Flask:
 def handle_agent_chat_request(
     protocol_registry: ProtocolRegistry,
     request: AgentChatRequest,
-    yield_agent: CompiledGraph,
+    investor_agent: CompiledGraph,
     analytics_agent: CompiledGraph,
     router_model: ChatOpenAI,
 ) -> AgentMessage:
@@ -147,41 +145,38 @@ def handle_agent_chat_request(
     if request.agent is not None:
         if request.agent == AgentType.ANALYTICS:
             return handle_analytics_chat_request(request, analytics_agent)
-        elif request.agent == AgentType.YIELD:
-            return handle_yield_chat_request(request, yield_agent, protocol_registry)
+        elif request.agent == AgentType.INVESTOR:
+            return handle_investor_chat_request(
+                request, investor_agent, protocol_registry
+            )
         else:
             raise ValueError(f"Invalid agent type specified: {request.agent}")
 
     # Otherwise use router to determine agent
     router_prompt = get_router_prompt(
         message_history=request.context.conversationHistory[-10:],
-        current_message=request.message.message
+        current_message=request.message.message,
     )
 
-    # Get agent selection from router
-    router_messages = [
-        ("system", router_prompt),
-        ("user", "Which agent should handle this request?")
-    ]
-    router_response = router_model.invoke(router_messages)
+    router_response = router_model.invoke(router_prompt)
     selected_agent = router_response.content.strip().lower()
 
-    if selected_agent == "analytics_agent":
+    if selected_agent == AgentType.ANALYTICS:
         return handle_analytics_chat_request(request, analytics_agent)
-    elif selected_agent == "yield_agent":
-        return handle_yield_chat_request(request, yield_agent, protocol_registry)
+    elif selected_agent == AgentType.INVESTOR:
+        return handle_investor_chat_request(request, investor_agent, protocol_registry)
     else:
         raise ValueError(f"Invalid agent selection from router: {selected_agent}")
 
 
-def handle_yield_chat_request(
+def handle_investor_chat_request(
     request: AgentChatRequest,
-    yield_agent: CompiledGraph,
+    investor_agent: CompiledGraph,
     protocol_registry: ProtocolRegistry,
 ) -> AgentMessage:
-    """Handle requests for the yield-focused agent."""
-    # Build yield agent system prompt
-    yield_system_prompt = get_investor_agent_prompt(
+    """Handle requests for the investor agent."""
+    # Build investor agent system prompt
+    investor_system_prompt = get_investor_agent_prompt(
         tokens=request.context.tokens,
         poolDeposits=request.context.poolPositions,
     )
@@ -191,9 +186,9 @@ def handle_yield_chat_request(
         convert_to_agent_msg(m) for m in request.context.conversationHistory[-10:]
     ]
 
-    # Create messages for yield agent
-    yield_messages = [
-        ("system", yield_system_prompt),
+    # Create messages for investor agent
+    investor_messages = [
+        ("system", investor_system_prompt),
         *message_history,
         ("user", request.message.message),
     ]
@@ -207,12 +202,14 @@ def handle_yield_chat_request(
         }
     )
 
-    # Run yield agent
-    yield_result = run_main_agent(yield_agent, yield_messages, agent_config, protocol_registry)
+    # Run investor agent
+    investor_result = run_main_agent(
+        investor_agent, investor_messages, agent_config, protocol_registry
+    )
 
     return AgentMessage(
-        message=yield_result["content"],
-        pools=yield_result["pools"],
+        message=investor_result["content"],
+        pools=investor_result["pools"],
     )
 
 
@@ -257,8 +254,8 @@ def handle_suggestions_request(
 
 
 def run_main_agent(
-    agent: CompiledGraph, 
-    messages: List, 
+    agent: CompiledGraph,
+    messages: List,
     config: RunnableConfig,
     protocol_registry: ProtocolRegistry,
 ) -> Dict[str, Any]:
@@ -275,19 +272,21 @@ def run_main_agent(
 
         # Get full pool objects for the returned pool IDs
         pool_objects = protocol_registry.get_pools_by_ids(response_data["solana_pools"])
-        
+
         return {
             "content": response_data["text"],
             "pools": pool_objects,
-            "messages": result["messages"]
+            "messages": result["messages"],
         }
     except json.JSONDecodeError as e:
-        logger.error(f"Failed to parse agent response ({last_message.content}) as JSON: {e}")
+        logger.error(
+            f"Failed to parse agent response ({last_message.content}) as JSON: {e}"
+        )
         # Fallback to treating the entire response as text if JSON parsing fails
         return {
             "content": last_message.content,
             "pools": [],
-            "messages": result["messages"]
+            "messages": result["messages"],
         }
 
 
@@ -317,7 +316,15 @@ def convert_to_agent_msg(message: Message) -> Tuple[str, str]:
     if isinstance(message, UserMessage):
         return ("user", message.message)
     elif isinstance(message, AgentMessage):
-        return ("assistant", json.dumps({"text": message.message, "solana_pools": [pool.id for pool in message.pools]}))
+        return (
+            "assistant",
+            json.dumps(
+                {
+                    "text": message.message,
+                    "solana_pools": [pool.id for pool in message.pools],
+                }
+            ),
+        )
     else:
         raise TypeError(f"Unexpected message type: {type(message)}")
 
@@ -367,10 +374,7 @@ def handle_analytics_chat_request(
     # Run analytics agent
     analytics_result = run_analytics_agent(agent, analytics_messages, agent_config)
 
-    return AgentMessage(
-        message=analytics_result["content"],
-        pools=[]
-    )
+    return AgentMessage(message=analytics_result["content"], pools=[])
 
 
 def run_analytics_agent(

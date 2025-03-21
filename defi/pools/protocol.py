@@ -101,7 +101,10 @@ class ProtocolRegistry:
             if query.tokens:
                 token_matches = False
                 for pool_token in pool.tokens:
-                    if pool_token.symbol in query.tokens or pool_token.address in query.tokens:
+                    if (
+                        pool_token.symbol in query.tokens
+                        or pool_token.address in query.tokens
+                    ):
                         token_matches = True
                         break
                 if not token_matches:
@@ -213,7 +216,6 @@ class ProtocolRegistry:
         all_pools: List[Pool] = []
         for pools in self.pools_cache.values():
             all_pools.extend(pools)
-            
+
         # Return pools that match the requested IDs
         return [pool for pool in all_pools if pool.id in pool_ids]
-

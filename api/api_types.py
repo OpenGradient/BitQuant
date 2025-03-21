@@ -92,7 +92,7 @@ class Context(BaseModel):
 
     def enhance_tokens_with_symbols(self, tokenlist: Dict[str, Dict[str, str]]) -> None:
         """Enhance tokens with their symbols from the tokenlist.
-        
+
         Args:
             tokenlist: Dictionary mapping token addresses to their metadata (name, symbol)
         """
@@ -106,4 +106,4 @@ class Context(BaseModel):
 class AgentChatRequest(BaseModel):
     context: Context
     message: UserMessage
-    agent: Optional[AgentType] = None 
+    agent: Optional[AgentType] = None

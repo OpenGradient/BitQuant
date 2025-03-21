@@ -16,7 +16,9 @@ def get_binance_price_history(
 
     try:
         client = Spot(base_url="https://api.binance.us")
-        klines = client.klines(symbol=f"{token_symbol.upper()}USDT", interval=candle_interval, limit=limit)
+        klines = client.klines(
+            symbol=f"{token_symbol.upper()}USDT", interval=candle_interval, limit=limit
+        )
 
         return {
             "token_symbol": token_symbol,
@@ -53,7 +55,11 @@ def analyze_price_trend(
     try:
         # Get the price history first
         price_data = get_binance_price_history.invoke(
-            {"token_symbol": token_symbol, "candle_interval": candle_interval, "num_candles": num_candles}
+            {
+                "token_symbol": token_symbol,
+                "candle_interval": candle_interval,
+                "num_candles": num_candles,
+            }
         )
 
         # Extract relevant data for analysis
@@ -174,7 +180,11 @@ def compare_assets(
 
     for token_symbol in token_symbols:
         analysis = analyze_price_trend.invoke(
-            {"token_symbol": token_symbol, "candle_interval": candle_interval, "num_candles": num_candles}
+            {
+                "token_symbol": token_symbol,
+                "candle_interval": candle_interval,
+                "num_candles": num_candles,
+            }
         )
 
         # Skip if there was an error
