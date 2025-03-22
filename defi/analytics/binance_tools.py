@@ -327,19 +327,7 @@ def compare_assets(
     return {
         "individual_assets": results,
         "comparative_analysis": comparative_analysis,
-        "market_context": {
-            "period": f"{candle_interval} x {num_candles}",
-            "start_date": (
-                detailed_results[token_symbols[0]]["raw_data"]["data"][0][0]
-                if token_symbols and token_symbols[0] in detailed_results
-                else None
-            ),
-            "end_date": (
-                detailed_results[token_symbols[0]]["raw_data"]["data"][-1][0]
-                if token_symbols and token_symbols[0] in detailed_results
-                else None
-            ),
-        },
+        "period": f"Past {num_candles} {candle_interval}",
         "analysis_timestamp": int(time.time()),
     }
 

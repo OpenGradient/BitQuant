@@ -1,5 +1,5 @@
 import unittest
-from defi.analytics.binance_tools import get_binance_price_history
+from defi.analytics.binance_tools import get_binance_price_history, compare_assets
 
 
 class TestBinanceAPI(unittest.TestCase):
@@ -41,13 +41,13 @@ class TestBinanceAPI(unittest.TestCase):
         response = get_binance_price_history.invoke(
             {"token_symbol": "INVALIDTOKEN", "candle_interval": "1d", "num_candles": 30}
         )
-        self.assertTrue(response.startswith("Error fetching Binance data"))
+        self.assertIn("error", response)
 
     def test_small_data_limit(self):
         """Test fetching price history with a small number of candles"""
         small_limit = 5
         small_history = get_binance_price_history.invoke(
-            {"token_symbol": "BTC", "num_candles": small_limit}
+            {"token_symbol": "BTC", "num_candles": small_limit, "candle_interval": "1d"}
         )
 
         self.assertIn("data", small_history)
@@ -85,6 +85,35 @@ class TestBinanceAPI(unittest.TestCase):
             self.assertTrue(
                 isinstance(sample[idx], (int, float)), "Time values should be numeric"
             )
+
+    def test_compare_assets(self):
+        """Test basic functionality of compare_assets"""
+        result = compare_assets.invoke({
+            "token_symbols": ["BTC", "ETH", "SOL"],
+            "candle_interval": "1d",
+            "num_candles": 7
+        })
+
+        # Verify basic structure
+        self.assertIsNotNone(result)
+        self.assertIn("individual_assets", result)
+        self.assertIn("comparative_analysis", result)
+        self.assertIn("period", result)
+        self.assertIn("analysis_timestamp", result)
+
+        # Verify individual assets data
+        self.assertEqual(len(result["individual_assets"]), 3)
+        for symbol in ["BTC", "ETH", "SOL"]:
+            self.assertIn(symbol, result["individual_assets"])
+
+        # Verify comparative analysis structure
+        analysis = result["comparative_analysis"]
+        self.assertIn("performance_ranking", analysis)
+        self.assertIn("volatility_ranking", analysis)
+        self.assertIn("risk_adjusted_ranking", analysis)
+        self.assertIn("correlations", analysis)
+
+        print(result)
 
 
 if __name__ == "__main__":
