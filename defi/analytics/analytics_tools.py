@@ -511,7 +511,6 @@ def compare_assets(
         "comparative_analysis": comparative_analysis,
         "investment_insights": investment_insights,
         "period": period_text,
-        "disclaimer": "This analysis is for informational purposes only. Past performance is not indicative of future results. Always do your own research before investing."
     }
 
 
@@ -785,7 +784,6 @@ def analyze_wallet_portfolio(
                 "asset_allocation": asset_allocation,
             },
             "personalized_insights": insights,
-            "disclaimer": "This analysis is for informational purposes only. Past performance is not indicative of future results. Always do your own research before investing."
         }
     except Exception as e:
         return {
