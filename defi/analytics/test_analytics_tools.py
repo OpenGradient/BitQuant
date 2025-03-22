@@ -23,7 +23,6 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
         )
 
         self.assertNotIn("error", response)
-        print(response)
 
     def test_analyze_price_trend(self):
         response = analyze_price_trend.invoke(
@@ -38,7 +37,7 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
             {
                 "token_symbols": ["BTC", "ETH"],
                 "token_quantities": [1, 2],
-            "candle_interval": CandleInterval.DAY,
+                "candle_interval": CandleInterval.DAY,
                 "num_candles": 30,
             }
         )
@@ -175,7 +174,7 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
         sample = data[0]
 
         # Verify all expected columns are present
-        expected_columns = {"open", "high", "low", "close", "open_time", "close_time"}
+        expected_columns = {"open", "high", "low", "close", "open_time", "volume"}
         self.assertTrue(all(col in columns for col in expected_columns))
 
         # Verify data types
@@ -183,7 +182,7 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
         for idx in price_indices:
             self.assertTrue(float(sample[idx]) > 0, "Price values should be positive")
 
-        time_indices = [columns.index(col) for col in ["open_time", "close_time"]]
+        time_indices = [columns.index(col) for col in ["open_time"]]
         for idx in time_indices:
             self.assertTrue(
                 isinstance(sample[idx], (int, float)), "Time values should be numeric"
@@ -194,7 +193,7 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
         result = compare_assets.invoke({
             "token_symbols": ["BTC", "ETH", "SOL"],
             "candle_interval": CandleInterval.DAY,
-            "num_candles": 7
+            "num_candles": 90
         })
 
         # Verify basic structure

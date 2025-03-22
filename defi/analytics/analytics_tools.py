@@ -40,6 +40,9 @@ def get_binance_price_history(
             symbol=trading_pair, interval=candle_interval, limit=num_candles
         )
 
+        # keep only the columns we need
+        klines = [candle[:6] for candle in klines]
+
         return {
             "token_symbol": token_symbol,
             "candle_interval": candle_interval,
@@ -52,12 +55,6 @@ def get_binance_price_history(
                 "low",
                 "close",
                 "volume",
-                "close_time",
-                "quote_volume",
-                "count",
-                "taker_buy_volume",
-                "taker_buy_quote_volume",
-                "ignore",
             ],
         }
 
@@ -106,35 +103,12 @@ def analyze_price_trend(
                 sma_values.append(sum(window) / period)
             return sma_values
         
-        def calculate_ema(prices, period):
-            """Calculate Exponential Moving Average for a given period"""
-            if len(prices) < period:
-                return []
-            
-            # Start with SMA for the first value
-            ema_values = [sum(prices[:period]) / period]
-            # Multiplier: (2 / (period + 1))
-            multiplier = 2 / (period + 1)
-            
-            # Calculate EMA for the rest of the data
-            for i in range(period, len(prices)):
-                ema = (prices[i] * multiplier) + (ema_values[-1] * (1 - multiplier))
-                ema_values.append(ema)
-            
-            return ema_values
-        
         # Calculate key moving averages (both SMA and EMA)
         # Short-term moving averages
         sma7 = calculate_sma(close_prices, 7)
         sma20 = calculate_sma(close_prices, 20)
         sma50 = calculate_sma(close_prices, 50)
         sma200 = calculate_sma(close_prices, 200)
-        
-        # Exponential moving averages - typically more responsive to recent price changes
-        ema12 = calculate_ema(close_prices, 12)
-        ema26 = calculate_ema(close_prices, 26)
-        ema50 = calculate_ema(close_prices, 50)
-        ema200 = calculate_ema(close_prices, 200)
 
         # 1. Bollinger Bands (20-period SMA with 2 standard deviations)
         bollinger_bands = {"upper": None, "middle": None, "lower": None}
@@ -200,26 +174,6 @@ def analyze_price_trend(
                 "confirms_price": volume_confirms
             }
 
-        # 7. Support & Resistance Levels (simple method based on recent price action)
-        support_resistance = {"support": [], "resistance": []}
-        if len(close_prices) >= 30:
-            # Simplified algorithm to find support/resistance
-            window_size = min(30, len(close_prices) // 3)
-            for i in range(window_size, len(close_prices) - window_size):
-                # Check if this point is a local minimum (support)
-                if all(low_prices[i] <= low_prices[j] for j in range(i-window_size, i)) and \
-                   all(low_prices[i] <= low_prices[j] for j in range(i+1, i+window_size+1)):
-                    support_resistance["support"].append(round(low_prices[i], 2))
-                
-                # Check if this point is a local maximum (resistance)
-                if all(high_prices[i] >= high_prices[j] for j in range(i-window_size, i)) and \
-                   all(high_prices[i] >= high_prices[j] for j in range(i+1, i+window_size+1)):
-                    support_resistance["resistance"].append(round(high_prices[i], 2))
-            
-            # Limit to top 3 strongest levels for each
-            support_resistance["support"] = sorted(support_resistance["support"])[:3]
-            support_resistance["resistance"] = sorted(support_resistance["resistance"], reverse=True)[:3]
-
         # 9. Token-specific metrics
         token_metrics = {}
         if len(close_prices) > 0 and len(volumes) > 0:
@@ -230,7 +184,6 @@ def analyze_price_trend(
                 "price": round(current_price, 4),
                 "avg_daily_volume_usd": round(avg_daily_volume * current_price, 2),
                 "volatility": round(((max(close_prices[-7:]) / min(close_prices[-7:]) - 1) * 100), 2) if len(close_prices) >= 7 else None,
-                "liquidity_score": "High" if avg_daily_volume * current_price > 1000000 else "Medium" if avg_daily_volume * current_price > 100000 else "Low"
             }
 
         return {
@@ -246,27 +199,20 @@ def analyze_price_trend(
                 "sma20": round(sma20[-1], 4) if sma20 else None,
                 "sma50": round(sma50[-1], 4) if sma50 else None,
                 "sma200": round(sma200[-1], 4) if sma200 else None,
-                # Exponential Moving Averages
-                "ema12": round(ema12[-1], 4) if ema12 else None,
-                "ema26": round(ema26[-1], 4) if ema26 else None,
-                "ema50": round(ema50[-1], 4) if ema50 else None,
-                "ema200": round(ema200[-1], 4) if ema200 else None,
                 # Key crossovers and trends
                 "golden_cross": "Yes" if sma50 and sma200 and sma50[-1] > sma200[-1] and (len(sma50) > 1 and len(sma200) > 1 and sma50[-2] <= sma200[-2]) else "No",
                 "death_cross": "Yes" if sma50 and sma200 and sma50[-1] < sma200[-1] and (len(sma50) > 1 and len(sma200) > 1 and sma50[-2] >= sma200[-2]) else "No",
                 "short_trend": "Bullish" if sma7 and sma20 and sma7[-1] > sma20[-1] else "Bearish" if sma7 and sma20 else "Neutral",
-                "medium_trend": "Bullish" if ema12 and ema26 and ema12[-1] > ema26[-1] else "Bearish" if ema12 and ema26 else "Neutral",
                 "long_trend": "Bullish" if sma50 and sma200 and sma50[-1] > sma200[-1] else "Bearish" if sma50 and sma200 else "Neutral",
             },
             "technical_indicators": {
                 "bollinger_bands": bollinger_bands,
                 "fibonacci": fibonacci,
                 "volume_analysis": volume_analysis,
-                "support_resistance": support_resistance
             },
             "token_metrics": token_metrics,
             "analysis_summary": get_analysis_summary(
-                sma7, sma20, sma50, sma200, ema12, ema26, bollinger_bands, volume_analysis
+                sma7, sma20, sma50, sma200, bollinger_bands, volume_analysis
             )
         }
     except Exception as e:
@@ -276,7 +222,7 @@ def analyze_price_trend(
 
 
 def get_analysis_summary(
-    sma7, sma20, sma50, sma200, ema12, ema26, bollinger_bands, volume_analysis
+    sma7, sma20, sma50, sma200, bollinger_bands, volume_analysis
 ):
     """Generate a simple summary of the analysis results."""
     summary = []
@@ -290,15 +236,6 @@ def get_analysis_summary(
         else:
             ma_short_desc = "Short-term moving averages indicate bearish momentum."
             summary.append(ma_short_desc)
-    
-    # Medium-term trend
-    if ema12 and ema26:
-        if ema12[-1] > ema26[-1]:
-            ma_medium_desc = "Medium-term EMA crossover is bullish."
-            summary.append(ma_medium_desc)
-        else:
-            ma_medium_desc = "Medium-term EMA crossover is bearish."
-            summary.append(ma_medium_desc)
     
     # Long-term trend and major crossovers
     if sma50 and sma200:
@@ -342,7 +279,6 @@ def compare_assets(
     """
     results = {}
     detailed_results = {}
-    all_price_data = {}
 
     # Step 1: Collect individual asset data
     for token_symbol in token_symbols:
@@ -363,18 +299,11 @@ def compare_assets(
             # Store detailed analysis results
             detailed_results[token_symbol] = analysis
 
-            # Extract close prices for correlation analysis
-            raw_data = analysis["raw_data"]["data"]
-            all_price_data[token_symbol] = [float(candle[4]) for candle in raw_data]
-
             # Store basic metrics in results
             results[token_symbol] = {
-                "trend": analysis["trend"],
-                "trend_strength": analysis["trend_strength"],
-                "change_percent": analysis["change_percent"],
-                "current_price": analysis["current_price"],
-                "volatility": calculate_volatility(all_price_data[token_symbol]),
-                "technical_indicators": analysis["technical_indicators"],
+                "current_price": analysis.get("current_price"),
+                "price_range": analysis.get("price_range"),
+                "analysis_summary": analysis.get("analysis_summary")
             }
 
         except Exception as e:
@@ -387,36 +316,41 @@ def compare_assets(
     valid_pairs = {
         p: data
         for p, data in results.items()
-        if "error" not in data and data.get("change_percent") is not None
+        if "error" not in data and data.get("current_price") is not None
     }
 
     comparative_analysis = {}
 
     if valid_pairs:
-        # Performance rankings
+        # Performance rankings based on price change
+        price_changes = {}
+        for symbol, data in valid_pairs.items():
+            if data.get("price_range"):
+                price_range = data["price_range"]
+                if price_range.get("min") and price_range.get("max"):
+                    price_change = ((price_range["max"] - price_range["min"]) / price_range["min"]) * 100
+                    price_changes[symbol] = price_change
+
         ranked_by_change = sorted(
-            valid_pairs.items(),
-            key=lambda x: x[1].get("change_percent", float("-inf")),
+            price_changes.items(),
+            key=lambda x: x[1],
             reverse=True,
         )
 
         # Volatility rankings
         ranked_by_volatility = sorted(
             valid_pairs.items(),
-            key=lambda x: x[1].get("volatility", float("-inf")),
+            key=lambda x: x[1].get("token_metrics", {}).get("volatility", float("-inf")),
             reverse=True,
         )
 
-        # Calculate correlations between assets
-        correlations = calculate_correlations(all_price_data)
-
-        # Risk-adjusted returns (simple Sharpe ratio approximation)
+        # Risk-adjusted returns (using volatility from token_metrics)
         risk_adjusted = {}
         for symbol, data in valid_pairs.items():
-            if data.get("volatility", 0) > 0:
-                risk_adjusted[symbol] = data.get("change_percent", 0) / data.get(
-                    "volatility", 1
-                )
+            volatility = data.get("token_metrics", {}).get("volatility", 0)
+            price_change = price_changes.get(symbol, 0)
+            if volatility and volatility > 0:
+                risk_adjusted[symbol] = price_change / volatility
             else:
                 risk_adjusted[symbol] = 0
 
@@ -427,56 +361,56 @@ def compare_assets(
         # Construct the comparative analysis
         comparative_analysis = {
             "performance_ranking": [
-                {"symbol": pair[0], "change_percent": pair[1]["change_percent"]}
+                {"symbol": pair[0], "change_percent": pair[1]}
                 for pair in ranked_by_change
             ],
             "volatility_ranking": [
-                {"symbol": pair[0], "volatility": pair[1]["volatility"]}
+                {
+                    "symbol": pair[0],
+                    "volatility": pair[1].get("token_metrics", {}).get("volatility", 0)
+                }
                 for pair in ranked_by_volatility
             ],
             "risk_adjusted_ranking": [
                 {"symbol": symbol, "risk_adjusted_return": value}
                 for symbol, value in ranked_by_risk_adjusted
             ],
-            "correlations": correlations,
             "best_performer": {
                 "token_symbol": ranked_by_change[0][0],
-                "change_percent": ranked_by_change[0][1]["change_percent"],
-            },
+                "change_percent": ranked_by_change[0][1],
+            } if ranked_by_change else None,
             "worst_performer": {
                 "token_symbol": ranked_by_change[-1][0],
-                "change_percent": ranked_by_change[-1][1]["change_percent"],
-            },
+                "change_percent": ranked_by_change[-1][1],
+            } if ranked_by_change else None,
             "most_volatile": {
                 "token_symbol": ranked_by_volatility[0][0],
-                "volatility": ranked_by_volatility[0][1]["volatility"],
-            },
+                "volatility": ranked_by_volatility[0][1].get("token_metrics", {}).get("volatility", 0),
+            } if ranked_by_volatility else None,
             "least_volatile": {
                 "token_symbol": ranked_by_volatility[-1][0],
-                "volatility": ranked_by_volatility[-1][1]["volatility"],
-            },
+                "volatility": ranked_by_volatility[-1][1].get("token_metrics", {}).get("volatility", 0),
+            } if ranked_by_volatility else None,
             "best_risk_adjusted": {
                 "token_symbol": ranked_by_risk_adjusted[0][0],
                 "value": ranked_by_risk_adjusted[0][1],
-            },
+            } if ranked_by_risk_adjusted else None,
         }
 
         # Calculate basket performance (if we were to invest equally in all assets)
         if len(valid_pairs) > 0:
-            avg_change = sum(
-                data["change_percent"] for _, data in valid_pairs.items()
-            ) / len(valid_pairs)
+            avg_change = sum(price_changes.values()) / len(valid_pairs)
             comparative_analysis["basket_performance"] = {
                 "average_change_percent": avg_change,
                 "outperformers": [
                     symbol
-                    for symbol, data in valid_pairs.items()
-                    if data["change_percent"] > avg_change
+                    for symbol, change in price_changes.items()
+                    if change > avg_change
                 ],
                 "underperformers": [
                     symbol
-                    for symbol, data in valid_pairs.items()
-                    if data["change_percent"] < avg_change
+                    for symbol, change in price_changes.items()
+                    if change < avg_change
                 ],
             }
 
@@ -510,63 +444,6 @@ def calculate_volatility(prices: List[float]) -> float:
     variance = sum((r - mean_return) ** 2 for r in returns) / len(returns)
 
     return round(variance**0.5, 2)  # Standard deviation
-
-
-def calculate_correlations(
-    price_data: Dict[str, List[float]],
-) -> Dict[str, Dict[str, float]]:
-    """
-    Calculate Pearson correlation coefficients between assets.
-
-    Args:
-        price_data: Dictionary with token symbols as keys and price lists as values
-
-    Returns:
-        Nested dictionary with correlation values
-    """
-
-    correlations = {}
-    symbols = list(price_data.keys())
-
-    # Ensure all price series have the same length by truncating to shortest
-    min_length = min(len(prices) for prices in price_data.values())
-    normalized_prices = {
-        symbol: prices[-min_length:] for symbol, prices in price_data.items()
-    }
-
-    # Calculate returns instead of using absolute prices
-    returns = {}
-    for symbol, prices in normalized_prices.items():
-        if len(prices) < 2:
-            continue
-        returns[symbol] = [
-            (prices[i] / prices[i - 1] - 1) for i in range(1, len(prices))
-        ]
-
-    # Calculate correlations between each pair
-    for i, symbol1 in enumerate(symbols):
-        if symbol1 not in returns:
-            continue
-
-        correlations[symbol1] = {}
-
-        for symbol2 in symbols:
-            if symbol2 not in returns:
-                continue
-
-            if symbol1 == symbol2:
-                correlations[symbol1][symbol2] = 1.0
-                continue
-
-            # Calculate Pearson correlation
-            r1 = np.array(returns[symbol1])
-            r2 = np.array(returns[symbol2])
-
-            # Calculate correlation coefficient
-            correlation = np.corrcoef(r1, r2)[0, 1]
-            correlations[symbol1][symbol2] = round(float(correlation), 2)
-
-    return correlations
 
 
 @tool()
