@@ -575,9 +575,8 @@ def analyze_wallet_portfolio(
     config: RunnableConfig = None,
 ) -> Dict[str, Any]:
     """
-    Analyzes the user's wallet portfolio using Binance price data. Returns a dictionary containing comprehensive portfolio analysis.
+    Provides a comprehensive analysis of a crypto wallet portfolio with investor-friendly insights and recommendations.
     """
-
     try:
         # Extract tokens from config
         symbols, holding_qty = extract_tokens_from_config(config)
@@ -591,6 +590,7 @@ def analyze_wallet_portfolio(
         all_price_data = []
         valid_symbols = []
         valid_quantities = []
+        error_symbols = []
 
         for i, symbol in enumerate(symbols):
             price_data = get_binance_price_history.invoke(
@@ -602,9 +602,7 @@ def analyze_wallet_portfolio(
             )
 
             if "error" in price_data:
-                print(
-                    f"Warning: Failed to fetch price data for {symbol}: {price_data.get('error')}"
-                )
+                error_symbols.append(symbol)
                 continue  # Skip this token but continue with others
 
             # Extract closing prices
@@ -615,7 +613,7 @@ def analyze_wallet_portfolio(
 
         if not all_price_data:
             return {
-                "error": "Could not fetch price data for any of the tokens in the wallet. Please try with custom symbols that are available on Binance."
+                "error": "Could not fetch price data for any of the tokens in your wallet. Please try with custom symbols that are available on Binance."
             }
 
         # Convert to numpy arrays and transpose to get [time][asset] format
@@ -625,7 +623,7 @@ def analyze_wallet_portfolio(
         # Format asset names for output
         asset_names = [symbol.replace("USDT", "") for symbol in valid_symbols]
 
-        # Calculate portfolio values
+        # Calculate portfolio values over time
         weighted_values = holding_qty * prices
         portfolio_values = weighted_values.sum(axis=1)
 
@@ -634,53 +632,172 @@ def analyze_wallet_portfolio(
         total_value = latest_values.sum()
         allocations = latest_values / total_value
 
-        # Calculate returns
-        portfolio_returns = portfolio_values[1:] / portfolio_values[:-1] - 1
+        # Calculate returns (daily, weekly, monthly)
+        daily_returns = portfolio_values[1:] / portfolio_values[:-1] - 1
+        
+        # Weekly returns (if we have sufficient data)
+        weekly_returns = None
+        if len(portfolio_values) >= 7:
+            weekly_indices = list(range(0, len(portfolio_values), 7))
+            if len(weekly_indices) >= 2:
+                weekly_values = portfolio_values[weekly_indices]
+                weekly_returns = weekly_values[1:] / weekly_values[:-1] - 1
+        
+        # Monthly returns (if we have sufficient data)
+        monthly_returns = None
+        if len(portfolio_values) >= 30:
+            monthly_indices = list(range(0, len(portfolio_values), 30))
+            if len(monthly_indices) >= 2:
+                monthly_values = portfolio_values[monthly_indices]
+                monthly_returns = monthly_values[1:] / monthly_values[:-1] - 1
 
         # Calculate drawdown
         rolling_max = np.maximum.accumulate(portfolio_values)
         drawdowns = (rolling_max - portfolio_values) / rolling_max
         max_dd = float(drawdowns.max())
+        
+        # Calculate when max drawdown occurred
+        max_dd_idx = np.argmax(drawdowns)
+        peak_idx = np.argmax(portfolio_values[:max_dd_idx+1])
+        max_dd_duration = max_dd_idx - peak_idx
+        
+        # Calculate recovery after max drawdown
+        if max_dd_idx < len(portfolio_values) - 1:
+            recovery_pct = (portfolio_values[-1] / portfolio_values[max_dd_idx] - 1) * 100
+        else:
+            recovery_pct = 0
 
-        # Asset allocation summary
+        # Asset allocation summary with performance
         asset_allocation = []
         for i, asset in enumerate(asset_names):
-            asset_allocation.append(
-                {
-                    "asset": asset,
-                    "quantity": float(holding_qty[i]),
-                    "value": float(latest_values[i]),
-                    "allocation_percent": f"{allocations[i] * 100:.2f}%",
+            # Calculate individual asset performance
+            asset_return = (prices[-1, i] / prices[0, i] - 1) * 100
+            asset_volatility = np.std(prices[1:, i] / prices[:-1, i] - 1) * 100
+            
+            # Calculate relative strength vs. portfolio
+            relative_return = asset_return - ((portfolio_values[-1] / portfolio_values[0] - 1) * 100)
+            
+            asset_allocation.append({
+                "asset": asset,
+                "quantity": float(holding_qty[i]),
+                "current_price": float(prices[-1, i]),
+                "value": float(latest_values[i]),
+                "allocation_percent": f"{allocations[i] * 100:.2f}%",
+                "performance": {
+                    "return_percent": f"{asset_return:.2f}%",
+                    "volatility": f"{asset_volatility:.2f}%",
+                    "relative_to_portfolio": f"{relative_return:+.2f}%"
                 }
-            )
-
+            })
+        
+        # Sort asset allocation by value (descending)
+        asset_allocation = sorted(asset_allocation, key=lambda x: x["value"], reverse=True)
+        
+        # Calculate diversification score (0-100)
+        # Higher when allocation is more even across assets
+        herfindahl_index = np.sum(allocations ** 2)
+        diversification_score = (1 - herfindahl_index) * 100
+        
+        # Risk assessment
+        portfolio_volatility = float(daily_returns.std() * 100)
+        annualized_volatility = portfolio_volatility * np.sqrt(252)
+        
+        # Calculate Sharpe ratio (assuming risk-free rate of 0 for simplicity)
+        sharpe_ratio = None
+        if portfolio_volatility > 0:
+            sharpe_ratio = (daily_returns.mean() * 252) / (portfolio_volatility * np.sqrt(252) / 100)
+        
+        # Determine risk level
+        risk_level = "Unknown"
+        if annualized_volatility < 15:
+            risk_level = "Low"
+        elif annualized_volatility < 30:
+            risk_level = "Medium"
+        else:
+            risk_level = "High"
+        
+        # Generate personalized insights
+        insights = []
+        
+        # Overall performance insight
+        total_return_pct = (portfolio_values[-1] / portfolio_values[0] - 1) * 100
+        if total_return_pct > 0:
+            insights.append(f"Your portfolio has gained {total_return_pct:.2f}% over the past {num_candles} {candle_interval}s.")
+        else:
+            insights.append(f"Your portfolio has declined {abs(total_return_pct):.2f}% over the past {num_candles} {candle_interval}s.")
+        
+        # Diversification insight
+        if diversification_score < 30:
+            insights.append(f"Your portfolio is highly concentrated with a diversification score of {diversification_score:.1f}/100. Consider adding more assets to reduce risk.")
+        elif diversification_score < 60:
+            insights.append(f"Your portfolio has moderate diversification ({diversification_score:.1f}/100). Adding 1-2 uncorrelated assets could improve risk-adjusted returns.")
+        else:
+            insights.append(f"Your portfolio is well-diversified ({diversification_score:.1f}/100), which may help protect against volatility in individual assets.")
+        
+        # Risk insight
+        if risk_level == "High":
+            insights.append(f"Your portfolio shows high volatility ({annualized_volatility:.2f}% annualized). This may indicate higher risk, so consider your risk tolerance.")
+        
+        # Top/bottom performer insight
+        if asset_allocation:
+            # Find best and worst performers
+            sorted_by_return = sorted(asset_allocation, key=lambda x: float(x["performance"]["return_percent"].replace("%", "")), reverse=True)
+            best_performer = sorted_by_return[0]
+            worst_performer = sorted_by_return[-1]
+            
+            insights.append(f"{best_performer['asset']} is your best performer with a {best_performer['performance']['return_percent']} return, while {worst_performer['asset']} has returned {worst_performer['performance']['return_percent']}.")
+        
+        # Drawdown insight
+        if max_dd > 0.1:  # Only show if drawdown is significant (>10%)
+            insights.append(f"Your maximum drawdown was {max_dd*100:.2f}% over {max_dd_duration} {candle_interval}s. Since then, your portfolio has recovered {recovery_pct:.2f}%.")
+        
+        # Get time periods in user-friendly format
+        period_text = ""
+        if candle_interval == "1d":
+            period_text = f"{num_candles} days"
+        elif candle_interval == "1h":
+            period_text = f"{num_candles} hours"
+        elif candle_interval == "1w":
+            period_text = f"{num_candles} weeks"
+            
+        # Check for missing tokens
+        missing_tokens_message = ""
+        if error_symbols:
+            missing_tokens_message = f"Note: Could not fetch data for these tokens: {', '.join(error_symbols)}"
+        
         return {
             "portfolio_summary": {
-                "period": f"{candle_interval} x {num_candles}",
-                "total_value": float(total_value),
+                "total_value": f"${total_value:.2f}",
                 "asset_count": len(asset_names),
+                "period_analyzed": period_text,
+                "missing_tokens": missing_tokens_message,
                 "performance": {
-                    "initial_value": float(portfolio_values[0]),
-                    "final_value": float(portfolio_values[-1]),
-                    "total_return": f"{((portfolio_values[-1] / portfolio_values[0]) - 1) * 100:.2f}%",
-                    "volatility": float(portfolio_returns.std()),
-                    "annualized_volatility": f"{float(portfolio_returns.std() * np.sqrt(252) * 100):.2f}%",
+                    "initial_value": f"${float(portfolio_values[0]):.2f}",
+                    "current_value": f"${float(portfolio_values[-1]):.2f}",
+                    "total_return": f"{total_return_pct:.2f}%",
+                    "annualized_return": f"{((1 + total_return_pct/100) ** (365/(num_candles)) - 1) * 100:.2f}%" if candle_interval == "1d" else "N/A",
                     "max_drawdown": f"{max_dd * 100:.2f}%",
-                    "sharpe_ratio": (
-                        float(
-                            portfolio_returns.mean()
-                            / portfolio_returns.std()
-                            * np.sqrt(252)
-                        )
-                        if portfolio_returns.std() > 0
-                        else None
-                    ),
+                    "best_day_return": f"{max(daily_returns) * 100:.2f}%" if len(daily_returns) > 0 else "N/A",
+                    "worst_day_return": f"{min(daily_returns) * 100:.2f}%" if len(daily_returns) > 0 else "N/A",
+                },
+                "risk_assessment": {
+                    "risk_level": risk_level,
+                    "volatility_daily": f"{portfolio_volatility:.2f}%",
+                    "volatility_annualized": f"{annualized_volatility:.2f}%",
+                    "sharpe_ratio": f"{sharpe_ratio:.2f}" if sharpe_ratio else "N/A",
+                    "diversification_score": f"{diversification_score:.1f}/100",
+                    "max_drawdown": f"{max_dd * 100:.2f}%",
                 },
                 "asset_allocation": asset_allocation,
-            }
+            },
+            "personalized_insights": insights,
+            "disclaimer": "This analysis is for informational purposes only. Past performance is not indicative of future results. Always do your own research before investing."
         }
     except Exception as e:
-        return {"error": f"Error analyzing portfolio: {e}"}
+        return {
+            "error": f"Error analyzing portfolio: {str(e)}",
+            "traceback": traceback.format_exc()
+        }
 
 
 @tool()
@@ -802,106 +919,6 @@ def portfolio_volatility(
     except Exception as e:
         return {
             "error": f"Error calculating portfolio volatility: {str(e)}",
-            "traceback": traceback.format_exc(),
-        }
-
-
-@tool()
-def portfolio_summary(
-    token_symbols: List[str],
-    token_quantities: List[float],
-    candle_interval: CandleInterval = CandleInterval.DAY,
-    num_candles: int = 90,
-) -> Dict[str, Any]:
-    """
-    Provides a comprehensive summary of a portfolio including value, volatility, and drawdown metrics using Binance price data over the specified time period.
-    """
-    try:
-        if len(token_symbols) != len(token_quantities):
-            return {"error": "Number of symbols must match number of holdings"}
-
-        # Fetch price data for each asset
-        all_price_data = []
-
-        for token_symbol in token_symbols:
-            price_data = get_binance_price_history.invoke(
-                {
-                    "token_symbol": token_symbol,
-                    "candle_interval": candle_interval,
-                    "num_candles": num_candles,
-                }
-            )
-
-            if "error" in price_data:
-                return {
-                    "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}"
-                }
-
-            # Extract closing prices
-            close_prices = [float(candle[4]) for candle in price_data["data"]]
-            all_price_data.append(close_prices)
-
-        # Convert to numpy arrays and transpose to get [time][asset] format
-        prices = np.array(all_price_data).T
-        holding_qty = np.array(token_quantities)
-
-        # Calculate portfolio values
-        weighted_values = holding_qty * prices
-        portfolio_values = weighted_values.sum(axis=1)
-
-        # Calculate allocation percentages
-        latest_values = holding_qty * prices[-1]
-        total_value = latest_values.sum()
-        allocations = latest_values / total_value
-
-        # Calculate returns
-        portfolio_returns = portfolio_values[1:] / portfolio_values[:-1] - 1
-
-        # Calculate drawdown
-        rolling_max = np.maximum.accumulate(portfolio_values)
-        drawdowns = (rolling_max - portfolio_values) / rolling_max
-        max_dd = float(drawdowns.max())
-
-        # Asset allocation summary
-        asset_allocation = []
-        for i, asset in enumerate(token_symbols):
-            asset_allocation.append(
-                {
-                    "asset": asset,
-                    "quantity": float(holding_qty[i]),
-                    "value": float(latest_values[i]),
-                    "allocation_percent": f"{allocations[i] * 100:.2f}%",
-                }
-            )
-
-        return {
-            "portfolio_summary": {
-                "period": f"{candle_interval} x {num_candles}",
-                "total_value": float(total_value),
-                "asset_count": len(token_symbols),
-                "performance": {
-                    "initial_value": float(portfolio_values[0]),
-                    "final_value": float(portfolio_values[-1]),
-                    "total_return": f"{((portfolio_values[-1] / portfolio_values[0]) - 1) * 100:.2f}%",
-                    "volatility": float(portfolio_returns.std()),
-                    "annualized_volatility": f"{float(portfolio_returns.std() * np.sqrt(252) * 100):.2f}%",
-                    "max_drawdown": f"{max_dd * 100:.2f}%",
-                    "sharpe_ratio": (
-                        float(
-                            portfolio_returns.mean()
-                            / portfolio_returns.std()
-                            * np.sqrt(252)
-                        )
-                        if portfolio_returns.std() > 0
-                        else None
-                    ),
-                },
-                "asset_allocation": asset_allocation,
-            }
-        }
-    except Exception as e:
-        return {
-            "error": f"Error calculating portfolio summary: {str(e)}",
             "traceback": traceback.format_exc(),
         }
 

@@ -5,7 +5,6 @@ from defi.analytics.analytics_tools import (
     get_binance_price_history,
     portfolio_value,
     portfolio_volatility,
-    portfolio_summary,
     analyze_volatility_trend,
     analyze_wallet_portfolio,
     max_drawdown_for_token,
@@ -58,16 +57,6 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
         self.assertNotIn("error", response)
         print(response)
 
-    def test_portfolio_summary(self):
-        response = portfolio_summary.invoke(
-            {
-                "token_symbols": ["BTC", "ETH"],
-                "token_quantities": [1, 2],
-            }
-        )
-
-        self.assertNotIn("error", response)
-        print(response)
 
     def test_analyze_volatility_trend(self):
         response = analyze_volatility_trend.invoke(

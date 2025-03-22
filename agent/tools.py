@@ -13,10 +13,10 @@ from api.api_types import Pool, WalletTokenHolding, Chain, PoolQuery
 from defi.analytics.analytics_tools import (
     max_drawdown_for_token,
     portfolio_volatility,
-    portfolio_summary,
     analyze_volatility_trend,
     analyze_price_trend,
-    compare_assets, 
+    compare_assets,
+    analyze_wallet_portfolio,
 )
 from defi.pools.protocol import ProtocolRegistry
 
@@ -59,6 +59,6 @@ def create_analytics_agent_toolkit() -> List[BaseTool]:
         compare_assets,
         max_drawdown_for_token,
         portfolio_volatility,
-        portfolio_summary,
         analyze_volatility_trend,
+        analyze_wallet_portfolio,
     ]
