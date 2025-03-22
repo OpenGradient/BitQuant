@@ -198,15 +198,8 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
 
         # Verify basic structure
         self.assertIsNotNone(result)
-        self.assertIn("individual_assets", result)
         self.assertIn("comparative_analysis", result)
-        self.assertIn("period", result)
-        self.assertIn("analysis_timestamp", result)
-
-        # Verify individual assets data
-        self.assertEqual(len(result["individual_assets"]), 3)
-        for symbol in ["BTC", "ETH", "SOL"]:
-            self.assertIn(symbol, result["individual_assets"])
+        self.assertIn("investment_insights", result)
 
         print(result)
 

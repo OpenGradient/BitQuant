@@ -192,6 +192,8 @@ def analyze_price_trend(
             "price_range": {
                 "min": round(min(close_prices), 4) if close_prices else None,
                 "max": round(max(close_prices), 4) if close_prices else None,
+                "open": round(open_prices[0], 4) if open_prices else None,
+                "close": round(close_prices[-1], 4) if close_prices else None,
             },
             "moving_averages": {
                 # Simple Moving Averages
@@ -274,12 +276,19 @@ def compare_assets(
     token_symbols: List[str], candle_interval: CandleInterval, num_candles: int
 ) -> Dict[str, Any]:
     """
-    Compare performance of multiple tokens, including detailed price trends, technical indicators,
-    relative performance metrics, volatility analysis, and correlation data over the specified time period.
+    Compare performance of multiple crypto assets with simplified insights for average investors.
+    
+    Args:
+        token_symbols: List of token symbols (e.g. ["BTC", "ETH", "SOL"])
+        candle_interval: Time interval for candles (1h, 1d, 1w)
+        num_candles: Number of historical candles to analyze
+        
+    Returns:
+        Dictionary with individual asset analyses, comparative metrics, and investment insights
     """
     results = {}
     detailed_results = {}
-
+    
     # Step 1: Collect individual asset data
     for token_symbol in token_symbols:
         try:
@@ -290,160 +299,220 @@ def compare_assets(
                     "num_candles": num_candles,
                 }
             )
-
+            
             # Skip if there was an error
             if "error" in analysis:
                 results[token_symbol] = {"error": analysis["error"]}
                 continue
-
+                
             # Store detailed analysis results
             detailed_results[token_symbol] = analysis
-
-            # Store basic metrics in results
+            
+            # Extract price data
+            price_data = get_binance_price_history.invoke(
+                {
+                    "token_symbol": token_symbol,
+                    "candle_interval": candle_interval,
+                    "num_candles": num_candles,
+                }
+            )
+            
+            # Calculate actual price change
+            price_history = price_data.get("data", [])
+            if len(price_history) >= 2:
+                start_price = float(price_history[0][4])  # Close price of first candle
+                end_price = float(price_history[-1][4])   # Close price of last candle
+                price_change_pct = ((end_price / start_price) - 1) * 100
+            else:
+                price_change_pct = 0
+                
+            # Store useful metrics for average investors
             results[token_symbol] = {
                 "current_price": analysis.get("current_price"),
-                "price_range": analysis.get("price_range"),
-                "analysis_summary": analysis.get("analysis_summary")
+                "price_change_pct": round(price_change_pct, 2),
+                "moving_averages": {
+                    "short_term": analysis.get("moving_averages", {}).get("short_trend"),
+                    "long_term": analysis.get("moving_averages", {}).get("long_trend"),
+                },
+                "volatility": analysis.get("token_metrics", {}).get("volatility"),
+                "volume_trend": analysis.get("technical_indicators", {})
+                    .get("volume_analysis", {}).get("trend"),
+                "key_signals": []
             }
-
+            
+            # Add key signals for average investors
+            moving_averages = analysis.get("moving_averages", {})
+            if moving_averages.get("golden_cross") == "Yes":
+                results[token_symbol]["key_signals"].append("BULLISH: Golden Cross detected")
+            if moving_averages.get("death_cross") == "Yes":
+                results[token_symbol]["key_signals"].append("BEARISH: Death Cross detected")
+                
+            # Add Bollinger Band signals
+            bb = analysis.get("technical_indicators", {}).get("bollinger_bands", {})
+            if bb.get("position") is not None:
+                position = bb.get("position")
+                if position > 0.8:
+                    results[token_symbol]["key_signals"].append("CAUTION: Potentially overbought")
+                elif position < 0.2:
+                    results[token_symbol]["key_signals"].append("OPPORTUNITY: Potentially oversold")
+                    
         except Exception as e:
             results[token_symbol] = {
-                "error": f"Error analyzing {token_symbol}: {str(e)}",
-                "traceback": traceback.format_exc(),
+                "error": f"Error analyzing {token_symbol}: {str(e)}"
             }
-
-    # Step 2: Calculate comparative metrics
-    valid_pairs = {
-        p: data
-        for p, data in results.items()
+    
+    # Step 2: Calculate investor-friendly comparative metrics
+    valid_tokens = {
+        symbol: data for symbol, data in results.items() 
         if "error" not in data and data.get("current_price") is not None
     }
-
+    
     comparative_analysis = {}
-
-    if valid_pairs:
-        # Performance rankings based on price change
-        price_changes = {}
-        for symbol, data in valid_pairs.items():
-            if data.get("price_range"):
-                price_range = data["price_range"]
-                if price_range.get("min") and price_range.get("max"):
-                    price_change = ((price_range["max"] - price_range["min"]) / price_range["min"]) * 100
-                    price_changes[symbol] = price_change
-
-        ranked_by_change = sorted(
-            price_changes.items(),
-            key=lambda x: x[1],
-            reverse=True,
+    
+    if valid_tokens:
+        # Performance ranking
+        performance_ranking = sorted(
+            valid_tokens.items(),
+            key=lambda x: x[1].get("price_change_pct", 0),
+            reverse=True
         )
-
-        # Volatility rankings
-        ranked_by_volatility = sorted(
-            valid_pairs.items(),
-            key=lambda x: x[1].get("token_metrics", {}).get("volatility", float("-inf")),
-            reverse=True,
+        
+        # Volatility ranking (lower is better for risk-averse investors)
+        volatility_ranking = sorted(
+            valid_tokens.items(),
+            key=lambda x: x[1].get("volatility", float("inf"))
         )
-
-        # Risk-adjusted returns (using volatility from token_metrics)
+        
+        # Calculate simple risk-adjusted returns
         risk_adjusted = {}
-        for symbol, data in valid_pairs.items():
-            volatility = data.get("token_metrics", {}).get("volatility", 0)
-            price_change = price_changes.get(symbol, 0)
+        for symbol, data in valid_tokens.items():
+            volatility = data.get("volatility", 0)
+            price_change = data.get("price_change_pct", 0)
+            
             if volatility and volatility > 0:
                 risk_adjusted[symbol] = price_change / volatility
             else:
                 risk_adjusted[symbol] = 0
-
-        ranked_by_risk_adjusted = sorted(
-            risk_adjusted.items(), key=lambda x: x[1], reverse=True
+                
+        risk_adjusted_ranking = sorted(
+            risk_adjusted.items(),
+            key=lambda x: x[1],
+            reverse=True
         )
-
-        # Construct the comparative analysis
+        
+        # Create a more beginner-friendly comparative analysis
         comparative_analysis = {
-            "performance_ranking": [
-                {"symbol": pair[0], "change_percent": pair[1]}
-                for pair in ranked_by_change
-            ],
-            "volatility_ranking": [
-                {
-                    "symbol": pair[0],
-                    "volatility": pair[1].get("token_metrics", {}).get("volatility", 0)
-                }
-                for pair in ranked_by_volatility
-            ],
-            "risk_adjusted_ranking": [
-                {"symbol": symbol, "risk_adjusted_return": value}
-                for symbol, value in ranked_by_risk_adjusted
-            ],
             "best_performer": {
-                "token_symbol": ranked_by_change[0][0],
-                "change_percent": ranked_by_change[0][1],
-            } if ranked_by_change else None,
+                "token": performance_ranking[0][0],
+                "return": f"{performance_ranking[0][1].get('price_change_pct', 0):.2f}%"
+            } if performance_ranking else None,
+            
             "worst_performer": {
-                "token_symbol": ranked_by_change[-1][0],
-                "change_percent": ranked_by_change[-1][1],
-            } if ranked_by_change else None,
-            "most_volatile": {
-                "token_symbol": ranked_by_volatility[0][0],
-                "volatility": ranked_by_volatility[0][1].get("token_metrics", {}).get("volatility", 0),
-            } if ranked_by_volatility else None,
-            "least_volatile": {
-                "token_symbol": ranked_by_volatility[-1][0],
-                "volatility": ranked_by_volatility[-1][1].get("token_metrics", {}).get("volatility", 0),
-            } if ranked_by_volatility else None,
+                "token": performance_ranking[-1][0],
+                "return": f"{performance_ranking[-1][1].get('price_change_pct', 0):.2f}%"
+            } if performance_ranking else None,
+            
+            "most_stable": {
+                "token": volatility_ranking[0][0],
+                "volatility": volatility_ranking[0][1].get("volatility", 0)
+            } if volatility_ranking else None,
+            
             "best_risk_adjusted": {
-                "token_symbol": ranked_by_risk_adjusted[0][0],
-                "value": ranked_by_risk_adjusted[0][1],
-            } if ranked_by_risk_adjusted else None,
+                "token": risk_adjusted_ranking[0][0],
+                "value": round(risk_adjusted_ranking[0][1], 2)
+            } if risk_adjusted_ranking else None,
+            
+            "all_tokens_ranked_by_performance": [
+                {
+                    "token": symbol,
+                    "return": f"{data.get('price_change_pct', 0):.2f}%",
+                    "short_term_trend": data.get("moving_averages", {}).get("short_term", "Neutral"),
+                    "key_signals": data.get("key_signals", [])
+                }
+                for symbol, data in performance_ranking
+            ]
         }
-
-        # Calculate basket performance (if we were to invest equally in all assets)
-        if len(valid_pairs) > 0:
-            avg_change = sum(price_changes.values()) / len(valid_pairs)
-            comparative_analysis["basket_performance"] = {
-                "average_change_percent": avg_change,
-                "outperformers": [
-                    symbol
-                    for symbol, change in price_changes.items()
-                    if change > avg_change
-                ],
-                "underperformers": [
-                    symbol
-                    for symbol, change in price_changes.items()
-                    if change < avg_change
-                ],
-            }
-
-    # Step 3: Construct the final return object
+        
+        # Calculate average market trend
+        bullish_count = sum(
+            1 for symbol, data in valid_tokens.items()
+            if data.get("moving_averages", {}).get("long_term") == "Bullish"
+        )
+        
+        bearish_count = sum(
+            1 for symbol, data in valid_tokens.items()
+            if data.get("moving_averages", {}).get("long_term") == "Bearish"
+        )
+        
+        if bullish_count > bearish_count:
+            market_trend = "Bullish"
+        elif bearish_count > bullish_count:
+            market_trend = "Bearish"
+        else:
+            market_trend = "Mixed"
+            
+        comparative_analysis["market_trend"] = market_trend
+    
+    # Step 3: Create actionable insights for investors
+    investment_insights = []
+    
+    if comparative_analysis:
+        # Add general market insight
+        market_trend = comparative_analysis.get("market_trend")
+        if market_trend == "Bullish":
+            investment_insights.append(
+                "Overall market trend appears bullish across analyzed tokens."
+            )
+        elif market_trend == "Bearish":
+            investment_insights.append(
+                "Overall market trend appears bearish across analyzed tokens."
+            )
+        else:
+            investment_insights.append(
+                "Market shows mixed signals, consider diversification."
+            )
+            
+        # Add risk-based suggestions
+        best_risk_adjusted = comparative_analysis.get("best_risk_adjusted")
+        if best_risk_adjusted:
+            investment_insights.append(
+                f"{best_risk_adjusted['token']} shows the best balance of return vs risk."
+            )
+        
+        # Add momentum-based suggestion
+        best_performer = comparative_analysis.get("best_performer")
+        if best_performer:
+            token = best_performer['token']
+            trend = valid_tokens[token].get("moving_averages", {}).get("short_term")
+            if trend == "Bullish":
+                investment_insights.append(
+                    f"{token} shows strong momentum with the highest return and a bullish trend."
+                )
+                
+        # Add stability suggestion
+        most_stable = comparative_analysis.get("most_stable")
+        if most_stable:
+            investment_insights.append(
+                f"{most_stable['token']} has the lowest volatility, potentially suitable for risk-averse investors."
+            )
+            
+    # Format period in user-friendly terms
+    period_text = f"{num_candles} "
+    if candle_interval == "1d":
+        period_text += "days"
+    elif candle_interval == "1h":
+        period_text += "hours"
+    elif candle_interval == "1w":
+        period_text += "weeks"
+    
+    # Step 4: Return the final results
     return {
-        "individual_assets": results,
+        "individual_tokens": results,
         "comparative_analysis": comparative_analysis,
-        "period": f"Past {num_candles} {candle_interval}",
-        "analysis_timestamp": int(time.time()),
+        "investment_insights": investment_insights,
+        "period": period_text,
+        "disclaimer": "This analysis is for informational purposes only. Past performance is not indicative of future results. Always do your own research before investing."
     }
-
-
-def calculate_volatility(prices: List[float]) -> float:
-    """
-    Calculate a simple volatility metric (standard deviation of daily returns).
-
-    Args:
-        prices: List of closing prices
-
-    Returns:
-        Volatility value
-    """
-    if len(prices) < 2:
-        return 0
-
-    # Calculate daily returns
-    returns = [(prices[i] / prices[i - 1] - 1) * 100 for i in range(1, len(prices))]
-
-    # Calculate standard deviation of returns
-    mean_return = sum(returns) / len(returns)
-    variance = sum((r - mean_return) ** 2 for r in returns) / len(returns)
-
-    return round(variance**0.5, 2)  # Standard deviation
 
 
 @tool()
@@ -859,10 +928,7 @@ def volatility_trend(price_series):
     log_abs_returns = np.log(np.abs(return_series) + 1e-12)
     index_series = np.arange(log_abs_returns.shape[0]).reshape(-1, 1)
     linreg = LinearRegression().fit(index_series, log_abs_returns)
-    # preds = linreg.predict(index_series)
-    # se = np.sqrt(((preds-log_abs_returns)**2).sum() / ((log_abs_returns.shape[0]-2)*
-    #                   np.sum((log_abs_returns-log_abs_returns.mean())**2)))
-    # tstat = linreg.coef_[0]/se
+
     return linreg.coef_[0]
 
 
