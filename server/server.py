@@ -92,6 +92,10 @@ def create_flask_app() -> Flask:
     def healthcheck():
         return jsonify({"status": "ok"})
 
+    @app.route("/api/whitelisted", methods=["GET"])
+    def is_whitelisted():
+        return jsonify({"whitelisted": True})
+
     @app.route("/api/tokenlist", methods=["GET"])
     def get_tokenlist():
         file_path = os.path.join(STATIC_DIR, "tokenlist.json")
