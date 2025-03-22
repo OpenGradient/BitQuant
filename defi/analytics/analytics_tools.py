@@ -5,6 +5,7 @@ from sklearn.linear_model import LinearRegression
 import traceback
 import numpy as np
 import time
+from enum import StrEnum
 
 from langchain_core.tools import tool
 from binance.spot import Spot  # type: ignore
@@ -12,9 +13,15 @@ from binance.spot import Spot  # type: ignore
 from defi.analytics.utils import extract_tokens_from_config
 
 
+class CandleInterval(StrEnum):
+    DAY = "1d"
+    HOUR = "1h"
+    WEEK = "1w"
+
+
 @tool()
 def get_binance_price_history(
-    token_symbol: str, candle_interval: str, num_candles: int
+    token_symbol: str, candle_interval: CandleInterval, num_candles: int
 ) -> Dict[str, Any]:
     """
     Retrieves historical price data for a token.
@@ -57,7 +64,7 @@ def get_binance_price_history(
 
 @tool()
 def analyze_price_trend(
-    token_symbol: str, candle_interval: str, num_candles: int
+    token_symbol: str, candle_interval: CandleInterval, num_candles: int
 ) -> Dict[str, Any]:
     """
     Analyzes price trend for a token including moving averages, volatility metrics, 
@@ -308,7 +315,7 @@ def get_analysis_summary(
 
 @tool()
 def compare_assets(
-    token_symbols: List[str], candle_interval: str, num_candles: int
+    token_symbols: List[str], candle_interval: CandleInterval, num_candles: int
 ) -> Dict[str, Any]:
     """
     Compare performance of multiple tokens, including detailed price trends, technical indicators,
@@ -545,7 +552,7 @@ def calculate_correlations(
 
 @tool()
 def max_drawdown_for_token(
-    token_symbol: str, candle_interval: str = "1d", num_candles: int = 90
+    token_symbol: str, candle_interval: CandleInterval = CandleInterval.DAY, num_candles: int = 90
 ) -> Dict[str, Any]:
     """
     Calculates the maximum drawdown for a cryptocurrency using Binance price data
@@ -598,7 +605,7 @@ def max_drawdown_for_token(
 
 @tool()
 def analyze_wallet_portfolio(
-    candle_interval: str = "1d",
+    candle_interval: CandleInterval = CandleInterval.DAY,
     num_candles: int = 90,
     config: RunnableConfig = None,
 ) -> Dict[str, Any]:
@@ -715,7 +722,7 @@ def analyze_wallet_portfolio(
 def portfolio_value(
     token_symbols: List[str],
     token_quantities: List[float],
-    candle_interval: str = "1d",
+    candle_interval: CandleInterval = CandleInterval.DAY,
     num_candles: int = 90,
 ) -> Dict[str, Any]:
     """
@@ -773,7 +780,7 @@ def portfolio_value(
 def portfolio_volatility(
     token_symbols: List[str],
     token_quantities: List[float],
-    candle_interval: str = "1d",
+    candle_interval: CandleInterval = CandleInterval.DAY,
     num_candles: int = 90,
 ) -> Dict[str, Any]:
     """
@@ -838,7 +845,7 @@ def portfolio_volatility(
 def portfolio_summary(
     token_symbols: List[str],
     token_quantities: List[float],
-    candle_interval: str = "1d",
+    candle_interval: CandleInterval = CandleInterval.DAY,
     num_candles: int = 90,
 ) -> Dict[str, Any]:
     """
@@ -965,7 +972,7 @@ def volatility_trend(price_series):
 
 @tool()
 def analyze_volatility_trend(
-    token_symbol: str, candle_interval: str = "1d", num_candles: int = 90
+    token_symbol: str, candle_interval: CandleInterval = CandleInterval.DAY, num_candles: int = 90
 ) -> Dict[str, Any]:
     """
     Analyzes the trend in volatility for a cryptocurrency over the specified time period.

@@ -11,6 +11,7 @@ from defi.analytics.analytics_tools import (
     max_drawdown_for_token,
     compare_assets,
     analyze_price_trend,
+    CandleInterval
 )
 
 
@@ -18,7 +19,7 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
 
     def test_get_binance_price_history(self):
         response = get_binance_price_history.invoke(
-            {"token_symbol": "BTC", "candle_interval": "1d", "num_candles": 30}
+            {"token_symbol": "BTC", "candle_interval": CandleInterval.DAY, "num_candles": 30}
         )
 
         self.assertNotIn("error", response)
@@ -26,7 +27,7 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
 
     def test_analyze_price_trend(self):
         response = analyze_price_trend.invoke(
-            {"token_symbol": "BTC", "candle_interval": "1d", "num_candles": 30}
+            {"token_symbol": "BTC", "candle_interval": CandleInterval.DAY, "num_candles": 90}
         )
 
         self.assertNotIn("error", response)
@@ -37,7 +38,7 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
             {
                 "token_symbols": ["BTC", "ETH"],
                 "token_quantities": [1, 2],
-                "candle_interval": "1d",
+            "candle_interval": CandleInterval.DAY,
                 "num_candles": 30,
             }
         )
@@ -50,7 +51,7 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
             {
                 "token_symbols": ["BTC", "ETH"],
                 "token_quantities": [1, 2],
-                "candle_interval": "1d",
+                "candle_interval": CandleInterval.DAY,
                 "num_candles": 30,
             }
         )
@@ -71,7 +72,7 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
 
     def test_analyze_volatility_trend(self):
         response = analyze_volatility_trend.invoke(
-            {"token_symbol": "BTC", "candle_interval": "1d", "num_candles": 30}
+            {"token_symbol": "BTC", "candle_interval": CandleInterval.DAY, "num_candles": 30}
         )
 
         self.assertNotIn("error", response)
@@ -101,7 +102,7 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
 
     def test_max_drawdown_for_token(self):
         response = max_drawdown_for_token.invoke(
-            {"token_symbol": "BTC", "candle_interval": "1d", "num_candles": 30}
+            {"token_symbol": "BTC", "candle_interval": CandleInterval.DAY, "num_candles": 30}
         )
 
         self.assertNotIn("error", response)
@@ -110,7 +111,7 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
     def test_btc_price_history_basic(self):
         """Test fetching Bitcoin price history with default parameters"""
         btc_history = get_binance_price_history.invoke(
-            {"token_symbol": "BTC", "candle_interval": "1d", "num_candles": 30}
+            {"token_symbol": "BTC", "candle_interval": CandleInterval.DAY, "num_candles": 30}
         )
 
         # Verify response structure
@@ -129,7 +130,7 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
     def test_eth_custom_interval(self):
         """Test fetching Ethereum price history with custom time interval"""
         eth_history = get_binance_price_history.invoke(
-            {"token_symbol": "ETH", "candle_interval": "4h", "num_candles": 30}
+            {"token_symbol": "ETH", "candle_interval": CandleInterval.HOUR, "num_candles": 30}
         )
 
         self.assertIsNotNone(eth_history)
@@ -141,7 +142,7 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
     def test_invalid_token_symbol(self):
         """Test error handling for invalid token symbol"""
         response = get_binance_price_history.invoke(
-            {"token_symbol": "INVALIDTOKEN", "candle_interval": "1d", "num_candles": 30}
+            {"token_symbol": "INVALIDTOKEN", "candle_interval": CandleInterval.DAY, "num_candles": 30}
         )
         self.assertIn("error", response)
 
@@ -149,7 +150,7 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
         """Test fetching price history with a small number of candles"""
         small_limit = 5
         small_history = get_binance_price_history.invoke(
-            {"token_symbol": "BTC", "num_candles": small_limit, "candle_interval": "1d"}
+            {"token_symbol": "BTC", "num_candles": small_limit, "candle_interval": CandleInterval.DAY}
         )
 
         self.assertIn("data", small_history)
@@ -164,7 +165,7 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
     def test_candlestick_data_structure(self):
         """Test the structure and content of individual candlesticks"""
         btc_history = get_binance_price_history.invoke(
-            {"token_symbol": "BTC", "candle_interval": "1d", "num_candles": 1}
+            {"token_symbol": "BTC", "candle_interval": CandleInterval.DAY, "num_candles": 1}
         )
 
         data = btc_history.get("data", [])
@@ -192,7 +193,7 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
         """Test basic functionality of compare_assets"""
         result = compare_assets.invoke({
             "token_symbols": ["BTC", "ETH", "SOL"],
-            "candle_interval": "1d",
+            "candle_interval": CandleInterval.DAY,
             "num_candles": 7
         })
 
