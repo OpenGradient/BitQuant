@@ -1,7 +1,10 @@
-from typing import Dict, Any, List
 import traceback
-from binance.spot import Spot  # type: ignore
+import numpy as np
+import time
+from typing import Dict, Any, List
+
 from langchain_core.tools import tool
+from binance.spot import Spot  # type: ignore
 
 
 @tool()
@@ -9,7 +12,7 @@ def get_binance_price_history(
     token_symbol: str, candle_interval: str, num_candles: int
 ) -> Dict[str, Any]:
     """
-    Retrieves historical price data for a token directly from Binance API.
+    Retrieves historical price data for a token.
     """
     # Min value of 2 ensures we have at least two data points for calculating trends
     num_candles = min(max(2, int(num_candles)), 1000)
@@ -52,7 +55,7 @@ def analyze_price_trend(
     token_symbol: str, candle_interval: str, num_candles: int
 ) -> Dict[str, Any]:
     """
-    Analyzes price trends for a token analysis including moving averages, volatility metrics, and basic technical indicators.
+    Analyzes price trend for a token including moving averages, volatility metrics, and basic technical indicators.
     """
     try:
         # Get the price history first
@@ -172,56 +175,250 @@ def compare_assets(
     token_symbols: List[str], candle_interval: str, num_candles: int
 ) -> Dict[str, Any]:
     """
-    Compare performance of multiple tokens, including basic price trends, best and worst performers.
+    Compare performance of multiple tokens, including detailed price trends, technical indicators,
+    relative performance metrics, volatility analysis, and correlation data.
+
+    Args:
+        token_symbols: List of token symbols to compare (e.g. ["BTC", "ETH", "SOL"])
+        candle_interval: Time interval for candles (e.g. "1d", "4h", "1w")
+        num_candles: Number of candles to retrieve for analysis
     """
     results = {}
+    detailed_results = {}
+    all_price_data = {}
 
+    # Step 1: Collect individual asset data
     for token_symbol in token_symbols:
-        analysis = analyze_price_trend.invoke(
-            {
-                "token_symbol": token_symbol,
-                "candle_interval": candle_interval,
-                "num_candles": num_candles,
+        try:
+            analysis = analyze_price_trend.invoke(
+                {
+                    "token_symbol": token_symbol,
+                    "candle_interval": candle_interval,
+                    "num_candles": num_candles,
+                }
+            )
+
+            # Skip if there was an error
+            if "error" in analysis:
+                results[token_symbol] = {"error": analysis["error"]}
+                continue
+
+            # Store detailed analysis results
+            detailed_results[token_symbol] = analysis
+
+            # Extract close prices for correlation analysis
+            raw_data = analysis["raw_data"]["data"]
+            all_price_data[token_symbol] = [float(candle[4]) for candle in raw_data]
+
+            # Store basic metrics in results
+            results[token_symbol] = {
+                "trend": analysis["trend"],
+                "trend_strength": analysis["trend_strength"],
+                "change_percent": analysis["change_percent"],
+                "current_price": analysis["current_price"],
+                "volatility": calculate_volatility(all_price_data[token_symbol]),
+                "technical_indicators": analysis["technical_indicators"],
             }
-        )
 
-        # Skip if there was an error
-        if "error" in analysis:
-            results[token_symbol] = {"error": analysis["error"]}
-            continue
+        except Exception as e:
+            results[token_symbol] = {
+                "error": f"Error analyzing {token_symbol}: {str(e)}",
+                "traceback": traceback.format_exc(),
+            }
 
-        results[token_symbol] = {
-            "trend": analysis["trend"],
-            "change_percent": analysis["change_percent"],
-            "current_price": analysis["current_price"],
-        }
-
-    # Determine which asset performed best
+    # Step 2: Calculate comparative metrics
     valid_pairs = {
         p: data
         for p, data in results.items()
         if "error" not in data and data.get("change_percent") is not None
     }
 
+    comparative_analysis = {}
+
     if valid_pairs:
-        best_performer = max(
-            valid_pairs.items(), key=lambda x: x[1].get("change_percent", float("-inf"))
-        )
-        worst_performer = min(
-            valid_pairs.items(), key=lambda x: x[1].get("change_percent", float("inf"))
+        # Performance rankings
+        ranked_by_change = sorted(
+            valid_pairs.items(),
+            key=lambda x: x[1].get("change_percent", float("-inf")),
+            reverse=True,
         )
 
-        # Add comparative analysis
-        return {
+        # Volatility rankings
+        ranked_by_volatility = sorted(
+            valid_pairs.items(),
+            key=lambda x: x[1].get("volatility", float("-inf")),
+            reverse=True,
+        )
+
+        # Calculate correlations between assets
+        correlations = calculate_correlations(all_price_data)
+
+        # Risk-adjusted returns (simple Sharpe ratio approximation)
+        risk_adjusted = {}
+        for symbol, data in valid_pairs.items():
+            if data.get("volatility", 0) > 0:
+                risk_adjusted[symbol] = data.get("change_percent", 0) / data.get(
+                    "volatility", 1
+                )
+            else:
+                risk_adjusted[symbol] = 0
+
+        ranked_by_risk_adjusted = sorted(
+            risk_adjusted.items(), key=lambda x: x[1], reverse=True
+        )
+
+        # Construct the comparative analysis
+        comparative_analysis = {
+            "performance_ranking": [
+                {"symbol": pair[0], "change_percent": pair[1]["change_percent"]}
+                for pair in ranked_by_change
+            ],
+            "volatility_ranking": [
+                {"symbol": pair[0], "volatility": pair[1]["volatility"]}
+                for pair in ranked_by_volatility
+            ],
+            "risk_adjusted_ranking": [
+                {"symbol": symbol, "risk_adjusted_return": value}
+                for symbol, value in ranked_by_risk_adjusted
+            ],
+            "correlations": correlations,
             "best_performer": {
-                "token_symbol": best_performer[0],
-                "change_percent": best_performer[1]["change_percent"],
+                "token_symbol": ranked_by_change[0][0],
+                "change_percent": ranked_by_change[0][1]["change_percent"],
             },
             "worst_performer": {
-                "token_symbol": worst_performer[0],
-                "change_percent": worst_performer[1]["change_percent"],
+                "token_symbol": ranked_by_change[-1][0],
+                "change_percent": ranked_by_change[-1][1]["change_percent"],
             },
-            "period": f"{candle_interval} x {num_candles}",
+            "most_volatile": {
+                "token_symbol": ranked_by_volatility[0][0],
+                "volatility": ranked_by_volatility[0][1]["volatility"],
+            },
+            "least_volatile": {
+                "token_symbol": ranked_by_volatility[-1][0],
+                "volatility": ranked_by_volatility[-1][1]["volatility"],
+            },
+            "best_risk_adjusted": {
+                "token_symbol": ranked_by_risk_adjusted[0][0],
+                "value": ranked_by_risk_adjusted[0][1],
+            },
         }
 
-    return {"error": "No valid assets for comparison"}
+        # Calculate basket performance (if we were to invest equally in all assets)
+        if len(valid_pairs) > 0:
+            avg_change = sum(
+                data["change_percent"] for _, data in valid_pairs.items()
+            ) / len(valid_pairs)
+            comparative_analysis["basket_performance"] = {
+                "average_change_percent": avg_change,
+                "outperformers": [
+                    symbol
+                    for symbol, data in valid_pairs.items()
+                    if data["change_percent"] > avg_change
+                ],
+                "underperformers": [
+                    symbol
+                    for symbol, data in valid_pairs.items()
+                    if data["change_percent"] < avg_change
+                ],
+            }
+
+    # Step 3: Construct the final return object
+    return {
+        "individual_assets": results,
+        "comparative_analysis": comparative_analysis,
+        "market_context": {
+            "period": f"{candle_interval} x {num_candles}",
+            "start_date": (
+                detailed_results[token_symbols[0]]["raw_data"]["data"][0][0]
+                if token_symbols and token_symbols[0] in detailed_results
+                else None
+            ),
+            "end_date": (
+                detailed_results[token_symbols[0]]["raw_data"]["data"][-1][0]
+                if token_symbols and token_symbols[0] in detailed_results
+                else None
+            ),
+        },
+        "analysis_timestamp": int(time.time()),
+    }
+
+
+def calculate_volatility(prices: List[float]) -> float:
+    """
+    Calculate a simple volatility metric (standard deviation of daily returns).
+
+    Args:
+        prices: List of closing prices
+
+    Returns:
+        Volatility value
+    """
+    if len(prices) < 2:
+        return 0
+
+    # Calculate daily returns
+    returns = [(prices[i] / prices[i - 1] - 1) * 100 for i in range(1, len(prices))]
+
+    # Calculate standard deviation of returns
+    mean_return = sum(returns) / len(returns)
+    variance = sum((r - mean_return) ** 2 for r in returns) / len(returns)
+
+    return round(variance**0.5, 2)  # Standard deviation
+
+
+def calculate_correlations(
+    price_data: Dict[str, List[float]],
+) -> Dict[str, Dict[str, float]]:
+    """
+    Calculate Pearson correlation coefficients between assets.
+
+    Args:
+        price_data: Dictionary with token symbols as keys and price lists as values
+
+    Returns:
+        Nested dictionary with correlation values
+    """
+
+    correlations = {}
+    symbols = list(price_data.keys())
+
+    # Ensure all price series have the same length by truncating to shortest
+    min_length = min(len(prices) for prices in price_data.values())
+    normalized_prices = {
+        symbol: prices[-min_length:] for symbol, prices in price_data.items()
+    }
+
+    # Calculate returns instead of using absolute prices
+    returns = {}
+    for symbol, prices in normalized_prices.items():
+        if len(prices) < 2:
+            continue
+        returns[symbol] = [
+            (prices[i] / prices[i - 1] - 1) for i in range(1, len(prices))
+        ]
+
+    # Calculate correlations between each pair
+    for i, symbol1 in enumerate(symbols):
+        if symbol1 not in returns:
+            continue
+
+        correlations[symbol1] = {}
+
+        for symbol2 in symbols:
+            if symbol2 not in returns:
+                continue
+
+            if symbol1 == symbol2:
+                correlations[symbol1][symbol2] = 1.0
+                continue
+
+            # Calculate Pearson correlation
+            r1 = np.array(returns[symbol1])
+            r2 = np.array(returns[symbol2])
+
+            # Calculate correlation coefficient
+            correlation = np.corrcoef(r1, r2)[0, 1]
+            correlations[symbol1][symbol2] = round(float(correlation), 2)
+
+    return correlations
