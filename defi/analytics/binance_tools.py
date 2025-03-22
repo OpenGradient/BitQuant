@@ -55,7 +55,8 @@ def analyze_price_trend(
     token_symbol: str, candle_interval: str, num_candles: int
 ) -> Dict[str, Any]:
     """
-    Analyzes price trend for a token including moving averages, volatility metrics, and basic technical indicators.
+    Analyzes price trend for a token including moving averages, volatility metrics, 
+    and basic technical indicators over the specified time period.
     """
     try:
         # Get the price history first
@@ -176,12 +177,7 @@ def compare_assets(
 ) -> Dict[str, Any]:
     """
     Compare performance of multiple tokens, including detailed price trends, technical indicators,
-    relative performance metrics, volatility analysis, and correlation data.
-
-    Args:
-        token_symbols: List of token symbols to compare (e.g. ["BTC", "ETH", "SOL"])
-        candle_interval: Time interval for candles (e.g. "1d", "4h", "1w")
-        num_candles: Number of candles to retrieve for analysis
+    relative performance metrics, volatility analysis, and correlation data over the specified time period.
     """
     results = {}
     detailed_results = {}
