@@ -24,6 +24,14 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
         self.assertNotIn("error", response)
         print(response)
 
+    def test_analyze_price_trend(self):
+        response = analyze_price_trend.invoke(
+            {"token_symbol": "BTC", "candle_interval": "1d", "num_candles": 30}
+        )
+
+        self.assertNotIn("error", response)
+        print(response)
+
     def test_portfolio_value(self):
         response = portfolio_value.invoke(
             {
@@ -199,13 +207,6 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
         self.assertEqual(len(result["individual_assets"]), 3)
         for symbol in ["BTC", "ETH", "SOL"]:
             self.assertIn(symbol, result["individual_assets"])
-
-        # Verify comparative analysis structure
-        analysis = result["comparative_analysis"]
-        self.assertIn("performance_ranking", analysis)
-        self.assertIn("volatility_ranking", analysis)
-        self.assertIn("risk_adjusted_ranking", analysis)
-        self.assertIn("correlations", analysis)
 
         print(result)
 

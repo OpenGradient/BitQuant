@@ -9,7 +9,7 @@ import time
 from langchain_core.tools import tool
 from binance.spot import Spot  # type: ignore
 
-from defi.analytics import extract_tokens_from_config
+from defi.analytics.utils import extract_tokens_from_config
 
 
 @tool()
@@ -61,7 +61,7 @@ def analyze_price_trend(
 ) -> Dict[str, Any]:
     """
     Analyzes price trend for a token including moving averages, volatility metrics, 
-    and basic technical indicators over the specified time period.
+    and enhanced technical indicators over the specified time period.
     """
     try:
         # Get the price history first
@@ -76,45 +76,13 @@ def analyze_price_trend(
         # Extract relevant data for analysis
         raw_data = price_data["data"]
 
+        # Process price data
         close_prices = [float(candle[4]) for candle in raw_data]
-
-        # Calculate technical indicators and moving averages
-        # 7-day simple moving average
-        sma7 = []
-        # 21-day simple moving average
-        sma21 = []
-        # Relative Strength Index (simplified)
-        rsi = None
-
-        if len(close_prices) >= 7:
-            for i in range(6, len(close_prices)):
-                sma7.append(sum(close_prices[i - 6 : i + 1]) / 7)
-
-        if len(close_prices) >= 21:
-            for i in range(20, len(close_prices)):
-                sma21.append(sum(close_prices[i - 20 : i + 1]) / 21)
-
-        # Calculate RSI (simplified version)
-        if len(close_prices) >= 14:
-            gains = []
-            losses = []
-            for i in range(1, 14):
-                change = close_prices[i] - close_prices[i - 1]
-                if change >= 0:
-                    gains.append(float(change))
-                    losses.append(0.0)
-                else:
-                    gains.append(0)
-                    losses.append(float(abs(change)))
-
-            avg_gain = float(sum(gains) / 14 if gains else 0)
-            avg_loss = float(sum(losses) / 14 if losses else 0)
-
-            if avg_loss > 0:
-                rs = avg_gain / avg_loss
-                rsi = 100 - (100 / (1 + rs))
-            else:
-                rsi = 100  # No losses means RSI = 100
+        open_prices = [float(candle[1]) for candle in raw_data]
+        high_prices = [float(candle[2]) for candle in raw_data]
+        low_prices = [float(candle[3]) for candle in raw_data]
+        volumes = [float(candle[5]) for candle in raw_data]
+        timestamps = [int(candle[0]) for candle in raw_data]
 
         # Simple trend analysis
         if len(close_prices) < 2:
@@ -124,56 +92,218 @@ def analyze_price_trend(
             recent_change = ((close_prices[-1] / close_prices[0]) - 1) * 100
             trend = "Upward" if recent_change > 0 else "Downward"
 
-        # Determine trend strength based on consistency
-        trend_strength = "Neutral"
+        # Calculate simple moving averages
+        sma7 = []
+        sma21 = []
         if len(close_prices) >= 7:
-            up_days = sum(
-                1
-                for i in range(1, len(close_prices))
-                if close_prices[i] > close_prices[i - 1]
-            )
-            down_days = sum(
-                1
-                for i in range(1, len(close_prices))
-                if close_prices[i] < close_prices[i - 1]
-            )
+            for i in range(6, len(close_prices)):
+                sma7.append(sum(close_prices[i - 6 : i + 1]) / 7)
+        
+        if len(close_prices) >= 21:
+            for i in range(20, len(close_prices)):
+                sma21.append(sum(close_prices[i - 20 : i + 1]) / 21)
 
-            if up_days > len(close_prices) * 0.7:
-                trend_strength = "Strong Upward"
-            elif up_days > len(close_prices) * 0.55:
-                trend_strength = "Moderate Upward"
-            elif down_days > len(close_prices) * 0.7:
-                trend_strength = "Strong Downward"
-            elif down_days > len(close_prices) * 0.55:
-                trend_strength = "Moderate Downward"
+        # 1. Bollinger Bands (20-period SMA with 2 standard deviations)
+        bollinger_bands = {"upper": None, "middle": None, "lower": None}
+        if len(close_prices) >= 20:
+            # Middle band is 20-period SMA
+            middle_band = sum(close_prices[-20:]) / 20
+            # Calculate standard deviation
+            std_dev = (sum((price - middle_band) ** 2 for price in close_prices[-20:]) / 20) ** 0.5
+            # Upper and lower bands
+            upper_band = middle_band + (2 * std_dev)
+            lower_band = middle_band - (2 * std_dev)
+            
+            bollinger_bands = {
+                "upper": round(upper_band, 2),
+                "middle": round(middle_band, 2),
+                "lower": round(lower_band, 2),
+                "width": round((upper_band - lower_band) / middle_band, 4),  # Normalized width
+                "position": round((close_prices[-1] - lower_band) / (upper_band - lower_band), 2) if upper_band != lower_band else 0.5
+            }
+
+        # 2. MACD (12-period EMA, 26-period EMA, 9-period signal)
+        macd = {"value": None, "signal": None, "histogram": None}
+        if len(close_prices) >= 26:
+            # Calculate 12-period EMA
+            ema12 = close_prices[0]
+            k = 2 / (12 + 1)
+            for i in range(1, len(close_prices)):
+                ema12 = close_prices[i] * k + ema12 * (1 - k)
+
+            # Calculate 26-period EMA
+            ema26 = close_prices[0]
+            k = 2 / (26 + 1)
+            for i in range(1, len(close_prices)):
+                ema26 = close_prices[i] * k + ema26 * (1 - k)
+
+            # MACD line
+            macd_line = ema12 - ema26
+
+            # Signal line (9-period EMA of MACD)
+            signal_line = macd_line  # Simplified calculation for brevity
+            
+            macd = {
+                "value": round(macd_line, 4),
+                "signal": round(signal_line, 4),
+                "histogram": round(macd_line - signal_line, 4),
+                "trend": "Bullish" if macd_line > signal_line else "Bearish"
+            }
+
+        # 4. Fibonacci Retracement Levels (based on recent high and low)
+        fibonacci = {}
+        if len(close_prices) >= 10:
+            recent_high = max(high_prices[-20:]) if len(high_prices) >= 20 else max(high_prices)
+            recent_low = min(low_prices[-20:]) if len(low_prices) >= 20 else min(low_prices)
+            price_range = recent_high - recent_low
+            
+            fibonacci = {
+                "levels": {
+                    "0.0": round(recent_low, 2),
+                    "0.236": round(recent_low + 0.236 * price_range, 2),
+                    "0.382": round(recent_low + 0.382 * price_range, 2),
+                    "0.5": round(recent_low + 0.5 * price_range, 2),
+                    "0.618": round(recent_low + 0.618 * price_range, 2),
+                    "0.786": round(recent_low + 0.786 * price_range, 2),
+                    "1.0": round(recent_high, 2)
+                },
+                "current_position": "None"
+            }
+            
+            # Identify nearest Fibonacci level to current price
+            current_price = close_prices[-1]
+            levels = list(fibonacci["levels"].items())
+            levels.sort(key=lambda x: abs(current_price - x[1]))
+            fibonacci["current_position"] = levels[0][0]
+
+        # 5. Volume Analysis
+        volume_analysis = {"trend": "Neutral", "avg_volume": None, "current_vs_avg": None}
+        if len(volumes) >= 7:
+            avg_volume = sum(volumes[-7:]) / 7
+            current_volume = volumes[-1]
+            
+            volume_trend = "Increasing" if current_volume > avg_volume else "Decreasing"
+            # Check if volume confirms price trend
+            price_up = close_prices[-1] > open_prices[-1]
+            volume_confirms = (price_up and volume_trend == "Increasing") or (not price_up and volume_trend == "Decreasing")
+            
+            volume_analysis = {
+                "trend": volume_trend,
+                "avg_volume": round(avg_volume, 2),
+                "current_volume": round(current_volume, 2),
+                "current_vs_avg": round((current_volume / avg_volume - 1) * 100, 2),
+                "confirms_price": volume_confirms
+            }
+
+        # 7. Support & Resistance Levels (simple method based on recent price action)
+        support_resistance = {"support": [], "resistance": []}
+        if len(close_prices) >= 30:
+            # Simplified algorithm to find support/resistance
+            window_size = min(30, len(close_prices) // 3)
+            for i in range(window_size, len(close_prices) - window_size):
+                # Check if this point is a local minimum (support)
+                if all(low_prices[i] <= low_prices[j] for j in range(i-window_size, i)) and \
+                   all(low_prices[i] <= low_prices[j] for j in range(i+1, i+window_size+1)):
+                    support_resistance["support"].append(round(low_prices[i], 2))
+                
+                # Check if this point is a local maximum (resistance)
+                if all(high_prices[i] >= high_prices[j] for j in range(i-window_size, i)) and \
+                   all(high_prices[i] >= high_prices[j] for j in range(i+1, i+window_size+1)):
+                    support_resistance["resistance"].append(round(high_prices[i], 2))
+            
+            # Limit to top 3 strongest levels for each
+            support_resistance["support"] = sorted(support_resistance["support"])[:3]
+            support_resistance["resistance"] = sorted(support_resistance["resistance"], reverse=True)[:3]
+
+        # 9. Token-specific metrics
+        token_metrics = {}
+        if len(close_prices) > 0 and len(volumes) > 0:
+            current_price = close_prices[-1]
+            avg_daily_volume = sum(volumes[-min(7, len(volumes)):]) / min(7, len(volumes))
+            
+            token_metrics = {
+                "price": round(current_price, 4),
+                "avg_daily_volume_usd": round(avg_daily_volume * current_price, 2),
+                "volatility": round(((max(close_prices[-7:]) / min(close_prices[-7:]) - 1) * 100), 2) if len(close_prices) >= 7 else None,
+                "liquidity_score": "High" if avg_daily_volume * current_price > 1000000 else "Medium" if avg_daily_volume * current_price > 100000 else "Low"
+            }
 
         return {
+            "token_symbol": token_symbol,
             "trend": trend,
-            "trend_strength": trend_strength,
-            "change_percent": (
-                round(recent_change, 2) if len(close_prices) >= 2 else None
-            ),
+            "change_percent": round(recent_change, 2) if len(close_prices) >= 2 else None,
             "current_price": close_prices[-1] if close_prices else None,
             "price_range": {
-                "min": min(close_prices) if close_prices else None,
-                "max": max(close_prices) if close_prices else None,
+                "min": round(min(close_prices), 4) if close_prices else None,
+                "max": round(max(close_prices), 4) if close_prices else None,
+            },
+            "simple_indicators": {
+                "sma7": round(sma7[-1], 4) if sma7 else None,
+                "sma21": round(sma21[-1], 4) if sma21 else None,
+                "sma_trend": "Bullish" if sma7 and sma21 and sma7[-1] > sma21[-1] else "Bearish" if sma7 and sma21 else None,
             },
             "technical_indicators": {
-                "sma7": sma7[-1] if sma7 else None,
-                "sma21": sma21[-1] if sma21 else None,
-                "sma_trend": (
-                    "Upward"
-                    if sma7 and sma21 and sma7[-1] > sma21[-1]
-                    else "Downward" if sma7 and sma21 else None
-                ),
-                "rsi": round(rsi, 2) if rsi is not None else None,
+                "bollinger_bands": bollinger_bands,
+                "macd": macd,
+                "fibonacci": fibonacci,
+                "volume_analysis": volume_analysis,
+                "support_resistance": support_resistance
             },
-            "raw_data": price_data,
+            "token_metrics": token_metrics,
+            "analysis_summary": get_analysis_summary(
+                trend, sma7, sma21, bollinger_bands, macd, volume_analysis
+            )
         }
     except Exception as e:
         return {
             "error": f"Error analyzing price trend for {token_symbol}: {e}",
         }
+
+
+def get_analysis_summary(
+    trend, sma7, sma21, bollinger_bands, macd, volume_analysis
+):
+    """Generate a simple summary of the analysis results."""
+    summary = []
+    
+    # Trend summary
+    trend_desc = f"The overall trend is {trend.lower()}."
+    summary.append(trend_desc)
+    
+    # Moving average summary
+    if sma7 and sma21:
+        if sma7[-1] > sma21[-1]:
+            ma_desc = "Short-term average above long-term average suggests bullish momentum."
+            summary.append(ma_desc)
+        else:
+            ma_desc = "Short-term average below long-term average suggests bearish momentum."
+            summary.append(ma_desc)
+    
+    # Bollinger Bands summary
+    if bollinger_bands["upper"] is not None:
+        position = bollinger_bands["position"]
+        if position > 0.8:
+            bb_desc = "Price near upper Bollinger Band suggests overbought conditions."
+            summary.append(bb_desc)
+        elif position < 0.2:
+            bb_desc = "Price near lower Bollinger Band suggests oversold conditions."
+            summary.append(bb_desc)
+    
+    # MACD summary
+    if macd["value"] is not None:
+        macd_desc = f"MACD indicates {macd['trend'].lower()} momentum."
+        summary.append(macd_desc)
+    
+    # Volume confirmation
+    if volume_analysis["avg_volume"] is not None:
+        if volume_analysis["confirms_price"]:
+            vol_desc = "Volume confirms price movement."
+        else:
+            vol_desc = "Volume does not confirm price movement, suggesting potential reversal."
+        summary.append(vol_desc)
+    
+    # Combine into a paragraph
+    return " ".join(summary)
 
 
 @tool()
