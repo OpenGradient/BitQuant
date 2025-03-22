@@ -14,6 +14,9 @@ from defi.analytics.utils import extract_tokens_from_config
 
 
 class CandleInterval(StrEnum):
+    """
+    One of 1d, 1h, 1w
+    """
     DAY = "1d"
     HOUR = "1h"
     WEEK = "1w"
@@ -64,7 +67,7 @@ def get_binance_price_history(
 
 @tool()
 def analyze_price_trend(
-    token_symbol: str, candle_interval: CandleInterval, num_candles: int
+    token_symbol: str, candle_interval: str, num_candles: int
 ) -> Dict[str, Any]:
     """
     Analyzes price trend for a token including moving averages, volatility metrics, 
@@ -89,26 +92,49 @@ def analyze_price_trend(
         high_prices = [float(candle[2]) for candle in raw_data]
         low_prices = [float(candle[3]) for candle in raw_data]
         volumes = [float(candle[5]) for candle in raw_data]
-        timestamps = [int(candle[0]) for candle in raw_data]
-
-        # Simple trend analysis
-        if len(close_prices) < 2:
-            trend = "Not enough data"
-            recent_change = 0
-        else:
-            recent_change = ((close_prices[-1] / close_prices[0]) - 1) * 100
-            trend = "Upward" if recent_change > 0 else "Downward"
-
-        # Calculate simple moving averages
-        sma7 = []
-        sma21 = []
-        if len(close_prices) >= 7:
-            for i in range(6, len(close_prices)):
-                sma7.append(sum(close_prices[i - 6 : i + 1]) / 7)
         
-        if len(close_prices) >= 21:
-            for i in range(20, len(close_prices)):
-                sma21.append(sum(close_prices[i - 20 : i + 1]) / 21)
+        # Enhanced moving averages calculations with more periods and types
+        def calculate_sma(prices, period):
+            """Calculate Simple Moving Average for a given period"""
+            if len(prices) < period:
+                return []
+            
+            sma_values = []
+            # Use a sliding window approach
+            for i in range(period - 1, len(prices)):
+                window = prices[i - (period - 1) : i + 1]
+                sma_values.append(sum(window) / period)
+            return sma_values
+        
+        def calculate_ema(prices, period):
+            """Calculate Exponential Moving Average for a given period"""
+            if len(prices) < period:
+                return []
+            
+            # Start with SMA for the first value
+            ema_values = [sum(prices[:period]) / period]
+            # Multiplier: (2 / (period + 1))
+            multiplier = 2 / (period + 1)
+            
+            # Calculate EMA for the rest of the data
+            for i in range(period, len(prices)):
+                ema = (prices[i] * multiplier) + (ema_values[-1] * (1 - multiplier))
+                ema_values.append(ema)
+            
+            return ema_values
+        
+        # Calculate key moving averages (both SMA and EMA)
+        # Short-term moving averages
+        sma7 = calculate_sma(close_prices, 7)
+        sma20 = calculate_sma(close_prices, 20)
+        sma50 = calculate_sma(close_prices, 50)
+        sma200 = calculate_sma(close_prices, 200)
+        
+        # Exponential moving averages - typically more responsive to recent price changes
+        ema12 = calculate_ema(close_prices, 12)
+        ema26 = calculate_ema(close_prices, 26)
+        ema50 = calculate_ema(close_prices, 50)
+        ema200 = calculate_ema(close_prices, 200)
 
         # 1. Bollinger Bands (20-period SMA with 2 standard deviations)
         bollinger_bands = {"upper": None, "middle": None, "lower": None}
@@ -127,34 +153,6 @@ def analyze_price_trend(
                 "lower": round(lower_band, 2),
                 "width": round((upper_band - lower_band) / middle_band, 4),  # Normalized width
                 "position": round((close_prices[-1] - lower_band) / (upper_band - lower_band), 2) if upper_band != lower_band else 0.5
-            }
-
-        # 2. MACD (12-period EMA, 26-period EMA, 9-period signal)
-        macd = {"value": None, "signal": None, "histogram": None}
-        if len(close_prices) >= 26:
-            # Calculate 12-period EMA
-            ema12 = close_prices[0]
-            k = 2 / (12 + 1)
-            for i in range(1, len(close_prices)):
-                ema12 = close_prices[i] * k + ema12 * (1 - k)
-
-            # Calculate 26-period EMA
-            ema26 = close_prices[0]
-            k = 2 / (26 + 1)
-            for i in range(1, len(close_prices)):
-                ema26 = close_prices[i] * k + ema26 * (1 - k)
-
-            # MACD line
-            macd_line = ema12 - ema26
-
-            # Signal line (9-period EMA of MACD)
-            signal_line = macd_line  # Simplified calculation for brevity
-            
-            macd = {
-                "value": round(macd_line, 4),
-                "signal": round(signal_line, 4),
-                "histogram": round(macd_line - signal_line, 4),
-                "trend": "Bullish" if macd_line > signal_line else "Bearish"
             }
 
         # 4. Fibonacci Retracement Levels (based on recent high and low)
@@ -237,28 +235,38 @@ def analyze_price_trend(
 
         return {
             "token_symbol": token_symbol,
-            "trend": trend,
-            "change_percent": round(recent_change, 2) if len(close_prices) >= 2 else None,
             "current_price": close_prices[-1] if close_prices else None,
             "price_range": {
                 "min": round(min(close_prices), 4) if close_prices else None,
                 "max": round(max(close_prices), 4) if close_prices else None,
             },
-            "simple_indicators": {
+            "moving_averages": {
+                # Simple Moving Averages
                 "sma7": round(sma7[-1], 4) if sma7 else None,
-                "sma21": round(sma21[-1], 4) if sma21 else None,
-                "sma_trend": "Bullish" if sma7 and sma21 and sma7[-1] > sma21[-1] else "Bearish" if sma7 and sma21 else None,
+                "sma20": round(sma20[-1], 4) if sma20 else None,
+                "sma50": round(sma50[-1], 4) if sma50 else None,
+                "sma200": round(sma200[-1], 4) if sma200 else None,
+                # Exponential Moving Averages
+                "ema12": round(ema12[-1], 4) if ema12 else None,
+                "ema26": round(ema26[-1], 4) if ema26 else None,
+                "ema50": round(ema50[-1], 4) if ema50 else None,
+                "ema200": round(ema200[-1], 4) if ema200 else None,
+                # Key crossovers and trends
+                "golden_cross": "Yes" if sma50 and sma200 and sma50[-1] > sma200[-1] and (len(sma50) > 1 and len(sma200) > 1 and sma50[-2] <= sma200[-2]) else "No",
+                "death_cross": "Yes" if sma50 and sma200 and sma50[-1] < sma200[-1] and (len(sma50) > 1 and len(sma200) > 1 and sma50[-2] >= sma200[-2]) else "No",
+                "short_trend": "Bullish" if sma7 and sma20 and sma7[-1] > sma20[-1] else "Bearish" if sma7 and sma20 else "Neutral",
+                "medium_trend": "Bullish" if ema12 and ema26 and ema12[-1] > ema26[-1] else "Bearish" if ema12 and ema26 else "Neutral",
+                "long_trend": "Bullish" if sma50 and sma200 and sma50[-1] > sma200[-1] else "Bearish" if sma50 and sma200 else "Neutral",
             },
             "technical_indicators": {
                 "bollinger_bands": bollinger_bands,
-                "macd": macd,
                 "fibonacci": fibonacci,
                 "volume_analysis": volume_analysis,
                 "support_resistance": support_resistance
             },
             "token_metrics": token_metrics,
             "analysis_summary": get_analysis_summary(
-                trend, sma7, sma21, bollinger_bands, macd, volume_analysis
+                sma7, sma20, sma50, sma200, ema12, ema26, bollinger_bands, volume_analysis
             )
         }
     except Exception as e:
@@ -268,23 +276,39 @@ def analyze_price_trend(
 
 
 def get_analysis_summary(
-    trend, sma7, sma21, bollinger_bands, macd, volume_analysis
+    sma7, sma20, sma50, sma200, ema12, ema26, bollinger_bands, volume_analysis
 ):
     """Generate a simple summary of the analysis results."""
     summary = []
     
-    # Trend summary
-    trend_desc = f"The overall trend is {trend.lower()}."
-    summary.append(trend_desc)
-    
-    # Moving average summary
-    if sma7 and sma21:
-        if sma7[-1] > sma21[-1]:
-            ma_desc = "Short-term average above long-term average suggests bullish momentum."
-            summary.append(ma_desc)
+    # Moving average summary - Enhanced with multiple timeframes
+    # Short-term trend
+    if sma7 and sma20:
+        if sma7[-1] > sma20[-1]:
+            ma_short_desc = "Short-term moving averages indicate bullish momentum."
+            summary.append(ma_short_desc)
         else:
-            ma_desc = "Short-term average below long-term average suggests bearish momentum."
-            summary.append(ma_desc)
+            ma_short_desc = "Short-term moving averages indicate bearish momentum."
+            summary.append(ma_short_desc)
+    
+    # Medium-term trend
+    if ema12 and ema26:
+        if ema12[-1] > ema26[-1]:
+            ma_medium_desc = "Medium-term EMA crossover is bullish."
+            summary.append(ma_medium_desc)
+        else:
+            ma_medium_desc = "Medium-term EMA crossover is bearish."
+            summary.append(ma_medium_desc)
+    
+    # Long-term trend and major crossovers
+    if sma50 and sma200:
+        # Check for golden cross (50-day crosses above 200-day)
+        if len(sma50) > 1 and len(sma200) > 1:
+            if sma50[-1] > sma200[-1] and sma50[-2] <= sma200[-2]:
+                summary.append("Golden Cross detected - a strong bullish signal.")
+            # Check for death cross (50-day crosses below 200-day)
+            elif sma50[-1] < sma200[-1] and sma50[-2] >= sma200[-2]:
+                summary.append("Death Cross detected - a strong bearish signal.")
     
     # Bollinger Bands summary
     if bollinger_bands["upper"] is not None:
@@ -295,11 +319,6 @@ def get_analysis_summary(
         elif position < 0.2:
             bb_desc = "Price near lower Bollinger Band suggests oversold conditions."
             summary.append(bb_desc)
-    
-    # MACD summary
-    if macd["value"] is not None:
-        macd_desc = f"MACD indicates {macd['trend'].lower()} momentum."
-        summary.append(macd_desc)
     
     # Volume confirmation
     if volume_analysis["avg_volume"] is not None:
