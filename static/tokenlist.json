@@ -159,7 +159,7 @@
         "symbol": "GOAT",
         "geckoId": "goatseus-maximus"
     },
-    "22222222222222222222222222222222222222222": {
+    "native": {
         "name": "Solana",
         "symbol": "SOL",
         "geckoId": "solana"
