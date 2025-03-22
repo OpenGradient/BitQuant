@@ -10,15 +10,13 @@ from defi.analytics.defillama_tools import (
     show_defi_llama_top_pools,
 )
 from api.api_types import Pool, WalletTokenHolding, Chain, PoolQuery
-from defi.analytics.binance_tools import (
-    analyze_price_trend,
-    compare_assets,
-)
-from defi.analytics.financial_analytics_tools import (
+from defi.analytics.analytics_tools import (
     max_drawdown_for_token,
     portfolio_volatility,
     portfolio_summary,
     analyze_volatility_trend,
+    analyze_price_trend,
+    compare_assets, 
 )
 from defi.pools.protocol import ProtocolRegistry
 
