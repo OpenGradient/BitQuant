@@ -7,10 +7,10 @@ import numpy as np
 import time
 from enum import StrEnum
 
+from api.api_types import WalletTokenHolding
+
 from langchain_core.tools import tool
 from binance.spot import Spot  # type: ignore
-
-from defi.analytics.utils import extract_tokens_from_config
 
 
 class CandleInterval(StrEnum):
@@ -578,13 +578,7 @@ def analyze_wallet_portfolio(
     Provides a comprehensive analysis of a crypto wallet portfolio with investor-friendly insights and recommendations.
     """
     try:
-        # Extract tokens from config
-        symbols, holding_qty = extract_tokens_from_config(config)
-
-        if not symbols or not holding_qty:
-            return {
-                "error": "No analyzable tokens found in wallet. Your wallet may contain only stablecoins or tokens not supported on Binanc." 
-            }
+        tokens: List[WalletTokenHolding] = config["configurable"]["tokens"]
 
         # Fetch price data for each asset
         all_price_data = []
@@ -592,24 +586,24 @@ def analyze_wallet_portfolio(
         valid_quantities = []
         error_symbols = []
 
-        for i, symbol in enumerate(symbols):
+        for i, token in enumerate(tokens):
             price_data = get_binance_price_history.invoke(
                 {
-                    "token_symbol": symbol,
+                    "token_symbol": token.symbol,
                     "candle_interval": candle_interval,
                     "num_candles": num_candles,
                 }
             )
 
             if "error" in price_data:
-                error_symbols.append(symbol)
+                error_symbols.append(token.symbol)
                 continue  # Skip this token but continue with others
 
             # Extract closing prices
             close_prices = [float(candle[4]) for candle in price_data["data"]]
             all_price_data.append(close_prices)
-            valid_symbols.append(symbol)
-            valid_quantities.append(holding_qty[i])
+            valid_symbols.append(token.symbol)
+            valid_quantities.append(token.amount)
 
         if not all_price_data:
             return {

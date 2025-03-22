@@ -75,10 +75,12 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
                         {
                             "address": "So11111111111111111111111111111111111111112",
                             "amount": 10,
+                            "symbol": "SOL",
                         },
                         {
                             "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
                             "amount": 2,
+                            "symbol": "USDC",
                         },
                     ]
                 }
