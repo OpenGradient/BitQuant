@@ -11,13 +11,11 @@ from defi.analytics.defillama_tools import (
 )
 from api.api_types import Pool, WalletTokenHolding, Chain, PoolQuery
 from defi.analytics.binance_tools import (
-    get_binance_price_history,
     analyze_price_trend,
     compare_assets,
 )
 from defi.analytics.financial_analytics_tools import (
     max_drawdown_for_token,
-    portfolio_value,
     portfolio_volatility,
     portfolio_summary,
     analyze_volatility_trend,
@@ -59,11 +57,9 @@ def create_analytics_agent_toolkit() -> List[BaseTool]:
         show_defi_llama_global_tvl,
         show_defi_llama_chain_tvl,
         show_defi_llama_top_pools,
-        get_binance_price_history,
         analyze_price_trend,
         compare_assets,
         max_drawdown_for_token,
-        portfolio_value,
         portfolio_volatility,
         portfolio_summary,
         analyze_volatility_trend,
