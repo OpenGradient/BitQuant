@@ -583,7 +583,7 @@ def analyze_wallet_portfolio(
 
         if not symbols or not holding_qty:
             return {
-                "error": "No analyzable tokens found in wallet. Your wallet may contain only stablecoins or tokens not supported on Binance. Please provide custom_symbols and custom_quantities."
+                "error": "No analyzable tokens found in wallet. Your wallet may contain only stablecoins or tokens not supported on Binanc." 
             }
 
         # Fetch price data for each asset
@@ -621,7 +621,7 @@ def analyze_wallet_portfolio(
         holding_qty = np.array(valid_quantities)
 
         # Format asset names for output
-        asset_names = [symbol.replace("USDT", "") for symbol in valid_symbols]
+        asset_names = [symbol for symbol in valid_symbols]
 
         # Calculate portfolio values over time
         weighted_values = holding_qty * prices
