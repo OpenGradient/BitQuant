@@ -72,6 +72,14 @@ def create_flask_app() -> Flask:
     with open(tokenlist_path, "r") as f:
         tokenlist = json.load(f)
 
+    # Load address whitelist
+    whitelist_path = os.path.join(STATIC_DIR, "whitelist.json")
+    with open(whitelist_path, "r") as f:
+        whitelist = json.load(f)
+        # create set for faster access
+        whitelist["allowed"] = set(whitelist["allowed"])
+        whitelist["banned"] = set(whitelist["banned"])
+
     # Set up error handlers for production environment
     if not app.config.get("TESTING"):
 
@@ -99,8 +107,11 @@ def create_flask_app() -> Flask:
         # If no address is provided, return a 400 Bad Request
         if not address:
             return jsonify({"error": "Address parameter is required"}), 400
-        
-        # TODO: check address
+        if address not in whitelist["allowed"]:
+            return jsonify({"allowed": False})
+        if address in whitelist["banned"]:
+            return jsonify({"allowed": False})
+
         return jsonify({"allowed": True})
 
     @app.route("/api/tokenlist", methods=["GET"])
