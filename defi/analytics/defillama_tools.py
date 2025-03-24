@@ -32,9 +32,23 @@ def show_defi_llama_chain_tvl(chain: str) -> Dict[str, Any]:
 
 
 @tool()
-def show_defi_llama_top_pools(chain: str, limit: int = 10) -> List[Dict[str, Any]]:
-    """Show top DeFi pools ranked by APY for a specific chain (eg Solana, Ethereum, BSC)"""
-    return defillama.get_top_pools(chain, limit)
+def show_defi_llama_top_pools(chain: str = None, limit: int = 10, min_tvl: float = 500000, max_apy: float = 1000) -> List[Dict[str, Any]]:
+    """Show top DeFi pools ranked by APY with configurable TVL threshold.
+    
+    Args:
+        chain (str, optional): Filter by blockchain (e.g., Solana, Ethereum, BSC). 
+                              If None, returns pools from all chains.
+        limit (int, optional): Maximum number of pools to return. Defaults to 10.
+        min_tvl (float, optional): Minimum TVL threshold in USD. Defaults to 500000 ($500k).
+                                  Higher TVL generally indicates lower risk.
+        max_apy (float, optional): Maximum APY threshold in percentage. Defaults to 1000 (1000%).
+                            Lower values filter out potentially unreliable high-yield pools.
+    
+    Returns pools with realistic APY values (under 200%) to filter out extremely high 
+    but potentially unreliable options.
+    """
+    # We keep the max_apy constant at 200% for safety
+    return defillama.get_top_pools(chain, limit, min_tvl, max_apy)
 
 
 @tool()

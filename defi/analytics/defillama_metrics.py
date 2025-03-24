@@ -142,30 +142,35 @@ class DefiLlamaMetrics:
         # If chain not found, return 0
         return 0
 
-    def get_top_pools(self, chain: str, limit: int = 10, min_tvl: float = 500000) -> List[Dict[str, Any]]:
-        """Obtain the top DeFi pools ranked by Annual Percentage Yield (APY) on the given chain.
+    def get_top_pools(self, chain: str = None, limit: int = 10, min_tvl: float = 500000, max_apy: float = 1000) -> List[Dict[str, Any]]:
+        """Obtain the top DeFi pools ranked by Annual Percentage Yield (APY) with configurable TVL threshold.
 
         Args:
-            chain (str): The target blockchain name.
+            chain (str, optional): The target blockchain name. If None, returns pools from all chains.
             limit (int, optional): Maximum number of pools to return. Defaults to 10.
-            min_tvl (float, optional): Minimum TVL threshold in USD. Defaults to 500000.
+            min_tvl (float, optional): Minimum TVL threshold in USD. Defaults to 500000 ($500k).
+            max_apy (float, optional): Maximum APY threshold in percentage. Defaults to 1000 (1000%).
 
         Returns:
             List[Dict[str, Any]]: A list of dictionaries with details for each pool.
         """
         pools_data = self.llama.get_pools()
         if isinstance(pools_data, dict) and "data" in pools_data:
-            # First filter by chain and minimum TVL
+            all_pools = pools_data["data"]
+            
+            # Filter by minimum TVL and maximum APY
             filtered_pools = [
-                pool
-                for pool in pools_data["data"]
-                if pool.get("chain", "").lower() == chain.lower() 
-                and pool.get("tvl", 0) >= min_tvl
+                pool for pool in all_pools
+                if float(pool.get("tvlUsd", 0)) >= min_tvl  # Configurable minimum TVL
+                and float(pool.get("apy", 0)) <= max_apy  # Maximum APY cap
+                and (not chain or pool.get("chain", "").lower() == chain.lower())
             ]
             
-            # Then sort by APY
+            # Sort by APY (highest first)
             sorted_pools = sorted(
-                filtered_pools, key=lambda x: x.get("apy", 0), reverse=True
+                filtered_pools, 
+                key=lambda x: float(x.get("apy", 0)), 
+                reverse=True
             )
 
             return sorted_pools[:limit]
