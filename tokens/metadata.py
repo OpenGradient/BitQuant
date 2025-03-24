@@ -3,21 +3,22 @@ import requests
 from cachetools import TTLCache
 from typing import Optional
 
+
+@dataclass
 class TokenMetadata:
+    address: str
+    name: str
+    symbol: str
+    image_url: Optional[str]
+    price_usd: float
+
+class TokenMetadataRepo:
 
     DEXSCREENER_API_URL = "https://api.dexscreener.com/tokens/v1/solana/%s"
     CACHE_TTL = 3600  # 1 hour in seconds
 
     def __init__(self):
         self._cache = TTLCache(maxsize=100_000, ttl=self.CACHE_TTL)
-
-    @dataclass
-    class TokenMetadata:
-        address: str
-        name: str
-        symbol: str
-        image_url: str    
-        price_usd: float
 
     def get_token_metadata(self, token_address: str) -> Optional[TokenMetadata]:
         # Check cache first
@@ -43,7 +44,6 @@ class TokenMetadata:
             address=metadata["baseToken"]["address"],
             name=metadata["baseToken"]["name"],
             symbol=metadata["baseToken"]["symbol"],
-            image_url=metadata["info"]["imageUrl"],
+            image_url=metadata["info"]["imageUrl"] if "info" in metadata else None,
             price_usd=metadata["priceUsd"],
         )
-

@@ -27,6 +27,7 @@ class WalletTokenHolding(BaseModel):
     total_value_usd: Optional[float] = None # total value of tokens held
     symbol: Optional[str] = None  # token symbol
     name: Optional[str] = None  # token name
+    image_url: Optional[str] = None  # token image URL
 
 
 class PoolQuery(BaseModel):
