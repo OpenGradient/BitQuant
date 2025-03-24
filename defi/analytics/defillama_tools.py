@@ -35,3 +35,28 @@ def show_defi_llama_chain_tvl(chain: str) -> Dict[str, Any]:
 def show_defi_llama_top_pools(chain: str, limit: int = 10) -> List[Dict[str, Any]]:
     """Show top DeFi pools ranked by APY for a specific chain (eg Solana, Ethereum, BSC)"""
     return defillama.get_top_pools(chain, limit)
+
+
+@tool()
+def show_defi_llama_historical_global_tvl(months: int = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
+    """Show historical TVL data for all DeFi protocols across all chains over time
+    
+    Args:
+        months (int, optional): Number of months of history to return. Defaults to None.
+        start_date (str, optional): Start date in 'YYYY-MM-DD' format. Defaults to None.
+        end_date (str, optional): End date in 'YYYY-MM-DD' format. Defaults to None.
+    """
+    return defillama.get_historical_global_tvl(months, start_date, end_date)
+
+
+@tool()
+def show_defi_llama_historical_chain_tvl(chain: str, months: int = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
+    """Show historical TVL data for a specific blockchain over time
+    
+    Args:
+        chain (str): The target blockchain name.
+        months (int, optional): Number of months of history to return. Defaults to None.
+        start_date (str, optional): Start date in 'YYYY-MM-DD' format. Defaults to None.
+        end_date (str, optional): End date in 'YYYY-MM-DD' format. Defaults to None.
+    """
+    return defillama.get_historical_chain_tvl(chain, months, start_date, end_date)

@@ -199,3 +199,165 @@ class DefiLlamaMetrics:
                 "error": f"Failed to fetch pool with ID '{pool_id}'",
                 "details": str(e),
             }
+
+    def get_historical_global_tvl(self, months: int = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
+        """Get historical TVL data for all DeFi protocols across all chains.
+        
+        Args:
+            months (int, optional): Number of months of history to return. Defaults to None.
+            start_date (str, optional): Start date in 'YYYY-MM-DD' format. Defaults to None.
+            end_date (str, optional): End date in 'YYYY-MM-DD' format. Defaults to None.
+            
+        Returns:
+            Dict[str, Any]: A dictionary containing processed historical TVL data points.
+        """
+        # Get raw historical TVL data
+        historical_data = self.llama.get_historical_tvl()
+        
+        # Process the data with the specified filters
+        return self._process_historical_data(historical_data, months, start_date, end_date)
+
+    def get_historical_chain_tvl(self, chain: str, months: int = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
+        """Get historical TVL data for a specific blockchain.
+        
+        Args:
+            chain (str): The target blockchain name.
+            months (int, optional): Number of months of history to return. Defaults to None.
+            start_date (str, optional): Start date in 'YYYY-MM-DD' format. Defaults to None.
+            end_date (str, optional): End date in 'YYYY-MM-DD' format. Defaults to None.
+            
+        Returns:
+            Dict[str, Any]: A dictionary containing processed historical TVL data for the chain.
+        """
+        # Get historical TVL data for the specified chain
+        historical_data = self.llama.get_historical_tvl_chain(chain)
+        
+        # Process the data with the specified filters
+        return self._process_historical_data(historical_data, months, start_date, end_date)
+
+    def _process_historical_data(self, historical_data: List[Dict[str, Any]], 
+                                months: int = None, start_date: str = None, 
+                                end_date: str = None) -> Dict[str, Any]:
+        """Process historical data with flexible date filtering options.
+        
+        Args:
+            historical_data (List[Dict[str, Any]]): Raw historical data from DefiLlama API.
+            months (int, optional): Number of months to include. Defaults to None.
+            start_date (str, optional): Start date in 'YYYY-MM-DD' format. Defaults to None.
+            end_date (str, optional): End date in 'YYYY-MM-DD' format. Defaults to None.
+            
+        Returns:
+            Dict[str, Any]: Processed historical data with formatted dates and TVL values.
+        """
+        from datetime import datetime, timedelta
+        
+        # Initialize cutoff timestamps based on provided filters
+        cutoff_start_timestamp = None
+        cutoff_end_timestamp = None
+        
+        # Parse date strings if provided
+        if start_date:
+            try:
+                start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+                cutoff_start_timestamp = int(start_dt.timestamp())
+            except ValueError:
+                # Handle invalid date format
+                return {"error": f"Invalid start_date format: {start_date}. Use YYYY-MM-DD format."}
+        
+        if end_date:
+            try:
+                # Set end date to end of day
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+                end_dt = end_dt.replace(hour=23, minute=59, second=59)
+                cutoff_end_timestamp = int(end_dt.timestamp())
+            except ValueError:
+                # Handle invalid date format
+                return {"error": f"Invalid end_date format: {end_date}. Use YYYY-MM-DD format."}
+        
+        # If months is specified and start_date is not, calculate start date from months
+        if months is not None and not start_date:
+            cutoff_start_timestamp = int((datetime.now() - timedelta(days=30 * months)).timestamp())
+        
+        # If no end date is specified, use current time
+        if not cutoff_end_timestamp:
+            cutoff_end_timestamp = int(datetime.now().timestamp())
+        
+        # If no start date is specified (and no months), use earliest available data
+        # (We'll filter in the processing loop)
+        
+        # Determine time frame description
+        timeframe_desc = "all available data"
+        if start_date and end_date:
+            timeframe_desc = f"{start_date} to {end_date}"
+        elif start_date:
+            timeframe_desc = f"from {start_date} to present"
+        elif end_date:
+            timeframe_desc = f"until {end_date}"
+        elif months:
+            timeframe_desc = f"last {months} months"
+        
+        # Initialize the processed data structure
+        processed_data = {
+            "timeframe": timeframe_desc,
+            "summary": {},
+            "data_points": []
+        }
+        
+        # Process each data point
+        all_tvl_values = []
+        
+        for entry in historical_data:
+            # Handle different formats that might come from the API
+            timestamp = entry.get('date') or entry.get('timestamp')
+            tvl = entry.get('tvl') or entry.get('totalLiquidityUSD')
+            
+            if timestamp is not None and tvl is not None:
+                # Convert timestamp to int if it's a string
+                if isinstance(timestamp, str):
+                    timestamp = int(timestamp)
+                    
+                # Apply date filters
+                include_point = True
+                if cutoff_start_timestamp and timestamp < cutoff_start_timestamp:
+                    include_point = False
+                if cutoff_end_timestamp and timestamp > cutoff_end_timestamp:
+                    include_point = False
+                    
+                if include_point:
+                    # Convert epoch timestamp to human-readable date
+                    date_str = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
+                    
+                    # Format TVL value (convert to billions if large enough)
+                    formatted_tvl = tvl
+                    if tvl >= 1_000_000_000:  # If TVL is in billions
+                        formatted_tvl = f"${tvl / 1_000_000_000:.2f}B"
+                    elif tvl >= 1_000_000:  # If TVL is in millions
+                        formatted_tvl = f"${tvl / 1_000_000:.2f}M"
+                    else:
+                        formatted_tvl = f"${tvl:,.2f}"
+                    
+                    # Add to data points
+                    processed_data["data_points"].append({
+                        "date": date_str,
+                        "timestamp": timestamp,
+                        "tvl": tvl,
+                        "formatted_tvl": formatted_tvl
+                    })
+                    
+                    all_tvl_values.append(tvl)
+        
+        # Sort by date ascending
+        processed_data["data_points"].sort(key=lambda x: x['timestamp'])
+        
+        # Calculate summary statistics
+        if all_tvl_values:
+            processed_data["summary"] = {
+                "current_tvl": processed_data["data_points"][-1]["formatted_tvl"] if processed_data["data_points"] else "N/A",
+                "min_tvl": f"${min(all_tvl_values) / 1_000_000_000:.2f}B" if any(v >= 1_000_000_000 for v in all_tvl_values) else f"${min(all_tvl_values) / 1_000_000:.2f}M",
+                "max_tvl": f"${max(all_tvl_values) / 1_000_000_000:.2f}B" if any(v >= 1_000_000_000 for v in all_tvl_values) else f"${max(all_tvl_values) / 1_000_000:.2f}M",
+                "data_points_count": len(processed_data["data_points"]),
+                "start_date": processed_data["data_points"][0]["date"] if processed_data["data_points"] else "N/A",
+                "end_date": processed_data["data_points"][-1]["date"] if processed_data["data_points"] else "N/A"
+            }
+        
+        return processed_data
