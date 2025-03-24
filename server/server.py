@@ -94,7 +94,14 @@ def create_flask_app() -> Flask:
 
     @app.route("/api/whitelisted", methods=["GET"])
     def is_whitelisted():
-        return jsonify({"whitelisted": True})
+        address = request.args.get('address')
+        
+        # If no address is provided, return a 400 Bad Request
+        if not address:
+            return jsonify({"error": "Address parameter is required"}), 400
+        
+        # TODO: check address
+        return jsonify({"allowed": True})
 
     @app.route("/api/tokenlist", methods=["GET"])
     def get_tokenlist():
