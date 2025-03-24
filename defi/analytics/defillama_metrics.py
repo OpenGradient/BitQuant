@@ -142,26 +142,31 @@ class DefiLlamaMetrics:
         # If chain not found, return 0
         return 0
 
-    def get_top_pools(self, chain: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def get_top_pools(self, chain: str, limit: int = 10, min_tvl: float = 500000) -> List[Dict[str, Any]]:
         """Obtain the top DeFi pools ranked by Annual Percentage Yield (APY) on the given chain.
 
         Args:
             chain (str): The target blockchain name.
             limit (int, optional): Maximum number of pools to return. Defaults to 10.
+            min_tvl (float, optional): Minimum TVL threshold in USD. Defaults to 500000.
 
         Returns:
             List[Dict[str, Any]]: A list of dictionaries with details for each pool.
         """
         pools_data = self.llama.get_pools()
         if isinstance(pools_data, dict) and "data" in pools_data:
-            sorted_pools = sorted(
-                pools_data["data"], key=lambda x: x.get("apy", 0), reverse=True
-            )
-            sorted_pools = [
+            # First filter by chain and minimum TVL
+            filtered_pools = [
                 pool
-                for pool in sorted_pools
-                if pool.get("chain", "").lower() == chain.lower()
+                for pool in pools_data["data"]
+                if pool.get("chain", "").lower() == chain.lower() 
+                and pool.get("tvl", 0) >= min_tvl
             ]
+            
+            # Then sort by APY
+            sorted_pools = sorted(
+                filtered_pools, key=lambda x: x.get("apy", 0), reverse=True
+            )
 
             return sorted_pools[:limit]
         return []
