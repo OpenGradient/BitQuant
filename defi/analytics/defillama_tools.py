@@ -12,6 +12,12 @@ def show_defi_llama_protocol(protocol_slug: str) -> Dict[str, Any]:
 
 
 @tool()
+def show_defi_llama_pool(pool_id: str) -> Dict[str, Any]:
+    """Show details for a specific DeFi pool by ID"""
+    return defillama.get_pool(pool_id)
+
+
+@tool()
 def show_defi_llama_global_tvl() -> Dict[str, Any]:
     """Show current global TVL across all DeFi protocols"""
     tvl = defillama.get_global_tvl()
@@ -29,9 +35,3 @@ def show_defi_llama_chain_tvl(chain: str) -> Dict[str, Any]:
 def show_defi_llama_top_pools(chain: str, limit: int = 10) -> List[Dict[str, Any]]:
     """Show top DeFi pools ranked by APY for a specific chain (eg Solana, Ethereum, BSC)"""
     return defillama.get_top_pools(chain, limit)
-
-
-@tool()
-def show_defi_llama_pool(pool_id: str) -> Dict[str, Any]:
-    """Show details for a specific DeFi pool by ID"""
-    return defillama.get_pool(pool_id)
