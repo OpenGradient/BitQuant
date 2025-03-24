@@ -47,7 +47,6 @@ def show_defi_llama_top_pools(chain: str = None, limit: int = 10, min_tvl: float
     Returns pools with realistic APY values (under 200%) to filter out extremely high 
     but potentially unreliable options.
     """
-    # We keep the max_apy constant at 200% for safety
     return defillama.get_top_pools(chain, limit, min_tvl, max_apy)
 
 
