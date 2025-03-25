@@ -182,7 +182,12 @@ def create_flask_app() -> Flask:
         if not check_whitelist(agent_request.context.address):
             return jsonify({"error": "Address is not whitelisted"}), 400
 
-        suggestions = handle_suggestions_request(agent_request, suggestions_agent)
+        portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
+        suggestions = handle_suggestions_request(
+            request=agent_request,
+            portfolio=portfolio,
+            suggestions_agent=suggestions_agent,
+        )
 
         return jsonify({"suggestions": suggestions})
 
