@@ -22,7 +22,7 @@ class PortfolioFetcher:
         """Get the complete portfolio of token holdings for a wallet address."""
         token_accounts = self.get_token_accounts(wallet_address)
 
-        holdings = []
+        holdings: List[WalletTokenHolding] = []
 
         for account in token_accounts:
             account_data = account.account.data.parsed["info"]
@@ -51,7 +51,8 @@ class PortfolioFetcher:
             )
             holdings.append(holding)
 
-        return Portfolio(holdings=holdings, total_value_usd=0)
+        portfolio_value = sum(holding.total_value_usd or 0 for holding in holdings)
+        return Portfolio(holdings=holdings, total_value_usd=portfolio_value)
 
     def get_token_accounts(
         self, wallet_address: str
