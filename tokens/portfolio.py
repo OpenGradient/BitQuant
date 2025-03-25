@@ -35,6 +35,11 @@ class PortfolioFetcher:
             if metadata is None:
                 continue
 
+            if metadata.price:
+                total_value_usd = (float(amount) * float(metadata.price),)
+            else:
+                total_value_usd = None
+
             # Create holding
             holding = WalletTokenHolding(
                 address=address,
@@ -42,6 +47,7 @@ class PortfolioFetcher:
                 symbol=metadata.symbol,
                 name=metadata.name,
                 image_url=metadata.image_url,
+                total_value_usd=total_value_usd,
             )
             holdings.append(holding)
 
