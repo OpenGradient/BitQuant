@@ -24,10 +24,15 @@ class AgentType(StrEnum):
 class WalletTokenHolding(BaseModel):
     address: str  # token address
     amount: float  # amount of tokens held
-    total_value_usd: Optional[float] = None # total value of tokens held
     symbol: Optional[str] = None  # token symbol
     name: Optional[str] = None  # token name
     image_url: Optional[str] = None  # token image URL
+    total_value_usd: Optional[float] = None  # total value of tokens held
+
+
+class Portfolio(BaseModel):
+    holdings: List[WalletTokenHolding]
+    total_value_usd: float
 
 
 class PoolQuery(BaseModel):

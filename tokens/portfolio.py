@@ -7,6 +7,7 @@ from solders.rpc.responses import RpcKeyedAccountJsonParsed
 from tokens.metadata import TokenMetadataRepo
 from api.api_types import WalletTokenHolding
 
+
 class PortfolioFetcher:
     # Solana mainnet RPC endpoint
     RPC_URL = "https://api.mainnet-beta.solana.com"
@@ -39,16 +40,18 @@ class PortfolioFetcher:
                 amount=amount,
                 symbol=metadata.symbol,
                 name=metadata.name,
-                image_url=metadata.image_url
+                image_url=metadata.image_url,
             )
             holdings.append(holding)
 
         return holdings
 
-    def get_token_accounts(self, wallet_address: str) -> List[RpcKeyedAccountJsonParsed]:
+    def get_token_accounts(
+        self, wallet_address: str
+    ) -> List[RpcKeyedAccountJsonParsed]:
         """Get all token accounts owned by a wallet address."""
         # Get all token accounts owned by the wallet
         return self.http_client.get_token_accounts_by_owner_json_parsed(
             owner=Pubkey.from_string(wallet_address),
-            opts=TokenAccountOpts(program_id=self.TOKEN_PROGRAM_ID)
+            opts=TokenAccountOpts(program_id=self.TOKEN_PROGRAM_ID),
         ).value

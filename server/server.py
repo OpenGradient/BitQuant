@@ -18,7 +18,7 @@ from defi.pools.solana.orca_protocol import OrcaProtocol
 from defi.pools.solana.save_protocol import SaveProtocol
 from defi.pools.solana.kamino_protocol import KaminoProtocol
 from tokens.metadata import TokenMetadataRepo
-
+from tokens.portfolio import PortfolioFetcher
 from api.api_types import (
     AgentChatRequest,
     Pool,
@@ -59,13 +59,14 @@ def create_flask_app() -> Flask:
     app.config["PROPAGATE_EXCEPTIONS"] = True
     CORS(app)
 
-    # Initialize DynamoDB 
-    dynamodb = boto3.resource('dynamodb',
-        region_name=os.environ.get('AWS_REGION'),
-        aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
-        aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY')
+    # Initialize DynamoDB
+    dynamodb = boto3.resource(
+        "dynamodb",
+        region_name=os.environ.get("AWS_REGION"),
+        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
     )
-    tokens_table = dynamodb.Table('sol_token_metadata')
+    tokens_table = dynamodb.Table("sol_token_metadata")
 
     # Initialize agents
     suggestions_agent = create_suggestions_executor()
@@ -82,6 +83,7 @@ def create_flask_app() -> Flask:
     protocol_registry.initialize()
 
     token_metadata_repo = TokenMetadataRepo(tokens_table)
+    portfolio_fetcher = PortfolioFetcher(token_metadata_repo)
 
     # Load tokenlist
     tokenlist_path = os.path.join(STATIC_DIR, "tokenlist.json")
@@ -116,19 +118,33 @@ def create_flask_app() -> Flask:
     def healthcheck():
         return jsonify({"status": "ok"})
 
+    def check_whitelist(address: str) -> bool:
+        if address not in whitelist["allowed"]:
+            return False
+        if address in whitelist["banned"]:
+            return False
+        return True
+
+    @app.route("/api/portfolio", methods=["GET"])
+    def get_portfolio():
+        address = request.args.get("address")
+        if not address:
+            return jsonify({"error": "Address parameter is required"}), 400
+        if not check_whitelist(address):
+            return jsonify({"error": "Address is not whitelisted"}), 400
+
+        portfolio = portfolio_fetcher.get_portfolio(address)
+        return jsonify(portfolio.model_dump())
+
     @app.route("/api/whitelisted", methods=["GET"])
     def is_whitelisted():
-        address = request.args.get('address')
-        
+        address = request.args.get("address")
+
         # If no address is provided, return a 400 Bad Request
         if not address:
             return jsonify({"error": "Address parameter is required"}), 400
-        if address not in whitelist["allowed"]:
-            return jsonify({"allowed": False})
-        if address in whitelist["banned"]:
-            return jsonify({"allowed": False})
 
-        return jsonify({"allowed": True})
+        return jsonify({"allowed": check_whitelist(address)})
 
     @app.route("/api/tokenlist", methods=["GET"])
     def get_tokenlist():

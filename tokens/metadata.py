@@ -37,7 +37,7 @@ class TokenMetadataRepo:
 
         # Try to get from DynamoDB first
         metadata = self._get_from_dynamodb(token_address)
-        if metadata is not None:  
+        if metadata is not None:
             self._metadata_cache[token_address] = metadata
             return metadata
 
@@ -55,15 +55,13 @@ class TokenMetadataRepo:
     def _get_from_dynamodb(self, token_address: str) -> Optional[TokenMetadata]:
         """Retrieve token metadata from DynamoDB."""
         try:
-            response = self._tokens_table.get_item(
-                Key={"address": token_address}
-            )
-            
+            response = self._tokens_table.get_item(Key={"address": token_address})
+
             if "Item" not in response:
                 return None
 
             item = response["Item"]
-            
+
             # Check if this is a "not found" marker
             if item.get("not_found", False):
                 self._not_found_cache[token_address] = True
@@ -77,7 +75,7 @@ class TokenMetadataRepo:
             )
             return metadata
         except botocore.exceptions.ClientError as error:
-            if error.response['Error']['Code'] == 'ResourceNotFoundException':
+            if error.response["Error"]["Code"] == "ResourceNotFoundException":
                 return None
             logging.error(f"Error retrieving token metadata from DynamoDB: {error}")
             raise error
@@ -88,9 +86,9 @@ class TokenMetadataRepo:
             "address": metadata.address,
             "name": metadata.name,
             "symbol": metadata.symbol,
-            "not_found": False
+            "not_found": False,
         }
-        
+
         if metadata.image_url:
             item["image_url"] = metadata.image_url
 
@@ -98,18 +96,19 @@ class TokenMetadataRepo:
 
     def _store_not_found(self, token_address: str) -> None:
         """Store a marker indicating that token metadata was not found."""
-        item = {
-            "address": token_address,
-            "not_found": True
-        }
+        item = {"address": token_address, "not_found": True}
         self._tokens_table.put_item(Item=item)
 
-    def fetch_metadata_from_dexscreener(self, token_address: str) -> Optional[TokenMetadata]:
+    def fetch_metadata_from_dexscreener(
+        self, token_address: str
+    ) -> Optional[TokenMetadata]:
         """Fetch token metadata from DexScreener API."""
         try:
             response = requests.get(self.DEXSCREENER_API_URL % token_address)
             if response.status_code != 200:
-                logging.error(f"Failed to fetch metadata from dexscreener: {response.status_code} {response.text}")
+                logging.error(
+                    f"Failed to fetch metadata from dexscreener: {response.status_code} {response.text}"
+                )
                 return None
 
             metadata = response.json()
