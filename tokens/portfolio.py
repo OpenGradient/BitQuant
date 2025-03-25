@@ -1,5 +1,6 @@
 from typing import List
-import logging
+import os
+
 from solana.rpc.api import Client
 from solana.rpc.types import TokenAccountOpts, Pubkey
 from solders.rpc.responses import RpcKeyedAccountJsonParsed
@@ -10,7 +11,7 @@ from api.api_types import WalletTokenHolding, Portfolio
 
 class PortfolioFetcher:
     # Solana mainnet RPC endpoint
-    RPC_URL = "https://api.mainnet-beta.solana.com"
+    RPC_URL = os.environ.get("SOLANA_RPC_URL")
     TOKEN_PROGRAM_ID = Pubkey.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
 
     def __init__(self, token_metadata_repo: TokenMetadataRepo):
