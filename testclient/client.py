@@ -4,13 +4,7 @@ import logging
 
 TEST_CONTEXT = {
     "conversationHistory": [],
-    "tokens": [
-        {"amount": 100, "address": "So11111111111111111111111111111111111111112"},
-        {"amount": 900, "address": "USDSwr9ApdHk5bvJKMjzff41FfuX8bSxdKcR81vTwcA"},
-        {"amount": 500, "address": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"},
-        {"amount": 105454, "address": "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"},
-    ],
-    "poolPositions": [],
+    "address": "AzoqqVNzidLSVDiAfZcLf9AsXCVM5cFNLuwjcERPX8JN",
 }
 
 
