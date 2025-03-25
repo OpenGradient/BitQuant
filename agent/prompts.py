@@ -14,6 +14,9 @@ router_template = env.get_template("router.jinja2")
 # We ignore token holdings with a total value of less than $1
 MIN_TOKEN_HOLDING_VALUE_USD = 1
 
+# Start filtering out holdings based on MIN_TOKEN_HOLDING_VALUE_USD after this many holdings
+NUM_HOLDINGS_CUTOFF = 10
+
 
 def get_investor_agent_prompt(
     tokens: List[WalletTokenHolding],
@@ -28,7 +31,11 @@ def get_investor_agent_prompt(
             "amount": token.amount,
         }
         for token in tokens
-        if token.total_value_usd is not None and token.total_value_usd > MIN_TOKEN_HOLDING_VALUE_USD
+        if len(tokens) <= NUM_HOLDINGS_CUTOFF
+        or (
+            token.total_value_usd is not None
+            and token.total_value_usd > MIN_TOKEN_HOLDING_VALUE_USD
+        )
     ]
 
     agent_prompt = investor_agent_template.render(
@@ -52,7 +59,11 @@ def get_suggestions_prompt(
             "amount": token.amount,
         }
         for token in tokens
-        if token.total_value_usd is not None and token.total_value_usd > MIN_TOKEN_HOLDING_VALUE_USD
+        if len(tokens) <= NUM_HOLDINGS_CUTOFF
+        or (
+            token.total_value_usd is not None
+            and token.total_value_usd > MIN_TOKEN_HOLDING_VALUE_USD
+        )
     ]
 
     agent_prompt = suggestions_template.render(
@@ -77,7 +88,11 @@ def get_analytics_prompt(
             "amount": token.amount,
         }
         for token in tokens
-        if token.total_value_usd is not None and token.total_value_usd > MIN_TOKEN_HOLDING_VALUE_USD
+        if len(tokens) <= NUM_HOLDINGS_CUTOFF
+        or (
+            token.total_value_usd is not None
+            and token.total_value_usd > MIN_TOKEN_HOLDING_VALUE_USD
+        )
     ]
 
     analytics_agent_prompt = analytics_agent_template.render(

@@ -251,7 +251,8 @@ def handle_investor_chat_request(
 
     # Prepare message history
     message_history = [
-        convert_to_agent_msg(m) for m in request.context.conversationHistory[-NUM_MESSAGES_TO_KEEP:]
+        convert_to_agent_msg(m)
+        for m in request.context.conversationHistory[-NUM_MESSAGES_TO_KEEP:]
     ]
 
     # Create messages for investor agent
@@ -298,7 +299,8 @@ def handle_suggestions_request(
 
     # Prepare message history (last 10 messages)
     message_history = [
-        convert_to_agent_msg(m) for m in request.context.conversationHistory[-NUM_MESSAGES_TO_KEEP:]
+        convert_to_agent_msg(m)
+        for m in request.context.conversationHistory[-NUM_MESSAGES_TO_KEEP:]
     ]
 
     # Create messages for suggestions agent
@@ -422,7 +424,8 @@ def handle_analytics_chat_request(
 
     # Prepare message history (last 10 messages)
     message_history = [
-        convert_to_agent_msg(m) for m in request.context.conversationHistory[-NUM_MESSAGES_TO_KEEP:]
+        convert_to_agent_msg(m)
+        for m in request.context.conversationHistory[-NUM_MESSAGES_TO_KEEP:]
     ]
 
     # Create messages for analytics agent
