@@ -10,6 +10,10 @@ from tokens.metadata import TokenMetadataRepo
 from api.api_types import WalletTokenHolding, Portfolio
 
 
+# We ignore token holdings with a total value of less than $1
+MIN_TOKEN_HOLDING_VALUE_USD = 1
+
+
 class PortfolioFetcher:
     # Solana mainnet RPC endpoint
     RPC_URL = os.environ.get("SOLANA_RPC_URL")
@@ -51,6 +55,10 @@ class PortfolioFetcher:
                 total_value_usd = float(amount) * float(metadata.price)
             else:
                 total_value_usd = None
+
+            # Ignore tokens with a total value of less than $1
+            if total_value_usd is None or total_value_usd < MIN_TOKEN_HOLDING_VALUE_USD:
+                continue
 
             # Create holding
             holding = WalletTokenHolding(
