@@ -5,7 +5,7 @@ from solana.rpc.types import TokenAccountOpts, Pubkey
 from solders.rpc.responses import RpcKeyedAccountJsonParsed
 
 from tokens.metadata import TokenMetadataRepo
-from api.api_types import WalletTokenHolding
+from api.api_types import WalletTokenHolding, Portfolio
 
 
 class PortfolioFetcher:
@@ -17,7 +17,7 @@ class PortfolioFetcher:
         self.token_metadata_repo = token_metadata_repo
         self.http_client = Client(self.RPC_URL)
 
-    def get_portfolio(self, wallet_address: str) -> List[WalletTokenHolding]:
+    def get_portfolio(self, wallet_address: str) -> Portfolio:
         """Get the complete portfolio of token holdings for a wallet address."""
         token_accounts = self.get_token_accounts(wallet_address)
 
@@ -44,7 +44,7 @@ class PortfolioFetcher:
             )
             holdings.append(holding)
 
-        return holdings
+        return Portfolio(holdings=holdings, total_value_usd=0)
 
     def get_token_accounts(
         self, wallet_address: str

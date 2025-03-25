@@ -140,7 +140,6 @@ def create_flask_app() -> Flask:
     def is_whitelisted():
         address = request.args.get("address")
 
-        # If no address is provided, return a 400 Bad Request
         if not address:
             return jsonify({"error": "Address parameter is required"}), 400
 
