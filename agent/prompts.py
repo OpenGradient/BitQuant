@@ -38,8 +38,19 @@ def get_suggestions_prompt(
     tokens: List[WalletTokenHolding],
     tools: str,
 ) -> str:
+    # Only include fields that are needed for the prompt
+    token_metadata = [
+        {
+            "address": token.address,
+            "symbol": token.symbol,
+            "name": token.name,
+            "amount": token.amount,
+        }
+        for token in tokens
+    ]
+
     agent_prompt = suggestions_template.render(
-        tokens=tokens,
+        tokens=token_metadata,
         tools=tools,
     )
 
@@ -51,9 +62,20 @@ def get_analytics_prompt(
     tokens: List[WalletTokenHolding] = None,
     poolDeposits: List[WalletPoolPosition] = None,
 ) -> str:
+    # Only include fields that are needed for the prompt
+    token_metadata = [
+        {
+            "address": token.address,
+            "symbol": token.symbol,
+            "name": token.name,
+            "amount": token.amount,
+        }
+        for token in tokens
+    ]
+
     analytics_agent_prompt = analytics_agent_template.render(
         protocolName=protocol,
-        tokens=tokens,
+        tokens=token_metadata,
         poolDeposits=poolDeposits,
     )
 
