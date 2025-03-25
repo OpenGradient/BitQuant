@@ -7,10 +7,12 @@ import botocore
 from cachetools import TTLCache, LRUCache
 from ratelimit import limits, sleep_and_retry
 from ratelimit.exception import RateLimitException
+import time
 
 
 @dataclass
 class TokenMetadata:
+    timestamp: int
     address: str
     name: str
     symbol: str
@@ -23,6 +25,7 @@ class TokenMetadataRepo:
 
     NOT_FOUND_CACHE_TTL = 3600 * 24  # 24 hours in seconds
     METADATA_CACHE_SIZE = 10000  # Maximum number of metadata entries to cache
+    METADATA_CACHE_TTL = 10 * 60 # 10 minutes in seconds
 
     DEXSCREENER_CALLS_PER_MINUTE = 200
     DEXSCREENER_PERIOD = 60
@@ -39,15 +42,15 @@ class TokenMetadataRepo:
 
         # Check metadata cache
         if token_address in self._metadata_cache:
-            return self._metadata_cache[token_address]
+            metadata = self._metadata_cache[token_address]
+        else:
+            metadata = self._get_from_dynamodb(token_address)
 
-        # Try to get from DynamoDB first
-        metadata = self._get_from_dynamodb(token_address)
-        if metadata is not None:
+        if metadata is not None and metadata.timestamp >= time.time() - self.METADATA_CACHE_TTL:
             self._metadata_cache[token_address] = metadata
             return metadata
 
-        # If not in DynamoDB, fetch from DexScreener
+        # If not in DynamoDB or has expired, fetch from DexScreener
         metadata = self.fetch_metadata_from_dexscreener(token_address)
         if metadata:
             self._store_metadata(metadata)
@@ -79,6 +82,7 @@ class TokenMetadataRepo:
                 symbol=item["symbol"],
                 image_url=item.get("image_url"),
                 price=item.get("price"),
+                timestamp=item.get("timestamp") or 0,
             )
             return metadata
         except botocore.exceptions.ClientError as error:
@@ -107,6 +111,14 @@ class TokenMetadataRepo:
         """Store a marker indicating that token metadata was not found."""
         item = {"address": token_address, "not_found": True}
         self._tokens_table.put_item(Item=item)
+
+    def fetch_price_from_dexscreener(self, token_address: str) -> Optional[float]:
+        """Fetch price from DexScreener API."""
+        metadata = self.fetch_metadata_from_dexscreener(token_address)
+        if metadata is None:
+            return None
+
+        return metadata.price
 
     @sleep_and_retry
     @limits(calls=DEXSCREENER_CALLS_PER_MINUTE, period=DEXSCREENER_PERIOD)
@@ -137,4 +149,5 @@ class TokenMetadataRepo:
             symbol=metadata["baseToken"]["symbol"],
             image_url=metadata["info"]["imageUrl"] if "info" in metadata else None,
             price=metadata["priceUsd"],
+            timestamp=int(time.time()),
         )
