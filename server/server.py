@@ -54,6 +54,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+# number of messages to send to agents
+NUM_MESSAGES_TO_KEEP = 6
+
+
 def create_flask_app() -> Flask:
     """Create and configure the Flask application with routes."""
     app = Flask(__name__)
@@ -215,7 +219,7 @@ def handle_agent_chat_request(
 
     # Otherwise use router to determine agent
     router_prompt = get_router_prompt(
-        message_history=request.context.conversationHistory[-10:],
+        message_history=request.context.conversationHistory[-NUM_MESSAGES_TO_KEEP:],
         current_message=request.message.message,
     )
 
@@ -247,7 +251,7 @@ def handle_investor_chat_request(
 
     # Prepare message history
     message_history = [
-        convert_to_agent_msg(m) for m in request.context.conversationHistory[-10:]
+        convert_to_agent_msg(m) for m in request.context.conversationHistory[-NUM_MESSAGES_TO_KEEP:]
     ]
 
     # Create messages for investor agent
@@ -294,7 +298,7 @@ def handle_suggestions_request(
 
     # Prepare message history (last 10 messages)
     message_history = [
-        convert_to_agent_msg(m) for m in request.context.conversationHistory[-10:]
+        convert_to_agent_msg(m) for m in request.context.conversationHistory[-NUM_MESSAGES_TO_KEEP:]
     ]
 
     # Create messages for suggestions agent
@@ -418,7 +422,7 @@ def handle_analytics_chat_request(
 
     # Prepare message history (last 10 messages)
     message_history = [
-        convert_to_agent_msg(m) for m in request.context.conversationHistory[-10:]
+        convert_to_agent_msg(m) for m in request.context.conversationHistory[-NUM_MESSAGES_TO_KEEP:]
     ]
 
     # Create messages for analytics agent
