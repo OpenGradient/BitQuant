@@ -1,11 +1,7 @@
-from typing import List, Optional
-import logging
-
+from typing import List
 import jinja2
-from jinja2 import Template
-import os
 
-from api.api_types import WalletTokenHolding, Pool, WalletPoolPosition, Message
+from api.api_types import WalletTokenHolding, WalletPoolPosition, Message
 
 env = jinja2.Environment(loader=jinja2.FileSystemLoader("templates/"))
 
@@ -19,8 +15,19 @@ def get_investor_agent_prompt(
     tokens: List[WalletTokenHolding],
     poolDeposits: List[WalletPoolPosition],
 ) -> str:
+    # Only include fields that are needed for the prompt
+    token_metadata = [
+        {
+            "address": token.address,
+            "symbol": token.symbol,
+            "name": token.name,
+            "amount": token.amount,
+        }
+        for token in tokens
+    ]
+
     agent_prompt = investor_agent_template.render(
-        tokens=tokens or "Wallet not connected",
+        tokens=token_metadata or "Wallet not connected",
         poolDeposits=poolDeposits,
     )
 
