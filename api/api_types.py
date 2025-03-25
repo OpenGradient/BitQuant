@@ -93,10 +93,8 @@ Message = Union[UserMessage, AgentMessage]
 
 
 class Context(BaseModel):
+    address: str  # wallet address
     conversationHistory: List[Message]
-    address: Optional[str] # should be set
-    tokens: List[WalletTokenHolding]
-    poolPositions: List[WalletPoolPosition]
 
 
 class AgentChatRequest(BaseModel):

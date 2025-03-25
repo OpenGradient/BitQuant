@@ -26,6 +26,7 @@ from api.api_types import (
     AgentMessage,
     Message,
     AgentType,
+    Portfolio,
 )
 from agent.agent_executors import (
     create_investor_executor,
@@ -157,10 +158,13 @@ def create_flask_app() -> Flask:
         if not check_whitelist(agent_request.context.address or ""):
             return jsonify({"error": "Address is not whitelisted"}), 400
 
+        portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
+
         # Use router to select appropriate agent
         response = handle_agent_chat_request(
             protocol_registry=protocol_registry,
             request=agent_request,
+            portfolio=portfolio,
             investor_agent=investor_agent,
             analytics_agent=analytics_agent,
             router_model=router_model,
@@ -188,6 +192,7 @@ def create_flask_app() -> Flask:
 def handle_agent_chat_request(
     protocol_registry: ProtocolRegistry,
     request: AgentChatRequest,
+    portfolio: Portfolio,
     investor_agent: CompiledGraph,
     analytics_agent: CompiledGraph,
     router_model: ChatOpenAI,
@@ -195,10 +200,10 @@ def handle_agent_chat_request(
     # If agent is explicitly specified, bypass router
     if request.agent is not None:
         if request.agent == AgentType.ANALYTICS:
-            return handle_analytics_chat_request(request, analytics_agent)
+            return handle_analytics_chat_request(request, portfolio, analytics_agent)
         elif request.agent == AgentType.INVESTOR:
             return handle_investor_chat_request(
-                request, investor_agent, protocol_registry
+                request, portfolio, investor_agent, protocol_registry
             )
         else:
             raise ValueError(f"Invalid agent type specified: {request.agent}")
@@ -213,23 +218,26 @@ def handle_agent_chat_request(
     selected_agent = router_response.content.strip().lower()
 
     if selected_agent == AgentType.ANALYTICS:
-        return handle_analytics_chat_request(request, analytics_agent)
+        return handle_analytics_chat_request(request, portfolio, analytics_agent)
     elif selected_agent == AgentType.INVESTOR:
-        return handle_investor_chat_request(request, investor_agent, protocol_registry)
+        return handle_investor_chat_request(
+            request, portfolio, investor_agent, protocol_registry
+        )
     else:
         raise ValueError(f"Invalid agent selection from router: {selected_agent}")
 
 
 def handle_investor_chat_request(
     request: AgentChatRequest,
+    portfolio: Portfolio,
     investor_agent: CompiledGraph,
     protocol_registry: ProtocolRegistry,
 ) -> AgentMessage:
     """Handle requests for the investor agent."""
     # Build investor agent system prompt
     investor_system_prompt = get_investor_agent_prompt(
-        tokens=request.context.tokens,
-        poolDeposits=request.context.poolPositions,
+        tokens=portfolio.holdings,
+        poolDeposits=[],
     )
 
     # Prepare message history
@@ -247,8 +255,8 @@ def handle_investor_chat_request(
     # Create config for the agent
     agent_config = RunnableConfig(
         configurable={
-            "tokens": request.context.tokens,
-            "positions": request.context.poolPositions,
+            "tokens": portfolio.holdings,
+            "positions": [],
             "protocol_registry": protocol_registry,
         }
     )
@@ -266,6 +274,7 @@ def handle_investor_chat_request(
 
 def handle_suggestions_request(
     request: AgentChatRequest,
+    portfolio: Portfolio,
     suggestions_agent: CompiledGraph,
 ) -> List[str]:
     # Get tools from agent config and format them
@@ -274,7 +283,7 @@ def handle_suggestions_request(
 
     # Build suggestions agent system prompt
     suggestions_system_prompt = get_suggestions_prompt(
-        tokens=request.context.tokens,
+        tokens=portfolio.holdings,
         tools=tools_list,
     )
 
@@ -292,7 +301,7 @@ def handle_suggestions_request(
     # Create config for the agent
     agent_config = RunnableConfig(
         configurable={
-            "tokens": request.context.tokens,
+            "tokens": portfolio.holdings,
         }
     )
 
@@ -391,14 +400,15 @@ def extract_pools(messages: List[Any]) -> List[Pool]:
 
 def handle_analytics_chat_request(
     request: AgentChatRequest,
+    portfolio: Portfolio,
     agent: CompiledGraph,
 ) -> AgentMessage:
 
     # Build analytics agent system prompt
     analytics_system_prompt = get_analytics_prompt(
         protocol="Save",
-        tokens=request.context.tokens,
-        poolDeposits=request.context.poolPositions,
+        tokens=portfolio.holdings,
+        poolDeposits=[],
     )
 
     # Prepare message history (last 10 messages)
@@ -416,8 +426,8 @@ def handle_analytics_chat_request(
     # Create config for the agent
     agent_config = RunnableConfig(
         configurable={
-            "tokens": request.context.tokens,
-            "positions": request.context.poolPositions,
+            "tokens": portfolio.holdings,
+            "positions": [],
             "available_pools": [],
         }
     )
