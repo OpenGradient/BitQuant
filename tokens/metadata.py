@@ -88,6 +88,7 @@ class TokenMetadataRepo:
             "address": metadata.address,
             "name": metadata.name,
             "symbol": metadata.symbol,
+            "price": metadata.price,
             "not_found": False,
         }
 
