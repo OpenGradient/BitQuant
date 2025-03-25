@@ -7,59 +7,57 @@ defillama = DefiLlamaMetrics()
 
 @tool()
 def show_defi_llama_protocol(protocol_slug: str) -> Dict[str, Any]:
-    """Get details for a DeFi protocol by slug"""
+    """
+    Get details for a DeFi protocol by slug
+    """
     return defillama.get_protocol(protocol_slug)
 
 
 @tool()
 def show_defi_llama_pool(pool_id: str) -> Dict[str, Any]:
-    """Get details for a DeFi pool by ID"""
+    """
+    Get details for a DeFi pool by ID
+    """
     return defillama.get_pool(pool_id)
 
 
 @tool()
 def show_defi_llama_global_tvl() -> Dict[str, Any]:
-    """Get current global TVL across all DeFi protocols"""
+    """
+    Get current global TVL across all DeFi protocols
+    """
     tvl = defillama.get_global_tvl()
     return {"global_tvl": tvl}
 
 
 @tool()
 def show_defi_llama_chain_tvl(chain: str) -> Dict[str, Any]:
-    """Get TVL for a specific blockchain"""
+    """
+    Get TVL for a specific chain
+    """
     tvl = defillama.get_chain_tvl(chain)
     return {"chain": chain, "tvl": tvl}
 
 
 @tool()
 def show_defi_llama_top_pools(chain: str = None, limit: int = 10, min_tvl: float = 500000, max_apy: float = 1000) -> List[Dict[str, Any]]:
-    """Get top DeFi pools ranked by APY with TVL filters
-    
-    Args:
-        chain: Filter by blockchain (e.g., Solana, Ethereum)
-        limit: Maximum pools to return (default: 10)
-        min_tvl: Minimum TVL in USD (default: 500k)
-        max_apy: Maximum APY percentage (default: 1000%)
+    """
+    Get top DeFi pools ranked by APY with TVL filters
     """
     return defillama.get_top_pools(chain, limit, min_tvl, max_apy)
 
 
 @tool()
-def show_defi_llama_historical_global_tvl(num_months: int = 3) -> Dict[str, Any]:
-    """Get historical TVL data for all DeFi protocols
-    
-    Args:
-        num_months: Number of months of history (default: 3)
+def show_defi_llama_historical_global_tvl(num_months: int = 12) -> Dict[str, Any]:
+    """
+    Get historical TVL data for all DeFi protocols
     """
     return defillama.get_historical_global_tvl(num_months)
 
 
 @tool()
-def show_defi_llama_historical_chain_tvl(chain: str, num_months: int = 3) -> Dict[str, Any]:
-    """Get historical TVL data for a specific blockchain
-    
-    Args:
-        chain: Target blockchain name
-        num_months: Number of months of history (default: 3)
+def show_defi_llama_historical_chain_tvl(chain: str, num_months: int = 12) -> Dict[str, Any]:
+    """
+    Get historical TVL data for a specific blockchain
     """
     return defillama.get_historical_chain_tvl(chain, num_months)
