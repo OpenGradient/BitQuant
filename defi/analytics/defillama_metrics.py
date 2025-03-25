@@ -14,15 +14,9 @@ class DefiLlamaMetrics:
 
     @lru_cache(maxsize=1)
     def get_protocols(self) -> List[Dict[str, Any]]:
-        """Retrieve all DeFi protocols from DefiLlama with caching.
-
-        Returns:
-            List[Dict[str, Any]]: A list of dictionaries containing essential protocol information,
-            limited to the top 50 protocols by TVL.
-        """
+        """Get all DeFi protocols from DefiLlama, limited to top 50 by TVL"""
         protocols_data = self.llama.get_all_protocols()
 
-        # Filter down to just essential information
         simplified_data = []
         for protocol in protocols_data:
             simplified_data.append(
@@ -35,35 +29,21 @@ class DefiLlamaMetrics:
                 }
             )
 
-        # Ensure no None TVL values before sorting
         for protocol in simplified_data:
             if protocol.get("tvl") is None:
                 protocol["tvl"] = 0
 
-        # Now safe to sort
         simplified_data.sort(key=lambda x: x.get("tvl", 0), reverse=True)
-
-        # Return only top 50 protocols to prevent data overload
         return simplified_data[:50]
 
     def get_protocol(self, protocol_slug: str) -> Dict[str, Any]:
-        """Get detailed information for a specific protocol identified by its slug.
-
-        Args:
-            protocol_slug (str): The slug of the protocol.
-
-        Returns:
-            Dict[str, Any]: A dictionary containing the protocol's details including TVL, description,
-            chain, category, and audit info if available.
-        """
+        """Get protocol details by slug"""
         protocol_data = self.llama.get_protocol(protocol_slug)
 
-        # If no data returned, get basic TVL info
         if not protocol_data:
             protocol_tvl = self.llama.get_protocol_current_tvl(protocol_slug)
             return {"name": protocol_slug, "tvl": protocol_tvl.get("tvl", 0)}
 
-        # Extract and format TVL data
         if protocol_data and "tvl" in protocol_data:
             if isinstance(protocol_data["tvl"], list):
                 last_entry = protocol_data["tvl"][-1] if protocol_data["tvl"] else 0
@@ -89,7 +69,6 @@ class DefiLlamaMetrics:
                     else:
                         protocol_data["tvl"] = 0
 
-        # Create response with only essential data
         parsed_protocol_data = {
             "name": protocol_data.get("name", protocol_slug),
             "slug": protocol_data.get("slug", protocol_slug),
@@ -99,10 +78,9 @@ class DefiLlamaMetrics:
             "category": protocol_data.get("category", "Other"),
             "url": protocol_data.get("url", ""),
             "twitter": protocol_data.get("twitter", ""),
-            "chains": protocol_data.get("chains", [])[:10],  # Limit chains to 10
+            "chains": protocol_data.get("chains", [])[:10],
         }
 
-        # If there's audit data, include a simplified version
         if "audit_links" in protocol_data and isinstance(
             protocol_data["audit_links"], list
         ):
@@ -111,62 +89,34 @@ class DefiLlamaMetrics:
         return parsed_protocol_data
 
     def get_global_tvl(self) -> float:
-        """Calculate the current global Total Value Locked (TVL) across all DeFi protocols.
-
-        Returns:
-            float: The global TVL as a float.
-        """
+        """Get global TVL across all DeFi protocols"""
         chains_tvl = self.llama.get_chains_current_tvl()
-
-        # Calculate the total TVL across all chains
         total_tvl = sum(float(chain_data.get("tvl", 0)) for chain_data in chains_tvl)
-
         return total_tvl
 
     def get_chain_tvl(self, chain: str) -> float:
-        """Retrieve the TVL for a specific blockchain.
-
-        Args:
-            chain (str): The target blockchain name.
-
-        Returns:
-            float: The TVL for the specified chain. Returns 0 if the chain is not found.
-        """
+        """Get TVL for a specific blockchain"""
         chains_tvl = self.llama.get_chains_current_tvl()
 
-        # Find the specific chain we're looking for
         for chain_data in chains_tvl:
             if chain_data.get("name", "").lower() == chain.lower():
                 return float(chain_data.get("tvl", 0))
 
-        # If chain not found, return 0
         return 0
 
     def get_top_pools(self, chain: str = None, limit: int = 10, min_tvl: float = 500000, max_apy: float = 1000) -> List[Dict[str, Any]]:
-        """Obtain the top DeFi pools ranked by Annual Percentage Yield (APY) with configurable TVL threshold.
-
-        Args:
-            chain (str, optional): The target blockchain name. If None, returns pools from all chains.
-            limit (int, optional): Maximum number of pools to return. Defaults to 10.
-            min_tvl (float, optional): Minimum TVL threshold in USD. Defaults to 500000 ($500k).
-            max_apy (float, optional): Maximum APY threshold in percentage. Defaults to 1000 (1000%).
-
-        Returns:
-            List[Dict[str, Any]]: A list of dictionaries with details for each pool.
-        """
+        """Get top DeFi pools ranked by APY with filters"""
         pools_data = self.llama.get_pools()
         if isinstance(pools_data, dict) and "data" in pools_data:
             all_pools = pools_data["data"]
             
-            # Filter by minimum TVL and maximum APY
             filtered_pools = [
                 pool for pool in all_pools
-                if float(pool.get("tvlUsd", 0)) >= min_tvl  # Configurable minimum TVL
-                and float(pool.get("apy", 0)) <= max_apy  # Maximum APY cap
+                if float(pool.get("tvlUsd", 0)) >= min_tvl
+                and float(pool.get("apy", 0)) <= max_apy
                 and (not chain or pool.get("chain", "").lower() == chain.lower())
             ]
             
-            # Sort by APY (highest first)
             sorted_pools = sorted(
                 filtered_pools, 
                 key=lambda x: float(x.get("apy", 0)), 
@@ -177,15 +127,7 @@ class DefiLlamaMetrics:
         return []
 
     def get_pool(self, pool_id: str) -> Dict[str, Any]:
-        """Fetch a specific DeFi pool's historical data using its unique identifier.
-
-        Args:
-            pool_id (str): The unique identifier for the pool.
-
-        Returns:
-            Dict[str, Any]: A dictionary containing the pool's historical data if found;
-            otherwise, a dictionary with an error message.
-        """
+        """Get pool data by ID"""
         try:
             chart_data = self.llama.get_pool(pool_id)
 
@@ -211,90 +153,52 @@ class DefiLlamaMetrics:
             }
 
     def get_historical_global_tvl(self, num_months: int = 3) -> Dict[str, Any]:
-        """Get historical TVL data for all DeFi protocols across all chains.
-        
-        Args:
-            num_months (int, optional): Number of months of history to return. Defaults to 3.
-            
-        Returns:
-            Dict[str, Any]: A dictionary containing processed historical TVL data points.
-        """
-        # Get raw historical TVL data
+        """Get historical TVL data for all protocols"""
         historical_data = self.llama.get_historical_tvl()
-        
-        # Process the data with the specified number of months
         return self._process_historical_data(historical_data, num_months)
 
     def get_historical_chain_tvl(self, chain: str, num_months: int = 3) -> Dict[str, Any]:
-        """Get historical TVL data for a specific blockchain.
-        
-        Args:
-            chain (str): The target blockchain name.
-            num_months (int, optional): Number of months of history to return. Defaults to 3.
-            
-        Returns:
-            Dict[str, Any]: A dictionary containing processed historical TVL data for the chain.
-        """
-        # Get historical TVL data for the specified chain
+        """Get historical TVL data for a specific blockchain"""
         historical_data = self.llama.get_historical_tvl_chain(chain)
-        
-        # Process the data with the specified number of months
         return self._process_historical_data(historical_data, num_months)
 
     def _process_historical_data(self, historical_data: List[Dict[str, Any]], 
                                 num_months: int = 3) -> Dict[str, Any]:
-        """Process historical data with number of months filtering.
-        
-        Args:
-            historical_data (List[Dict[str, Any]]): Raw historical data from DefiLlama API.
-            num_months (int, optional): Number of months to include. Defaults to 3.
-            
-        Returns:
-            Dict[str, Any]: Processed historical data with formatted dates and TVL values.
-        """
+        """Process historical data with month filtering"""
         from datetime import datetime, timedelta
         
-        # Calculate cutoff timestamp based on number of months
         end_dt = datetime.now()
         start_dt = end_dt - timedelta(days=30 * num_months)
         cutoff_start_timestamp = int(start_dt.timestamp())
         cutoff_end_timestamp = int(end_dt.timestamp())
         
-        # Initialize the processed data structure
         processed_data = {
             "timeframe": f"last {num_months} months",
             "summary": {},
             "data_points": []
         }
         
-        # Process each data point
         all_tvl_values = []
         
         for entry in historical_data:
-            # Handle different formats that might come from the API
             timestamp = entry.get('date') or entry.get('timestamp')
             tvl = entry.get('tvl') or entry.get('totalLiquidityUSD')
             
             if timestamp is not None and tvl is not None:
-                # Convert timestamp to int if it's a string
                 if isinstance(timestamp, str):
                     timestamp = int(timestamp)
                     
-                # Apply date filter
                 if timestamp >= cutoff_start_timestamp and timestamp <= cutoff_end_timestamp:
-                    # Convert epoch timestamp to human-readable date
                     date_str = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
                     
-                    # Format TVL value (convert to billions if large enough)
                     formatted_tvl = tvl
-                    if tvl >= 1_000_000_000:  # If TVL is in billions
+                    if tvl >= 1_000_000_000:
                         formatted_tvl = f"${tvl / 1_000_000_000:.2f}B"
-                    elif tvl >= 1_000_000:  # If TVL is in millions
+                    elif tvl >= 1_000_000:
                         formatted_tvl = f"${tvl / 1_000_000:.2f}M"
                     else:
                         formatted_tvl = f"${tvl:,.2f}"
                     
-                    # Add to data points
                     processed_data["data_points"].append({
                         "date": date_str,
                         "timestamp": timestamp,
@@ -304,10 +208,8 @@ class DefiLlamaMetrics:
                     
                     all_tvl_values.append(tvl)
         
-        # Sort by date ascending
         processed_data["data_points"].sort(key=lambda x: x['timestamp'])
         
-        # Calculate summary statistics
         if all_tvl_values:
             processed_data["summary"] = {
                 "current_tvl": processed_data["data_points"][-1]["formatted_tvl"] if processed_data["data_points"] else "N/A",
