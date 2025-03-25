@@ -7,6 +7,7 @@ from tokens.metadata import TokenMetadataRepo
 
 dotenv.load_dotenv()
 
+
 class TestMetadata(unittest.TestCase):
     def test_get_token_metadata(self):
         dynamodb = boto3.resource(
@@ -18,6 +19,8 @@ class TestMetadata(unittest.TestCase):
         tokens_table = dynamodb.Table("sol_token_metadata")
 
         repo = TokenMetadataRepo(tokens_table)
-        metadata = repo.get_token_metadata("9Rhbn9G5poLvgnFzuYBtJgbzmiipNra35QpnUek9virt")
+        metadata = repo.get_token_metadata(
+            "9Rhbn9G5poLvgnFzuYBtJgbzmiipNra35QpnUek9virt"
+        )
 
         print(metadata)

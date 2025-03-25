@@ -5,6 +5,7 @@ from typing import Optional
 import logging
 import botocore
 from cachetools import TTLCache, LRUCache
+from ratelimit import limits, sleep_and_retry
 
 
 @dataclass
@@ -21,6 +22,9 @@ class TokenMetadataRepo:
 
     NOT_FOUND_CACHE_TTL = 3600 * 24  # 24 hours in seconds
     METADATA_CACHE_SIZE = 10000  # Maximum number of metadata entries to cache
+
+    DEXSCREENER_CALLS_PER_MINUTE = 200
+    DEXSCREENER_PERIOD = 60
 
     def __init__(self, tokens_table):
         self._tokens_table = tokens_table
@@ -103,10 +107,12 @@ class TokenMetadataRepo:
         item = {"address": token_address, "not_found": True}
         self._tokens_table.put_item(Item=item)
 
+    @sleep_and_retry
+    @limits(calls=DEXSCREENER_CALLS_PER_MINUTE, period=DEXSCREENER_PERIOD)
     def fetch_metadata_from_dexscreener(
         self, token_address: str
     ) -> Optional[TokenMetadata]:
-        """Fetch token metadata from DexScreener API."""
+        """Fetch token metadata from DexScreener API with rate limiting."""
         try:
             response = requests.get(self.DEXSCREENER_API_URL % token_address)
             if response.status_code != 200:

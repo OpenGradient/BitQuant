@@ -76,12 +76,16 @@ class PortfolioFetcher:
 
     def _get_sol_holding(self, wallet_address: str) -> Optional[WalletTokenHolding]:
         """Get the native SOL holding for a wallet address if any exists."""
-        sol_balance = self.http_client.get_balance(Pubkey.from_string(wallet_address)).value
+        sol_balance = self.http_client.get_balance(
+            Pubkey.from_string(wallet_address)
+        ).value
         if sol_balance == 0:
             return None
 
         sol_amount = sol_balance / 1e9  # Convert lamports to SOL
-        sol_metadata = self.token_metadata_repo.get_token_metadata(PortfolioFetcher.SOL_MINT)
+        sol_metadata = self.token_metadata_repo.get_token_metadata(
+            PortfolioFetcher.SOL_MINT
+        )
         if sol_metadata and sol_metadata.price:
             sol_value_usd = float(sol_amount) * float(sol_metadata.price)
         else:
@@ -92,7 +96,7 @@ class PortfolioFetcher:
             amount=sol_amount,
             symbol="SOL",
             name="Solana",
-            total_value_usd=sol_value_usd
+            total_value_usd=sol_value_usd,
         )
 
     def get_token_accounts(
