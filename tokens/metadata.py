@@ -1,8 +1,9 @@
 from dataclasses import dataclass
+import botocore.exceptions
 import requests
 from typing import Optional
 import logging
-import json
+import botocore
 
 
 @dataclass
@@ -49,9 +50,11 @@ class TokenMetadataRepo:
                 symbol=item["symbol"],
                 image_url=item.get("image_url"),
             )
-        except Exception as e:
-            logging.error(f"Error retrieving token metadata from DynamoDB: {e}")
-            return None
+        except botocore.exceptions.ClientError as error:
+            if error.response['Error']['Code'] == 'ResourceNotFoundException':
+                return None
+            logging.error(f"Error retrieving token metadata from DynamoDB: {error}")
+            raise error
 
     def _store_in_dynamodb(self, metadata: TokenMetadata) -> None:
         """Store token metadata in DynamoDB."""
@@ -66,9 +69,11 @@ class TokenMetadataRepo:
                 item["image_url"] = metadata.image_url
 
             self._tokens_table.put_item(Item=item)
-        except Exception as e:
-            logging.error(f"Error storing token metadata in DynamoDB: {e}")
-            raise e
+        except botocore.exceptions.ClientError as error:
+            if error.response['Error']['Code'] == 'LimitExceededException':
+                logging.error(f"Limit exceeded for token metadata in DynamoDB: {error}")
+            else:
+                raise error
 
     def fetch_metadata_from_dexscreener(self, token_address: str) -> Optional[TokenMetadata]:
         """Fetch token metadata from DexScreener API."""
