@@ -30,6 +30,10 @@ class PortfolioFetcher:
             address = account_data["mint"]
             amount = account_data["tokenAmount"]["uiAmount"]
 
+            # Ignore zero-balance token accounts
+            if amount == 0:
+                continue
+
             # Get token metadata
             metadata = self.token_metadata_repo.get_token_metadata(address)
             if metadata is None:
