@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 import os
 
 from solana.rpc.api import Client
@@ -21,9 +21,14 @@ class PortfolioFetcher:
     def get_portfolio(self, wallet_address: str) -> Portfolio:
         """Get the complete portfolio of token holdings for a wallet address."""
         token_accounts = self.get_token_accounts(wallet_address)
-
         holdings: List[WalletTokenHolding] = []
 
+        # Get native SOL holding if any
+        sol_holding = self._get_sol_holding(wallet_address)
+        if sol_holding:
+            holdings.append(sol_holding)
+
+        # Process token accounts
         for account in token_accounts:
             account_data = account.account.data.parsed["info"]
 
@@ -57,6 +62,27 @@ class PortfolioFetcher:
 
         portfolio_value = sum(holding.total_value_usd or 0 for holding in holdings)
         return Portfolio(holdings=holdings, total_value_usd=portfolio_value)
+
+    def _get_sol_holding(self, wallet_address: str) -> Optional[WalletTokenHolding]:
+        """Get the native SOL holding for a wallet address if any exists."""
+        sol_balance = self.http_client.get_balance(Pubkey.from_string(wallet_address)).value
+        if sol_balance == 0:
+            return None
+
+        sol_amount = sol_balance / 1e9  # Convert lamports to SOL
+        sol_metadata = self.token_metadata_repo.get_token_metadata(TokenMetadataRepo.SOL_MINT)
+        if sol_metadata and sol_metadata.price:
+            sol_value_usd = float(sol_amount) * float(sol_metadata.price)
+        else:
+            sol_value_usd = None
+
+        return WalletTokenHolding(
+            address=TokenMetadataRepo.SOL_MINT,
+            amount=sol_amount,
+            symbol="SOL",
+            name="Solana",
+            total_value_usd=sol_value_usd
+        )
 
     def get_token_accounts(
         self, wallet_address: str
