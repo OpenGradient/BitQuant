@@ -68,8 +68,6 @@ class TokenMetadataRepo:
             item["image_url"] = metadata.image_url
 
         self._tokens_table.put_item(Item=item)
-        logging.info(f"Stored token metadata in DynamoDB: {metadata.address}")
-
 
     def fetch_metadata_from_dexscreener(self, token_address: str) -> Optional[TokenMetadata]:
         """Fetch token metadata from DexScreener API."""
