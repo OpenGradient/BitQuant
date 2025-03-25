@@ -4,6 +4,7 @@ import requests
 from typing import Optional
 import logging
 import botocore
+from cachetools import TTLCache, LRUCache
 
 
 @dataclass
@@ -17,27 +18,37 @@ class TokenMetadata:
 class TokenMetadataRepo:
     DEXSCREENER_API_URL = "https://api.dexscreener.com/tokens/v1/solana/%s"
 
+    NOT_FOUND_CACHE_TTL = 3600 * 24  # 24 hours in seconds
+    METADATA_CACHE_SIZE = 10000  # Maximum number of metadata entries to cache
+
     def __init__(self, tokens_table):
         self._tokens_table = tokens_table
-        self._not_found_cache = set()
+        self._not_found_cache = TTLCache(maxsize=100_000, ttl=self.NOT_FOUND_CACHE_TTL)
+        self._metadata_cache = LRUCache(maxsize=self.METADATA_CACHE_SIZE)
 
     def get_token_metadata(self, token_address: str) -> Optional[TokenMetadata]:
         # Check local not found cache first
         if token_address in self._not_found_cache:
             return None
 
+        # Check metadata cache
+        if token_address in self._metadata_cache:
+            return self._metadata_cache[token_address]
+
         # Try to get from DynamoDB first
         metadata = self._get_from_dynamodb(token_address)
-        if metadata is not None:  # Explicitly check for None since metadata could be False
+        if metadata is not None:  
+            self._metadata_cache[token_address] = metadata
             return metadata
 
         # If not in DynamoDB, fetch from DexScreener
         metadata = self.fetch_metadata_from_dexscreener(token_address)
         if metadata:
             self._store_metadata(metadata)
+            self._metadata_cache[token_address] = metadata
         else:
             self._store_not_found(token_address)
-            self._not_found_cache.add(token_address)
+            self._not_found_cache[token_address] = True
 
         return metadata
 
@@ -55,15 +66,16 @@ class TokenMetadataRepo:
             
             # Check if this is a "not found" marker
             if item.get("not_found", False):
-                self._not_found_cache.add(token_address)
+                self._not_found_cache[token_address] = True
                 return None
 
-            return TokenMetadata(
+            metadata = TokenMetadata(
                 address=item["address"],
                 name=item["name"],
                 symbol=item["symbol"],
                 image_url=item.get("image_url"),
             )
+            return metadata
         except botocore.exceptions.ClientError as error:
             if error.response['Error']['Code'] == 'ResourceNotFoundException':
                 return None
