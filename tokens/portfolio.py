@@ -48,7 +48,7 @@ class PortfolioFetcher:
                 continue
 
             if metadata.price:
-                total_value_usd = (float(amount) * float(metadata.price),)
+                total_value_usd = float(amount) * float(metadata.price)
             else:
                 total_value_usd = None
 
