@@ -8,6 +8,8 @@ from defi.analytics.defillama_tools import (
     show_defi_llama_global_tvl,
     show_defi_llama_chain_tvl,
     show_defi_llama_top_pools,
+    show_defi_llama_historical_global_tvl,
+    show_defi_llama_historical_chain_tvl,
 )
 from api.api_types import Pool, WalletTokenHolding, Chain, PoolQuery
 from defi.analytics.analytics_tools import (
@@ -54,6 +56,8 @@ def create_analytics_agent_toolkit() -> List[BaseTool]:
         show_defi_llama_protocol,
         show_defi_llama_global_tvl,
         show_defi_llama_chain_tvl,
+        show_defi_llama_historical_global_tvl,
+        show_defi_llama_historical_chain_tvl,
         show_defi_llama_top_pools,
         analyze_price_trend,
         compare_assets,
