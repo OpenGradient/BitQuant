@@ -63,9 +63,9 @@ def create_flask_app() -> Flask:
     dynamodb = boto3.resource('dynamodb',
         region_name=os.environ.get('AWS_REGION'),
         aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
-        aws_secret_access_key=os.environ.get('AWS_SECRET_KEY')
+        aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY')
     )
-    tokens_table = dynamodb.Table('sol_token_info')
+    tokens_table = dynamodb.Table('sol_token_metadata')
 
     # Initialize agents
     suggestions_agent = create_suggestions_executor()
