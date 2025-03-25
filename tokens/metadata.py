@@ -19,17 +19,25 @@ class TokenMetadataRepo:
 
     def __init__(self, tokens_table):
         self._tokens_table = tokens_table
+        self._not_found_cache = set()
 
     def get_token_metadata(self, token_address: str) -> Optional[TokenMetadata]:
+        # Check local not found cache first
+        if token_address in self._not_found_cache:
+            return None
+
         # Try to get from DynamoDB first
         metadata = self._get_from_dynamodb(token_address)
-        if metadata:
+        if metadata is not None:  # Explicitly check for None since metadata could be False
             return metadata
 
         # If not in DynamoDB, fetch from DexScreener
         metadata = self.fetch_metadata_from_dexscreener(token_address)
         if metadata:
-            self._store_in_dynamodb(metadata)
+            self._store_metadata(metadata)
+        else:
+            self._store_not_found(token_address)
+            self._not_found_cache.add(token_address)
 
         return metadata
 
@@ -44,6 +52,12 @@ class TokenMetadataRepo:
                 return None
 
             item = response["Item"]
+            
+            # Check if this is a "not found" marker
+            if item.get("not_found", False):
+                self._not_found_cache.add(token_address)
+                return None
+
             return TokenMetadata(
                 address=item["address"],
                 name=item["name"],
@@ -56,17 +70,26 @@ class TokenMetadataRepo:
             logging.error(f"Error retrieving token metadata from DynamoDB: {error}")
             raise error
 
-    def _store_in_dynamodb(self, metadata: TokenMetadata) -> None:
+    def _store_metadata(self, metadata: TokenMetadata) -> None:
         """Store token metadata in DynamoDB."""
         item = {
             "address": metadata.address,
             "name": metadata.name,
             "symbol": metadata.symbol,
+            "not_found": False
         }
         
         if metadata.image_url:
             item["image_url"] = metadata.image_url
 
+        self._tokens_table.put_item(Item=item)
+
+    def _store_not_found(self, token_address: str) -> None:
+        """Store a marker indicating that token metadata was not found."""
+        item = {
+            "address": token_address,
+            "not_found": True
+        }
         self._tokens_table.put_item(Item=item)
 
     def fetch_metadata_from_dexscreener(self, token_address: str) -> Optional[TokenMetadata]:

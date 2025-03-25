@@ -23,6 +23,7 @@ class PortfolioFetcher:
         holdings = []
 
         for account in token_accounts:
+            print(f"Processing account: {account}")
             account_data = account.account.data.parsed["info"]
 
             address = account_data["mint"]
