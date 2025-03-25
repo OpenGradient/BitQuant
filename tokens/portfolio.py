@@ -13,6 +13,7 @@ class PortfolioFetcher:
     # Solana mainnet RPC endpoint
     RPC_URL = os.environ.get("SOLANA_RPC_URL")
     TOKEN_PROGRAM_ID = Pubkey.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
+    SOL_MINT = "So11111111111111111111111111111111111111112"
 
     def __init__(self, token_metadata_repo: TokenMetadataRepo):
         self.token_metadata_repo = token_metadata_repo
@@ -70,14 +71,14 @@ class PortfolioFetcher:
             return None
 
         sol_amount = sol_balance / 1e9  # Convert lamports to SOL
-        sol_metadata = self.token_metadata_repo.get_token_metadata(TokenMetadataRepo.SOL_MINT)
+        sol_metadata = self.token_metadata_repo.get_token_metadata(PortfolioFetcher.SOL_MINT)
         if sol_metadata and sol_metadata.price:
             sol_value_usd = float(sol_amount) * float(sol_metadata.price)
         else:
             sol_value_usd = None
 
         return WalletTokenHolding(
-            address=TokenMetadataRepo.SOL_MINT,
+            address=PortfolioFetcher.SOL_MINT,
             amount=sol_amount,
             symbol="SOL",
             name="Solana",
