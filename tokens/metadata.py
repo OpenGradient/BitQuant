@@ -88,10 +88,11 @@ class TokenMetadataRepo:
             "address": metadata.address,
             "name": metadata.name,
             "symbol": metadata.symbol,
-            "price": metadata.price,
             "not_found": False,
         }
 
+        if metadata.price:
+            item["price"] = metadata.price
         if metadata.image_url:
             item["image_url"] = metadata.image_url
 
