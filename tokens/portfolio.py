@@ -67,14 +67,6 @@ class PortfolioFetcher:
             )
             holdings.append(holding)
 
-        # If there are more than 10 holdings, filter out the ones with very low value
-        if len(holdings) > 10:
-            holdings = [
-                holding
-                for holding in holdings
-                if holding.total_value_usd is not None and holding.total_value_usd > MIN_TOKEN_HOLDING_VALUE_USD
-            ]
-
         portfolio_value = sum(holding.total_value_usd or 0 for holding in holdings)
         return Portfolio(holdings=holdings, total_value_usd=portfolio_value)
 
