@@ -6,10 +6,11 @@ from tokens.portfolio import PortfolioFetcher
 from tokens.metadata import TokenMetadataRepo
 import dotenv
 
+dotenv.load_dotenv()
+
 
 class TestPortfolio(unittest.TestCase):
     def test_get_portfolio(self):
-        dotenv.load_dotenv()
         dynamodb = boto3.resource(
             "dynamodb",
             region_name=os.environ.get("AWS_REGION"),

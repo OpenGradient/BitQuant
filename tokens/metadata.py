@@ -6,6 +6,7 @@ import logging
 import botocore
 from cachetools import TTLCache, LRUCache
 from ratelimit import limits, sleep_and_retry
+from ratelimit.exception import RateLimitException
 
 
 @dataclass
@@ -113,26 +114,27 @@ class TokenMetadataRepo:
         self, token_address: str
     ) -> Optional[TokenMetadata]:
         """Fetch token metadata from DexScreener API with rate limiting."""
-        try:
-            response = requests.get(self.DEXSCREENER_API_URL % token_address)
-            if response.status_code != 200:
+        response = requests.get(self.DEXSCREENER_API_URL % token_address)
+        if response.status_code != 200:
+            if response.status_code == 429:
+                raise RateLimitException(
+                    f"Rate limit exceeded: {response.status_code} {response.text}", 60
+                )
+            else:
                 logging.error(
                     f"Failed to fetch metadata from dexscreener: {response.status_code} {response.text}"
                 )
                 return None
 
-            metadata = response.json()
-            if len(metadata) == 0:
-                return None
-
-            metadata = metadata[0]
-            return TokenMetadata(
-                address=metadata["baseToken"]["address"],
-                name=metadata["baseToken"]["name"],
-                symbol=metadata["baseToken"]["symbol"],
-                image_url=metadata["info"]["imageUrl"] if "info" in metadata else None,
-                price=metadata["priceUsd"],
-            )
-        except Exception as e:
-            logging.error(f"Error fetching metadata from DexScreener: {e}")
+        metadata = response.json()
+        if len(metadata) == 0:
             return None
+
+        metadata = metadata[0]
+        return TokenMetadata(
+            address=metadata["baseToken"]["address"],
+            name=metadata["baseToken"]["name"],
+            symbol=metadata["baseToken"]["symbol"],
+            image_url=metadata["info"]["imageUrl"] if "info" in metadata else None,
+            price=metadata["priceUsd"],
+        )
