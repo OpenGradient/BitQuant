@@ -58,22 +58,17 @@ class TokenMetadataRepo:
 
     def _store_in_dynamodb(self, metadata: TokenMetadata) -> None:
         """Store token metadata in DynamoDB."""
-        try:
-            item = {
-                "address": metadata.address,
-                "name": metadata.name,
-                "symbol": metadata.symbol,
-            }
-            
-            if metadata.image_url:
-                item["image_url"] = metadata.image_url
+        item = {
+            "address": metadata.address,
+            "name": metadata.name,
+            "symbol": metadata.symbol,
+        }
+        
+        if metadata.image_url:
+            item["image_url"] = metadata.image_url
 
-            self._tokens_table.put_item(Item=item)
-        except botocore.exceptions.ClientError as error:
-            if error.response['Error']['Code'] == 'LimitExceededException':
-                logging.error(f"Limit exceeded for token metadata in DynamoDB: {error}")
-            else:
-                raise error
+        self._tokens_table.put_item(Item=item)
+
 
     def fetch_metadata_from_dexscreener(self, token_address: str) -> Optional[TokenMetadata]:
         """Fetch token metadata from DexScreener API."""
