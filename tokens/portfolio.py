@@ -12,8 +12,8 @@ class PortfolioFetcher:
     RPC_URL = "https://api.mainnet-beta.solana.com"
     TOKEN_PROGRAM_ID = Pubkey.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
 
-    def __init__(self):
-        self.token_metadata_repo = TokenMetadataRepo()
+    def __init__(self, token_metadata_repo: TokenMetadataRepo):
+        self.token_metadata_repo = token_metadata_repo
         self.http_client = Client(self.RPC_URL)
 
     def get_portfolio(self, wallet_address: str) -> List[WalletTokenHolding]:
@@ -39,7 +39,6 @@ class PortfolioFetcher:
                 amount=amount,
                 symbol=metadata.symbol,
                 name=metadata.name,
-                total_value_usd=float(amount) * float(metadata.price_usd),
                 image_url=metadata.image_url
             )
             holdings.append(holding)

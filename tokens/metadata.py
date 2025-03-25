@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 import requests
-from cachetools import TTLCache
 from typing import Optional
+import logging
+import json
 
 
 @dataclass
@@ -10,40 +11,84 @@ class TokenMetadata:
     name: str
     symbol: str
     image_url: Optional[str]
-    price_usd: float
+
 
 class TokenMetadataRepo:
-
     DEXSCREENER_API_URL = "https://api.dexscreener.com/tokens/v1/solana/%s"
-    CACHE_TTL = 3600  # 1 hour in seconds
 
-    def __init__(self):
-        self._cache = TTLCache(maxsize=100_000, ttl=self.CACHE_TTL)
+    def __init__(self, tokens_table):
+        self._tokens_table = tokens_table
 
     def get_token_metadata(self, token_address: str) -> Optional[TokenMetadata]:
-        # Check cache first
-        if token_address in self._cache:
-            return self._cache[token_address]
-        
+        # Try to get from DynamoDB first
+        metadata = self._get_from_dynamodb(token_address)
+        if metadata:
+            return metadata
+
+        # If not in DynamoDB, fetch from DexScreener
         metadata = self.fetch_metadata_from_dexscreener(token_address)
-        self._cache[token_address] = metadata
+        if metadata:
+            self._store_in_dynamodb(metadata)
 
         return metadata
 
-    def fetch_metadata_from_dexscreener(self, token_address: str) -> Optional[TokenMetadata]:
-        response = requests.get(self.DEXSCREENER_API_URL % token_address)
-        if response.status_code != 200:
-            raise Exception(f"Failed to fetch metadata from dexscreener: {response.status_code} {response.text}")
+    def _get_from_dynamodb(self, token_address: str) -> Optional[TokenMetadata]:
+        """Retrieve token metadata from DynamoDB."""
+        try:
+            response = self._tokens_table.get_item(
+                Key={"address": token_address}
+            )
+            
+            if "Item" not in response:
+                return None
 
-        metadata = response.json()
-        if len(metadata) == 0:
+            item = response["Item"]
+            return TokenMetadata(
+                address=item["address"],
+                name=item["name"],
+                symbol=item["symbol"],
+                image_url=item.get("image_url"),
+            )
+        except Exception as e:
+            logging.error(f"Error retrieving token metadata from DynamoDB: {e}")
             return None
 
-        metadata = metadata[0]
-        return TokenMetadata(
-            address=metadata["baseToken"]["address"],
-            name=metadata["baseToken"]["name"],
-            symbol=metadata["baseToken"]["symbol"],
-            image_url=metadata["info"]["imageUrl"] if "info" in metadata else None,
-            price_usd=metadata["priceUsd"],
-        )
+    def _store_in_dynamodb(self, metadata: TokenMetadata) -> None:
+        """Store token metadata in DynamoDB."""
+        try:
+            item = {
+                "address": metadata.address,
+                "name": metadata.name,
+                "symbol": metadata.symbol,
+            }
+            
+            if metadata.image_url:
+                item["image_url"] = metadata.image_url
+
+            self._tokens_table.put_item(Item=item)
+        except Exception as e:
+            logging.error(f"Error storing token metadata in DynamoDB: {e}")
+            raise e
+
+    def fetch_metadata_from_dexscreener(self, token_address: str) -> Optional[TokenMetadata]:
+        """Fetch token metadata from DexScreener API."""
+        try:
+            response = requests.get(self.DEXSCREENER_API_URL % token_address)
+            if response.status_code != 200:
+                logging.error(f"Failed to fetch metadata from dexscreener: {response.status_code} {response.text}")
+                return None
+
+            metadata = response.json()
+            if len(metadata) == 0:
+                return None
+
+            metadata = metadata[0]
+            return TokenMetadata(
+                address=metadata["baseToken"]["address"],
+                name=metadata["baseToken"]["name"],
+                symbol=metadata["baseToken"]["symbol"],
+                image_url=metadata["info"]["imageUrl"] if "info" in metadata else None,
+            )
+        except Exception as e:
+            logging.error(f"Error fetching metadata from DexScreener: {e}")
+            return None

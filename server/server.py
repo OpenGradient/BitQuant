@@ -1,5 +1,8 @@
 from typing import List, Any, Tuple, Dict
 import os
+import boto3.dynamodb
+import boto3.dynamodb.table
+import boto3.dynamodb.types
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from pydantic import ValidationError
@@ -7,11 +10,14 @@ from langgraph.graph.graph import CompiledGraph, RunnableConfig
 import json
 import logging
 import traceback
+import boto3
 
+import boto3.data
 from defi.pools.protocol import ProtocolRegistry
 from defi.pools.solana.orca_protocol import OrcaProtocol
 from defi.pools.solana.save_protocol import SaveProtocol
 from defi.pools.solana.kamino_protocol import KaminoProtocol
+from tokens.metadata import TokenMetadataRepo
 
 from api.api_types import (
     AgentChatRequest,
@@ -53,6 +59,14 @@ def create_flask_app() -> Flask:
     app.config["PROPAGATE_EXCEPTIONS"] = True
     CORS(app)
 
+    # Initialize DynamoDB 
+    dynamodb = boto3.resource('dynamodb',
+        region_name=os.environ.get('AWS_REGION'),
+        aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+        aws_secret_access_key=os.environ.get('AWS_SECRET_KEY')
+    )
+    tokens_table = dynamodb.Table('sol_token_info')
+
     # Initialize agents
     suggestions_agent = create_suggestions_executor()
     analytics_agent = create_analytics_executor()
@@ -66,6 +80,8 @@ def create_flask_app() -> Flask:
     protocol_registry.register_protocol(SaveProtocol())
     protocol_registry.register_protocol(KaminoProtocol())
     protocol_registry.initialize()
+
+    token_metadata_repo = TokenMetadataRepo(tokens_table)
 
     # Load tokenlist
     tokenlist_path = os.path.join(STATIC_DIR, "tokenlist.json")
