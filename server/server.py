@@ -85,11 +85,6 @@ def create_flask_app() -> Flask:
     token_metadata_repo = TokenMetadataRepo(tokens_table)
     portfolio_fetcher = PortfolioFetcher(token_metadata_repo)
 
-    # Load tokenlist
-    tokenlist_path = os.path.join(STATIC_DIR, "tokenlist.json")
-    with open(tokenlist_path, "r") as f:
-        tokenlist = json.load(f)
-
     # Load address whitelist
     whitelist_path = os.path.join(STATIC_DIR, "whitelist.json")
     with open(whitelist_path, "r") as f:
@@ -159,8 +154,8 @@ def create_flask_app() -> Flask:
         request_data = request.get_json()
         agent_request = AgentChatRequest(**request_data)
 
-        # Enhance tokens with symbols from tokenlist
-        agent_request.context.enhance_tokens_with_symbols(tokenlist)
+        if not check_whitelist(agent_request.context.address or ""):
+            return jsonify({"error": "Address is not whitelisted"}), 400
 
         # Use router to select appropriate agent
         response = handle_agent_chat_request(
@@ -179,6 +174,9 @@ def create_flask_app() -> Flask:
     def run_suggestions():
         request_data = request.get_json()
         agent_request = AgentChatRequest(**request_data)
+
+        if not check_whitelist(agent_request.context.address or ""):
+            return jsonify({"error": "Address is not whitelisted"}), 400
 
         suggestions = handle_suggestions_request(agent_request, suggestions_agent)
 
