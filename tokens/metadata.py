@@ -13,6 +13,7 @@ class TokenMetadata:
     name: str
     symbol: str
     image_url: Optional[str]
+    price: Optional[float]
 
 
 class TokenMetadataRepo:
@@ -72,6 +73,7 @@ class TokenMetadataRepo:
                 name=item["name"],
                 symbol=item["symbol"],
                 image_url=item.get("image_url"),
+                price=item.get("price"),
             )
             return metadata
         except botocore.exceptions.ClientError as error:
@@ -121,6 +123,7 @@ class TokenMetadataRepo:
                 name=metadata["baseToken"]["name"],
                 symbol=metadata["baseToken"]["symbol"],
                 image_url=metadata["info"]["imageUrl"] if "info" in metadata else None,
+                price=metadata["priceUsd"],
             )
         except Exception as e:
             logging.error(f"Error fetching metadata from DexScreener: {e}")
