@@ -51,25 +51,21 @@ def show_defi_llama_top_pools(chain: str = None, limit: int = 10, min_tvl: float
 
 
 @tool()
-def show_defi_llama_historical_global_tvl(months: int = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
-    """Show historical TVL data for all DeFi protocols across all chains over time
+def show_defi_llama_historical_global_tvl(num_months: int = 3) -> Dict[str, Any]:
+    """Show historical TVL data for all DeFi protocols across all chains
     
     Args:
-        months (int, optional): Number of months of history to return. Defaults to None.
-        start_date (str, optional): Start date in 'YYYY-MM-DD' format. Defaults to None.
-        end_date (str, optional): End date in 'YYYY-MM-DD' format. Defaults to None.
+        num_months (int, optional): Number of months of history to include. Defaults to 3 months.
     """
-    return defillama.get_historical_global_tvl(months, start_date, end_date)
+    return defillama.get_historical_global_tvl(num_months)
 
 
 @tool()
-def show_defi_llama_historical_chain_tvl(chain: str, months: int = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
-    """Show historical TVL data for a specific blockchain over time
+def show_defi_llama_historical_chain_tvl(chain: str, num_months: int = 3) -> Dict[str, Any]:
+    """Show historical TVL data for a specific blockchain
     
     Args:
         chain (str): The target blockchain name.
-        months (int, optional): Number of months of history to return. Defaults to None.
-        start_date (str, optional): Start date in 'YYYY-MM-DD' format. Defaults to None.
-        end_date (str, optional): End date in 'YYYY-MM-DD' format. Defaults to None.
+        num_months (int, optional): Number of months of history to include. Defaults to 3 months.
     """
-    return defillama.get_historical_chain_tvl(chain, months, start_date, end_date)
+    return defillama.get_historical_chain_tvl(chain, num_months)

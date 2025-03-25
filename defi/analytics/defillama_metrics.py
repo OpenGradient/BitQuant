@@ -210,13 +210,11 @@ class DefiLlamaMetrics:
                 "details": str(e),
             }
 
-    def get_historical_global_tvl(self, months: int = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
+    def get_historical_global_tvl(self, num_months: int = 3) -> Dict[str, Any]:
         """Get historical TVL data for all DeFi protocols across all chains.
         
         Args:
-            months (int, optional): Number of months of history to return. Defaults to None.
-            start_date (str, optional): Start date in 'YYYY-MM-DD' format. Defaults to None.
-            end_date (str, optional): End date in 'YYYY-MM-DD' format. Defaults to None.
+            num_months (int, optional): Number of months of history to return. Defaults to 3.
             
         Returns:
             Dict[str, Any]: A dictionary containing processed historical TVL data points.
@@ -224,17 +222,15 @@ class DefiLlamaMetrics:
         # Get raw historical TVL data
         historical_data = self.llama.get_historical_tvl()
         
-        # Process the data with the specified filters
-        return self._process_historical_data(historical_data, months, start_date, end_date)
+        # Process the data with the specified number of months
+        return self._process_historical_data(historical_data, num_months)
 
-    def get_historical_chain_tvl(self, chain: str, months: int = None, start_date: str = None, end_date: str = None) -> Dict[str, Any]:
+    def get_historical_chain_tvl(self, chain: str, num_months: int = 3) -> Dict[str, Any]:
         """Get historical TVL data for a specific blockchain.
         
         Args:
             chain (str): The target blockchain name.
-            months (int, optional): Number of months of history to return. Defaults to None.
-            start_date (str, optional): Start date in 'YYYY-MM-DD' format. Defaults to None.
-            end_date (str, optional): End date in 'YYYY-MM-DD' format. Defaults to None.
+            num_months (int, optional): Number of months of history to return. Defaults to 3.
             
         Returns:
             Dict[str, Any]: A dictionary containing processed historical TVL data for the chain.
@@ -242,73 +238,31 @@ class DefiLlamaMetrics:
         # Get historical TVL data for the specified chain
         historical_data = self.llama.get_historical_tvl_chain(chain)
         
-        # Process the data with the specified filters
-        return self._process_historical_data(historical_data, months, start_date, end_date)
+        # Process the data with the specified number of months
+        return self._process_historical_data(historical_data, num_months)
 
     def _process_historical_data(self, historical_data: List[Dict[str, Any]], 
-                                months: int = None, start_date: str = None, 
-                                end_date: str = None) -> Dict[str, Any]:
-        """Process historical data with flexible date filtering options.
+                                num_months: int = 3) -> Dict[str, Any]:
+        """Process historical data with number of months filtering.
         
         Args:
             historical_data (List[Dict[str, Any]]): Raw historical data from DefiLlama API.
-            months (int, optional): Number of months to include. Defaults to None.
-            start_date (str, optional): Start date in 'YYYY-MM-DD' format. Defaults to None.
-            end_date (str, optional): End date in 'YYYY-MM-DD' format. Defaults to None.
+            num_months (int, optional): Number of months to include. Defaults to 3.
             
         Returns:
             Dict[str, Any]: Processed historical data with formatted dates and TVL values.
         """
         from datetime import datetime, timedelta
         
-        # Initialize cutoff timestamps based on provided filters
-        cutoff_start_timestamp = None
-        cutoff_end_timestamp = None
-        
-        # Parse date strings if provided
-        if start_date:
-            try:
-                start_dt = datetime.strptime(start_date, '%Y-%m-%d')
-                cutoff_start_timestamp = int(start_dt.timestamp())
-            except ValueError:
-                # Handle invalid date format
-                return {"error": f"Invalid start_date format: {start_date}. Use YYYY-MM-DD format."}
-        
-        if end_date:
-            try:
-                # Set end date to end of day
-                end_dt = datetime.strptime(end_date, '%Y-%m-%d')
-                end_dt = end_dt.replace(hour=23, minute=59, second=59)
-                cutoff_end_timestamp = int(end_dt.timestamp())
-            except ValueError:
-                # Handle invalid date format
-                return {"error": f"Invalid end_date format: {end_date}. Use YYYY-MM-DD format."}
-        
-        # If months is specified and start_date is not, calculate start date from months
-        if months is not None and not start_date:
-            cutoff_start_timestamp = int((datetime.now() - timedelta(days=30 * months)).timestamp())
-        
-        # If no end date is specified, use current time
-        if not cutoff_end_timestamp:
-            cutoff_end_timestamp = int(datetime.now().timestamp())
-        
-        # If no start date is specified (and no months), use earliest available data
-        # (We'll filter in the processing loop)
-        
-        # Determine time frame description
-        timeframe_desc = "all available data"
-        if start_date and end_date:
-            timeframe_desc = f"{start_date} to {end_date}"
-        elif start_date:
-            timeframe_desc = f"from {start_date} to present"
-        elif end_date:
-            timeframe_desc = f"until {end_date}"
-        elif months:
-            timeframe_desc = f"last {months} months"
+        # Calculate cutoff timestamp based on number of months
+        end_dt = datetime.now()
+        start_dt = end_dt - timedelta(days=30 * num_months)
+        cutoff_start_timestamp = int(start_dt.timestamp())
+        cutoff_end_timestamp = int(end_dt.timestamp())
         
         # Initialize the processed data structure
         processed_data = {
-            "timeframe": timeframe_desc,
+            "timeframe": f"last {num_months} months",
             "summary": {},
             "data_points": []
         }
@@ -326,14 +280,8 @@ class DefiLlamaMetrics:
                 if isinstance(timestamp, str):
                     timestamp = int(timestamp)
                     
-                # Apply date filters
-                include_point = True
-                if cutoff_start_timestamp and timestamp < cutoff_start_timestamp:
-                    include_point = False
-                if cutoff_end_timestamp and timestamp > cutoff_end_timestamp:
-                    include_point = False
-                    
-                if include_point:
+                # Apply date filter
+                if timestamp >= cutoff_start_timestamp and timestamp <= cutoff_end_timestamp:
                     # Convert epoch timestamp to human-readable date
                     date_str = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
                     
