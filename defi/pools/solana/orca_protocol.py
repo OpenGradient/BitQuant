@@ -6,6 +6,7 @@ import requests
 
 from api.api_types import Pool, Token, Chain, PoolType
 from defi.pools.protocol import Protocol
+from tokens.metadata import TokenMetadataRepo
 
 
 class OrcaProtocol(Protocol):
@@ -32,7 +33,7 @@ class OrcaProtocol(Protocol):
     def name(self) -> str:
         return self.PROTOCOL_NAME
 
-    def get_pools(self) -> List[Pool]:
+    def get_pools(self, token_metadata_repo: TokenMetadataRepo) -> List[Pool]:
         """
         Fetch pools from Orca API and convert to the internal Pool model
         """

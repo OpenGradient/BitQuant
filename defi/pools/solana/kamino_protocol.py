@@ -7,6 +7,7 @@ import statistics
 from api.api_types import Pool, Token, Chain, PoolType
 from defi.pools.protocol import Protocol
 from defi.pools.solana.constants import stablecoin_symbols
+from tokens.metadata import TokenMetadataRepo
 
 
 class KaminoProtocol(Protocol):
@@ -39,7 +40,7 @@ class KaminoProtocol(Protocol):
     def name(self) -> str:
         return self.PROTOCOL_NAME
 
-    def get_pools(self) -> List[Pool]:
+    def get_pools(self, token_metadata_repo: TokenMetadataRepo) -> List[Pool]:
         """
         Fetch lending pools from Kamino API and convert to the internal Pool model
         """

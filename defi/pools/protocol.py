@@ -1,16 +1,16 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Optional
-import asyncio
 import logging
 import time
 import threading
 
 from api.api_types import Pool, PoolQuery, PoolType
+from tokens.metadata import TokenMetadataRepo
 
 
 class Protocol(ABC):
     @abstractmethod
-    def get_pools(self) -> List[Pool]:
+    def get_pools(self, token_metadata_repo: TokenMetadataRepo) -> List[Pool]:
         """Return all pools supported by the protocol."""
         pass
 
