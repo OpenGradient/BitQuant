@@ -84,15 +84,15 @@ def create_flask_app() -> Flask:
 
     router_model = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.0)
 
+    token_metadata_repo = TokenMetadataRepo(tokens_table)
+    portfolio_fetcher = PortfolioFetcher(token_metadata_repo)
+
     # Initialize protocol registry
-    protocol_registry = ProtocolRegistry()
+    protocol_registry = ProtocolRegistry(token_metadata_repo)
     protocol_registry.register_protocol(OrcaProtocol())
     protocol_registry.register_protocol(SaveProtocol())
     protocol_registry.register_protocol(KaminoProtocol())
     protocol_registry.initialize()
-
-    token_metadata_repo = TokenMetadataRepo(tokens_table)
-    portfolio_fetcher = PortfolioFetcher(token_metadata_repo)
 
     # Load address whitelist
     whitelist_path = os.path.join(STATIC_DIR, "whitelist.json")

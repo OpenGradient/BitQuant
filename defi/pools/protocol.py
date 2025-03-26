@@ -22,14 +22,16 @@ class Protocol(ABC):
 
 
 class ProtocolRegistry:
+    token_metadata_repo: TokenMetadataRepo
     protocols: Dict[str, Protocol] = {}
     pools_cache: Dict[str, List[Pool]] = {}
     last_refresh: Dict[str, float] = {}
     refresh_interval = 10 * 60  # Refresh every 10 mins
     _initialized = False
 
-    def __init__(self):
+    def __init__(self, token_metadata_repo: TokenMetadataRepo):
         self.logger = logging.getLogger("ProtocolRegistry")
+        self.token_metadata_repo = token_metadata_repo
         self._refresh_thread = None
         self._stop_event = threading.Event()
 
@@ -59,7 +61,7 @@ class ProtocolRegistry:
         for name, protocol in protocols_to_refresh.items():
             try:
                 self.logger.info(f"Refreshing pools for {name}")
-                pools = protocol.get_pools()
+                pools = protocol.get_pools(self.token_metadata_repo)
                 self.pools_cache[name] = pools
                 self.last_refresh[name] = time.time()
                 self.logger.info(f"Refreshed {len(pools)} pools for {name}")
