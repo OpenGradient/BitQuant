@@ -100,6 +100,7 @@ class TokenMetadataRepo:
             "address": metadata.address,
             "name": metadata.name,
             "symbol": metadata.symbol,
+            "timestamp": metadata.timestamp,
             "not_found": False,
         }
 
