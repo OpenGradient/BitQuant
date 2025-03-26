@@ -83,9 +83,9 @@ class TokenMetadataRepo:
                 address=item["address"],
                 name=item["name"],
                 symbol=item["symbol"],
+                timestamp=item["timestamp"],
                 image_url=item.get("image_url"),
                 price=item.get("price"),
-                timestamp=item.get("timestamp") or 0,
             )
             return metadata
         except botocore.exceptions.ClientError as error:
