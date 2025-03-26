@@ -1,5 +1,4 @@
 from typing import List, Dict, Any
-import logging
 
 import requests
 
@@ -86,9 +85,6 @@ class SaveProtocol(Protocol):
             # Get token information from the token list
             token_info = token_metadata_repo.get_token_metadata(token_address)
             if token_info is None:
-                logging.warning(
-                    f"Token metadata not found for {token_address} in pool {pool_id}"
-                )
                 continue
 
             # Create token object
@@ -117,7 +113,6 @@ class SaveProtocol(Protocol):
 
             # Filter out unusable pools
             if available_amount <= 1000:
-                print(f"Pool {pool_id} has too little liquidity: {available_amount}")
                 continue
 
             result.append(pool)

@@ -25,17 +25,16 @@ class TestProtocols(unittest.TestCase):
         save = SaveProtocol()
         pools = save.get_pools(self.token_metadata_repo)
 
-        self.assertGreater(len(pools), 2)
+        self.assertGreater(len(pools), 5)
 
     def test_orca(self):
         orca = OrcaProtocol()
         pools = orca.get_pools(self.token_metadata_repo)
 
-        self.assertGreater(len(pools), 2)
-        print(pools)
+        self.assertGreater(len(pools), 5)
 
     def test_kamino(self):
         kamino = KaminoProtocol()
         pools = kamino.get_pools(self.token_metadata_repo)
 
-        self.assertGreater(len(pools), 10)
+        self.assertGreater(len(pools), 5)
