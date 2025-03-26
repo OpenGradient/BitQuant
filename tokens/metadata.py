@@ -109,6 +109,7 @@ class TokenMetadataRepo:
             item["image_url"] = metadata.image_url
 
         self._tokens_table.put_item(Item=item)
+        logging.info(f"Stored metadata for token: {metadata.address}")
 
     def _store_not_found(self, token_address: str) -> None:
         """Store a marker indicating that token metadata was not found."""
