@@ -378,7 +378,6 @@ def run_main_agent(
     try:
         # Parse the JSON response from the agent's content
         response_data = json.loads(last_message.content)
-        print(f"Response data: {response_data}")
 
         # Get full pool objects for the returned pool IDs
         pool_objects = protocol_registry.get_pools_by_ids(response_data["pools"])
