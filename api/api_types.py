@@ -1,5 +1,5 @@
 from pydantic import BaseModel, computed_field
-from typing import List, Union, Optional, Dict, Mapping, Literal
+from typing import List, Union, Optional, Dict, Literal
 from enum import IntEnum, StrEnum
 
 
@@ -107,4 +107,4 @@ class FeedbackRequest(BaseModel):
     feedback: str
     shareHistory: bool
     walletAddress: str
-    conversationHistory: List[Message]
+    conversationHistory: List[Dict]
