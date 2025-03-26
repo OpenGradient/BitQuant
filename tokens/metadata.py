@@ -114,7 +114,11 @@ class TokenMetadataRepo:
 
     def _store_not_found(self, token_address: str) -> None:
         """Store a marker indicating that token metadata was not found."""
-        item = {"address": token_address, "not_found": True}
+        item = {
+            "address": token_address,
+            "not_found": True,
+            "timestamp": int(time.time()),
+        }
         self._tokens_table.put_item(Item=item)
 
     def fetch_price_from_dexscreener(self, token_address: str) -> Optional[float]:
