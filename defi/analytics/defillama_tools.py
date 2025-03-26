@@ -40,7 +40,9 @@ def show_defi_llama_chain_tvl(chain: str) -> Dict[str, Any]:
 
 
 @tool()
-def show_defi_llama_top_pools(chain: str = None, limit: int = 10, min_tvl: float = 500000, max_apy: float = 1000) -> List[Dict[str, Any]]:
+def show_defi_llama_top_pools(
+    chain: str = None, limit: int = 10, min_tvl: float = 500000, max_apy: float = 1000
+) -> List[Dict[str, Any]]:
     """
     Get top DeFi pools ranked by APY with TVL filters
     """
@@ -56,7 +58,9 @@ def show_defi_llama_historical_global_tvl(num_months: int = 12) -> Dict[str, Any
 
 
 @tool()
-def show_defi_llama_historical_chain_tvl(chain: str, num_months: int = 12) -> Dict[str, Any]:
+def show_defi_llama_historical_chain_tvl(
+    chain: str, num_months: int = 12
+) -> Dict[str, Any]:
     """
     Get historical TVL data for a specific blockchain
     """

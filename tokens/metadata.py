@@ -25,7 +25,7 @@ class TokenMetadataRepo:
 
     NOT_FOUND_CACHE_TTL = 3600 * 24  # 24 hours in seconds
     METADATA_CACHE_SIZE = 50_000  # Maximum number of metadata entries to cache
-    METADATA_CACHE_TTL = 15 * 60 # 15 minutes in seconds
+    METADATA_CACHE_TTL = 15 * 60  # 15 minutes in seconds
 
     DEXSCREENER_CALLS_PER_MINUTE = 200
     DEXSCREENER_PERIOD = 60
@@ -46,7 +46,10 @@ class TokenMetadataRepo:
         else:
             metadata = self._get_from_dynamodb(token_address)
 
-        if metadata is not None and metadata.timestamp >= time.time() - self.METADATA_CACHE_TTL:
+        if (
+            metadata is not None
+            and metadata.timestamp >= time.time() - self.METADATA_CACHE_TTL
+        ):
             self._metadata_cache[token_address] = metadata
             return metadata
 

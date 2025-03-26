@@ -104,23 +104,28 @@ class DefiLlamaMetrics:
 
         return 0
 
-    def get_top_pools(self, chain: str = None, limit: int = 10, min_tvl: float = 500000, max_apy: float = 1000) -> List[Dict[str, Any]]:
+    def get_top_pools(
+        self,
+        chain: str = None,
+        limit: int = 10,
+        min_tvl: float = 500000,
+        max_apy: float = 1000,
+    ) -> List[Dict[str, Any]]:
         """Get top DeFi pools ranked by APY with filters"""
         pools_data = self.llama.get_pools()
         if isinstance(pools_data, dict) and "data" in pools_data:
             all_pools = pools_data["data"]
-            
+
             filtered_pools = [
-                pool for pool in all_pools
+                pool
+                for pool in all_pools
                 if float(pool.get("tvlUsd", 0)) >= min_tvl
                 and float(pool.get("apy", 0)) <= max_apy
                 and (not chain or pool.get("chain", "").lower() == chain.lower())
             ]
-            
+
             sorted_pools = sorted(
-                filtered_pools, 
-                key=lambda x: float(x.get("apy", 0)), 
-                reverse=True
+                filtered_pools, key=lambda x: float(x.get("apy", 0)), reverse=True
             )
 
             return sorted_pools[:limit]
@@ -157,40 +162,46 @@ class DefiLlamaMetrics:
         historical_data = self.llama.get_historical_tvl()
         return self._process_historical_data(historical_data, num_months)
 
-    def get_historical_chain_tvl(self, chain: str, num_months: int = 3) -> Dict[str, Any]:
+    def get_historical_chain_tvl(
+        self, chain: str, num_months: int = 3
+    ) -> Dict[str, Any]:
         """Get historical TVL data for a specific blockchain"""
         historical_data = self.llama.get_historical_tvl_chain(chain)
         return self._process_historical_data(historical_data, num_months)
 
-    def _process_historical_data(self, historical_data: List[Dict[str, Any]], 
-                                num_months: int = 3) -> Dict[str, Any]:
+    def _process_historical_data(
+        self, historical_data: List[Dict[str, Any]], num_months: int = 3
+    ) -> Dict[str, Any]:
         """Process historical data with month filtering"""
         from datetime import datetime, timedelta
-        
+
         end_dt = datetime.now()
         start_dt = end_dt - timedelta(days=30 * num_months)
         cutoff_start_timestamp = int(start_dt.timestamp())
         cutoff_end_timestamp = int(end_dt.timestamp())
-        
+
         processed_data = {
             "timeframe": f"last {num_months} months",
             "summary": {},
-            "data_points": []
+            "data_points": [],
         }
-        
+
         all_tvl_values = []
-        
+
         for entry in historical_data:
-            timestamp = entry.get('date') or entry.get('timestamp')
-            tvl = entry.get('tvl') or entry.get('totalLiquidityUSD')
-            
+            timestamp = entry.get("date") or entry.get("timestamp")
+            tvl = entry.get("tvl") or entry.get("totalLiquidityUSD")
+
             if timestamp is not None and tvl is not None:
                 if isinstance(timestamp, str):
                     timestamp = int(timestamp)
-                    
-                if timestamp >= cutoff_start_timestamp and timestamp <= cutoff_end_timestamp:
-                    date_str = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
-                    
+
+                if (
+                    timestamp >= cutoff_start_timestamp
+                    and timestamp <= cutoff_end_timestamp
+                ):
+                    date_str = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d")
+
                     formatted_tvl = tvl
                     if tvl >= 1_000_000_000:
                         formatted_tvl = f"${tvl / 1_000_000_000:.2f}B"
@@ -198,26 +209,48 @@ class DefiLlamaMetrics:
                         formatted_tvl = f"${tvl / 1_000_000:.2f}M"
                     else:
                         formatted_tvl = f"${tvl:,.2f}"
-                    
-                    processed_data["data_points"].append({
-                        "date": date_str,
-                        "timestamp": timestamp,
-                        "tvl": tvl,
-                        "formatted_tvl": formatted_tvl
-                    })
-                    
+
+                    processed_data["data_points"].append(
+                        {
+                            "date": date_str,
+                            "timestamp": timestamp,
+                            "tvl": tvl,
+                            "formatted_tvl": formatted_tvl,
+                        }
+                    )
+
                     all_tvl_values.append(tvl)
-        
-        processed_data["data_points"].sort(key=lambda x: x['timestamp'])
-        
+
+        processed_data["data_points"].sort(key=lambda x: x["timestamp"])
+
         if all_tvl_values:
             processed_data["summary"] = {
-                "current_tvl": processed_data["data_points"][-1]["formatted_tvl"] if processed_data["data_points"] else "N/A",
-                "min_tvl": f"${min(all_tvl_values) / 1_000_000_000:.2f}B" if any(v >= 1_000_000_000 for v in all_tvl_values) else f"${min(all_tvl_values) / 1_000_000:.2f}M",
-                "max_tvl": f"${max(all_tvl_values) / 1_000_000_000:.2f}B" if any(v >= 1_000_000_000 for v in all_tvl_values) else f"${max(all_tvl_values) / 1_000_000:.2f}M",
+                "current_tvl": (
+                    processed_data["data_points"][-1]["formatted_tvl"]
+                    if processed_data["data_points"]
+                    else "N/A"
+                ),
+                "min_tvl": (
+                    f"${min(all_tvl_values) / 1_000_000_000:.2f}B"
+                    if any(v >= 1_000_000_000 for v in all_tvl_values)
+                    else f"${min(all_tvl_values) / 1_000_000:.2f}M"
+                ),
+                "max_tvl": (
+                    f"${max(all_tvl_values) / 1_000_000_000:.2f}B"
+                    if any(v >= 1_000_000_000 for v in all_tvl_values)
+                    else f"${max(all_tvl_values) / 1_000_000:.2f}M"
+                ),
                 "data_points_count": len(processed_data["data_points"]),
-                "start_date": processed_data["data_points"][0]["date"] if processed_data["data_points"] else "N/A",
-                "end_date": processed_data["data_points"][-1]["date"] if processed_data["data_points"] else "N/A"
+                "start_date": (
+                    processed_data["data_points"][0]["date"]
+                    if processed_data["data_points"]
+                    else "N/A"
+                ),
+                "end_date": (
+                    processed_data["data_points"][-1]["date"]
+                    if processed_data["data_points"]
+                    else "N/A"
+                ),
             }
-        
+
         return processed_data

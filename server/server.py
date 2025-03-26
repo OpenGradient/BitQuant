@@ -5,12 +5,13 @@ import boto3.dynamodb.table
 import boto3.dynamodb.types
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
-from pydantic import ValidationError
+from pydantic import ValidationError, BaseModel
 from langgraph.graph.graph import CompiledGraph, RunnableConfig
 import json
 import logging
 import traceback
 import boto3
+from datetime import datetime
 
 import boto3.data
 from defi.pools.protocol import ProtocolRegistry
@@ -27,6 +28,7 @@ from api.api_types import (
     Message,
     AgentType,
     Portfolio,
+    FeedbackRequest,
 )
 from agent.agent_executors import (
     create_investor_executor,
@@ -71,7 +73,9 @@ def create_flask_app() -> Flask:
         aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
         aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
     )
+
     tokens_table = dynamodb.Table("sol_token_metadata")
+    feedback_table = dynamodb.Table("twoligma_feedback")
 
     # Initialize agents
     suggestions_agent = create_suggestions_executor()
@@ -194,6 +198,46 @@ def create_flask_app() -> Flask:
         )
 
         return jsonify({"suggestions": suggestions})
+
+    @app.route("/api/feedback", methods=["POST"])
+    def submit_feedback():
+        try:
+            request_data = request.get_json()
+            feedback_request = FeedbackRequest(**request_data)
+
+            if not check_whitelist(feedback_request.walletAddress):
+                return jsonify({"error": "Address is not whitelisted"}), 400
+
+            # Create timestamp and partition key
+            timestamp = datetime.now().isoformat()
+            user_timestamp = f"{feedback_request.walletAddress}_{timestamp}"
+
+            # Prepare feedback item for DynamoDB
+            feedback_item = {
+                "user_timestamp": user_timestamp,  # Partition key
+                "wallet_address": feedback_request.walletAddress,
+                "feedback": feedback_request.feedback,
+                "share_history": feedback_request.shareHistory,
+                "timestamp": timestamp,
+            }
+
+            # Only include conversation history if user opted to share it
+            if feedback_request.shareHistory:
+                feedback_item["conversation_history"] = [
+                    msg.model_dump() for msg in feedback_request.conversationHistory
+                ]
+
+            # Store feedback in DynamoDB
+            feedback_table.put_item(Item=feedback_item)
+
+            return jsonify({"status": "success"}), 200
+
+        except ValidationError as e:
+            return jsonify({"error": str(e)}), 400
+        except Exception as e:
+            logger.error(f"Error submitting feedback: {str(e)}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return jsonify({"error": "Internal server error"}), 500
 
     return app
 

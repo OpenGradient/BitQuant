@@ -101,3 +101,10 @@ class AgentChatRequest(BaseModel):
     context: Context
     message: UserMessage
     agent: Optional[AgentType] = None
+
+
+class FeedbackRequest(BaseModel):
+    feedback: str
+    shareHistory: bool
+    walletAddress: str
+    conversationHistory: List[Message]
