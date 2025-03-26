@@ -218,14 +218,9 @@ def create_flask_app() -> Flask:
                 "wallet_address": feedback_request.walletAddress,
                 "feedback": feedback_request.feedback,
                 "share_history": feedback_request.shareHistory,
+                "conversation_history": feedback_request.conversationHistory,
                 "timestamp": timestamp,
             }
-
-            # Only include conversation history if user opted to share it
-            if feedback_request.shareHistory:
-                feedback_item["conversation_history"] = [
-                    msg.model_dump() for msg in feedback_request.conversationHistory
-                ]
 
             # Store feedback in DynamoDB
             feedback_table.put_item(Item=feedback_item)
