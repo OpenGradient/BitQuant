@@ -112,8 +112,8 @@ class SaveProtocol(Protocol):
             )
 
             # Filter out unusable pools
-            if available_amount <= 1000:
-                continue
+            if available_amount <= 1000 or int(pool.TVL) <= 100_000:
+                 continue
 
             result.append(pool)
 
