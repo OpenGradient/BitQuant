@@ -4,3 +4,6 @@ add:
 list:
 	curl 'https://agents-api.opengradient.ai/api/whitelist' -H "X-API-Key: ${WHITELIST_API_KEY}"
 
+count:
+	curl 'https://agents-api.opengradient.ai/api/whitelist' -H "X-API-Key: ${WHITELIST_API_KEY}" | jq '.allowed | length'
+
