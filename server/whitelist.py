@@ -13,8 +13,9 @@ class TwoLigmaWhitelist:
         self.table = table
         self._allowed: Set[str] = set()  # Permanent cache for allowed addresses
         self._not_allowed = TTLCache(
-            maxsize=100_000, ttl=300
+            maxsize=100_00, ttl=300
         )  # 5 min TTL for not allowed addresses
+
         self._load_whitelist()
 
     def _load_whitelist(self):
@@ -40,7 +41,7 @@ class TwoLigmaWhitelist:
             response = self.table.get_item(Key={"wallet": address})
             is_allowed = "Item" in response
             if not is_allowed:
-                self._not_allowed[address] = True  # Cache the not-allowed result
+                self._not_allowed[address] = True
             else:
                 self._allowed.add(address)
 
