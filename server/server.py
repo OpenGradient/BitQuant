@@ -12,6 +12,7 @@ import logging
 import traceback
 import boto3
 from datetime import datetime
+from functools import wraps
 
 import boto3.data
 from defi.pools.protocol import ProtocolRegistry
@@ -59,6 +60,18 @@ logger = logging.getLogger(__name__)
 
 # number of messages to send to agents
 NUM_MESSAGES_TO_KEEP = 6
+
+# API key for whitelist management
+API_KEY = os.environ.get("WHITELIST_API_KEY")
+
+def require_api_key(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        api_key = request.headers.get('X-API-Key')
+        if not api_key or api_key != API_KEY:
+            return jsonify({"error": "Invalid or missing API key"}), 401
+        return f(*args, **kwargs)
+    return decorated_function
 
 
 def create_flask_app() -> Flask:
@@ -136,10 +149,12 @@ def create_flask_app() -> Flask:
         return jsonify({"allowed": whitelist.is_allowed(address)})
 
     @app.route("/api/whitelist", methods=["GET"])
+    @require_api_key
     def get_whitelist():
         return jsonify({"allowed": whitelist.get_allowed()})
 
     @app.route("/api/whitelist/add", methods=["POST"])
+    @require_api_key
     def add_to_whitelist():
         try:
             request_data = request.get_json()
@@ -154,6 +169,7 @@ def create_flask_app() -> Flask:
             return jsonify({"error": "Internal server error"}), 500
 
     @app.route("/api/whitelist/remove", methods=["POST"])
+    @require_api_key
     def remove_from_whitelist():
         try:
             request_data = request.get_json()
