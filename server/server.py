@@ -1,4 +1,4 @@
-from typing import List, Any, Tuple, Dict
+from typing import List, Any, Tuple, Dict, Set
 import os
 import boto3.dynamodb
 import boto3.dynamodb.table
@@ -46,6 +46,7 @@ from agent.tools import (
     create_analytics_agent_toolkit,
 )
 from langchain_openai import ChatOpenAI
+from server.whitelist import TwoLigmaWhitelist
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
@@ -76,6 +77,8 @@ def create_flask_app() -> Flask:
 
     tokens_table = dynamodb.Table("sol_token_metadata")
     feedback_table = dynamodb.Table("twoligma_feedback")
+    whitelist_table = dynamodb.Table("twoligma_whitelist")
+    whitelist = TwoLigmaWhitelist(whitelist_table)
 
     # Initialize agents
     suggestions_agent = create_suggestions_executor()
@@ -93,14 +96,6 @@ def create_flask_app() -> Flask:
     protocol_registry.register_protocol(SaveProtocol())
     protocol_registry.register_protocol(KaminoProtocol())
     protocol_registry.initialize()
-
-    # Load address whitelist
-    whitelist_path = os.path.join(STATIC_DIR, "whitelist.json")
-    with open(whitelist_path, "r") as f:
-        whitelist = json.load(f)
-        # create set for faster access
-        whitelist["allowed"] = set(whitelist["allowed"])
-        whitelist["banned"] = set(whitelist["banned"])
 
     # Set up error handlers for production environment
     if not app.config.get("TESTING"):
@@ -122,19 +117,12 @@ def create_flask_app() -> Flask:
     def healthcheck():
         return jsonify({"status": "ok"})
 
-    def check_whitelist(address: str) -> bool:
-        if address not in whitelist["allowed"]:
-            return False
-        if address in whitelist["banned"]:
-            return False
-        return True
-
     @app.route("/api/portfolio", methods=["GET"])
     def get_portfolio():
         address = request.args.get("address")
         if not address:
             return jsonify({"error": "Address parameter is required"}), 400
-        if not check_whitelist(address):
+        if not whitelist.is_allowed(address):
             return jsonify({"error": "Address is not whitelisted"}), 400
 
         portfolio = portfolio_fetcher.get_portfolio(address)
@@ -143,19 +131,47 @@ def create_flask_app() -> Flask:
     @app.route("/api/whitelisted", methods=["GET"])
     def is_whitelisted():
         address = request.args.get("address")
-
         if not address:
             return jsonify({"error": "Address parameter is required"}), 400
+        return jsonify({"allowed": whitelist.is_allowed(address)})
 
-        return jsonify({"allowed": check_whitelist(address)})
+    @app.route("/api/whitelist", methods=["GET"])
+    def get_whitelist():
+        return jsonify({"allowed": whitelist.get_allowed()})
+
+    @app.route("/api/whitelist/add", methods=["POST"])
+    def add_to_whitelist():
+        try:
+            request_data = request.get_json()
+            if not request_data or "address" not in request_data:
+                return jsonify({"error": "Address is required"}), 400
+
+            if whitelist.add(request_data["address"]):
+                return jsonify({"status": "success"})
+            return jsonify({"error": "Failed to add address"}), 500
+        except Exception as e:
+            logger.error(f"Error adding to whitelist: {e}")
+            return jsonify({"error": "Internal server error"}), 500
+
+    @app.route("/api/whitelist/remove", methods=["POST"])
+    def remove_from_whitelist():
+        try:
+            request_data = request.get_json()
+            if not request_data or "address" not in request_data:
+                return jsonify({"error": "Address is required"}), 400
+
+            if whitelist.remove(request_data["address"]):
+                return jsonify({"status": "success"})
+            return jsonify({"error": "Failed to remove address"}), 500
+        except Exception as e:
+            logger.error(f"Error removing from whitelist: {e}")
+            return jsonify({"error": "Internal server error"}), 500
 
     @app.route("/api/tokenlist", methods=["GET"])
     def get_tokenlist():
         file_path = os.path.join(STATIC_DIR, "tokenlist.json")
-
         if not os.path.isfile(file_path):
             return jsonify({"error": "Tokenlist file not found"}), 404
-
         return send_from_directory(STATIC_DIR, "tokenlist.json")
 
     @app.route("/api/agent/run", methods=["POST"])
@@ -163,12 +179,10 @@ def create_flask_app() -> Flask:
         request_data = request.get_json()
         agent_request = AgentChatRequest(**request_data)
 
-        if not check_whitelist(agent_request.context.address):
+        if not whitelist.is_allowed(agent_request.context.address):
             return jsonify({"error": "Address is not whitelisted"}), 400
 
         portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
-
-        # Use router to select appropriate agent
         response = handle_agent_chat_request(
             protocol_registry=protocol_registry,
             request=agent_request,
@@ -177,7 +191,6 @@ def create_flask_app() -> Flask:
             analytics_agent=analytics_agent,
             router_model=router_model,
         )
-
         return jsonify(
             response.model_dump() if hasattr(response, "model_dump") else response
         )
@@ -187,7 +200,7 @@ def create_flask_app() -> Flask:
         request_data = request.get_json()
         agent_request = AgentChatRequest(**request_data)
 
-        if not check_whitelist(agent_request.context.address):
+        if not whitelist.is_allowed(agent_request.context.address):
             return jsonify({"error": "Address is not whitelisted"}), 400
 
         portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
@@ -196,7 +209,6 @@ def create_flask_app() -> Flask:
             portfolio=portfolio,
             suggestions_agent=suggestions_agent,
         )
-
         return jsonify({"suggestions": suggestions})
 
     @app.route("/api/feedback", methods=["POST"])
@@ -205,16 +217,14 @@ def create_flask_app() -> Flask:
             request_data = request.get_json()
             feedback_request = FeedbackRequest(**request_data)
 
-            if not check_whitelist(feedback_request.walletAddress):
+            if not whitelist.is_allowed(feedback_request.walletAddress):
                 return jsonify({"error": "Address is not whitelisted"}), 400
 
-            # Create timestamp and partition key
             timestamp = datetime.now().isoformat()
             user_timestamp = f"{feedback_request.walletAddress}_{timestamp}"
 
-            # Prepare feedback item for DynamoDB
             feedback_item = {
-                "user_timestamp": user_timestamp,  # Partition key
+                "user_timestamp": user_timestamp,
                 "wallet_address": feedback_request.walletAddress,
                 "feedback": feedback_request.feedback,
                 "share_history": feedback_request.shareHistory,
@@ -222,9 +232,7 @@ def create_flask_app() -> Flask:
                 "timestamp": timestamp,
             }
 
-            # Store feedback in DynamoDB
             feedback_table.put_item(Item=feedback_item)
-
             return jsonify({"status": "success"}), 200
 
         except ValidationError as e:
