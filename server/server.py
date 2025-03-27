@@ -13,6 +13,7 @@ import traceback
 import boto3
 from datetime import datetime
 from functools import wraps
+from decimal import Decimal
 
 import boto3.data
 from defi.pools.protocol import ProtocolRegistry
@@ -236,16 +237,18 @@ def create_flask_app() -> Flask:
             if not whitelist.is_allowed(feedback_request.walletAddress):
                 return jsonify({"error": "Address is not whitelisted"}), 400
 
-            timestamp = datetime.now().isoformat()
+            timestamp = datetime.now()
             user_timestamp = f"{feedback_request.walletAddress}_{timestamp}"
 
+            # Convert conversation history to string
+            conversation_history_str = json.dumps(feedback_request.conversationHistory)
+
             feedback_item = {
-                "user_timestamp": user_timestamp,
+                "id": user_timestamp,
                 "wallet_address": feedback_request.walletAddress,
                 "feedback": feedback_request.feedback,
                 "share_history": feedback_request.shareHistory,
-                "conversation_history": feedback_request.conversationHistory,
-                "timestamp": timestamp,
+                "conversation_history": conversation_history_str,
             }
 
             feedback_table.put_item(Item=feedback_item)
