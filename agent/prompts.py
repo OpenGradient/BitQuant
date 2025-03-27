@@ -75,9 +75,7 @@ def get_suggestions_prompt(
 
 
 def get_analytics_prompt(
-    protocol: str,
     tokens: List[WalletTokenHolding] = None,
-    poolDeposits: List[WalletPoolPosition] = None,
 ) -> str:
     # Only include fields that are needed for the prompt
     token_metadata = [
@@ -96,9 +94,7 @@ def get_analytics_prompt(
     ]
 
     analytics_agent_prompt = analytics_agent_template.render(
-        protocolName=protocol,
         tokens=token_metadata,
-        poolDeposits=poolDeposits,
     )
 
     return analytics_agent_prompt

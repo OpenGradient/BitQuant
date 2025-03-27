@@ -565,9 +565,7 @@ def handle_analytics_chat_request(
 
     # Build analytics agent system prompt
     analytics_system_prompt = get_analytics_prompt(
-        protocol="Save",
         tokens=portfolio.holdings,
-        poolDeposits=[],
     )
 
     # Prepare message history (last 10 messages)
