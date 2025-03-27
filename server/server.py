@@ -147,7 +147,12 @@ def create_flask_app() -> Flask:
         address = request.args.get("address")
         if not address:
             return jsonify({"error": "Address parameter is required"}), 400
-        return jsonify({"allowed": whitelist.is_allowed(address)})
+        
+        response = jsonify({"allowed": whitelist.is_allowed(address)})
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
 
     @app.route("/api/whitelist", methods=["GET"])
     @require_api_key
