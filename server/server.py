@@ -13,7 +13,6 @@ import traceback
 import boto3
 from datetime import datetime
 from functools import wraps
-from decimal import Decimal
 
 import boto3.data
 from defi.pools.protocol import ProtocolRegistry
@@ -96,7 +95,7 @@ def create_flask_app() -> Flask:
     feedback_table = dynamodb.Table("twoligma_feedback")
     whitelist_table = dynamodb.Table("twoligma_whitelist")
     invite_codes_table = dynamodb.Table("twoligma_invite_codes")
-    
+
     whitelist = TwoLigmaWhitelist(whitelist_table)
     invite_manager = InviteCodeManager(invite_codes_table)
 
@@ -274,10 +273,15 @@ def create_flask_app() -> Flask:
                 return jsonify({"error": "Address is required"}), 400
 
             creator_address = request_data["address"]
-            
+
             # Check if creator is whitelisted
             if not whitelist.is_allowed(creator_address):
-                return jsonify({"error": "Only whitelisted users can generate invite codes"}), 403
+                return (
+                    jsonify(
+                        {"error": "Only whitelisted users can generate invite codes"}
+                    ),
+                    403,
+                )
 
             # Generate invite code
             invite_code = invite_manager.generate_invite_code(creator_address)
@@ -293,7 +297,11 @@ def create_flask_app() -> Flask:
     def use_invite_code():
         try:
             request_data = request.get_json()
-            if not request_data or "code" not in request_data or "address" not in request_data:
+            if (
+                not request_data
+                or "code" not in request_data
+                or "address" not in request_data
+            ):
                 return jsonify({"error": "Code and address are required"}), 400
 
             code = request_data["code"]
@@ -325,7 +333,10 @@ def create_flask_app() -> Flask:
 
             # Check if user is whitelisted
             if not whitelist.is_allowed(address):
-                return jsonify({"error": "Only whitelisted users can view invite stats"}), 403
+                return (
+                    jsonify({"error": "Only whitelisted users can view invite stats"}),
+                    403,
+                )
 
             stats = invite_manager.get_invite_stats(address)
             return jsonify(stats)
