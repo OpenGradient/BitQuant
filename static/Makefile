@@ -1,5 +1,5 @@
 add:
-	total=$(cat whitelist.json | jq -r '.allowed[]' | wc -l); cat whitelist.json | jq -r '.allowed[]' | awk -v total="$total" '{print "Processing [" NR "/" total "]: " $0}' | while read line; do address=$(echo "$line" | sed 's/Processing \[[0-9]*\/[0-9]*\]: //'); echo "$line"; curl 'https://agents-api.opengradient.ai/api/whitelist/add' -H "X-API-Key: ${WHITELIST_API_KEY}" -XPOST --data "{\"address\":\"$address\"}" -H "Content-Type: application/json"; sleep 1; done
+	while IFS= read -r address; do [ "$address" = "STOP" ] && exit 0; curl -s 'https://agents-api.opengradient.ai/api/whitelist/add' -H "X-API-Key: ${WHITELIST_API_KEY}" -X POST --data "{\"address\":\"$address\"}" -H "Content-Type: application/json" > /dev/null; sleep 1; done < whitelist.txt
 
 list:
 	curl 'https://agents-api.opengradient.ai/api/whitelist' -H "X-API-Key: ${WHITELIST_API_KEY}"
