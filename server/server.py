@@ -49,6 +49,7 @@ from agent.tools import (
 )
 from langchain_openai import ChatOpenAI
 from server.whitelist import TwoLigmaWhitelist
+from server.invitecode import InviteCodeManager
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
@@ -94,7 +95,10 @@ def create_flask_app() -> Flask:
     tokens_table = dynamodb.Table("sol_token_metadata")
     feedback_table = dynamodb.Table("twoligma_feedback")
     whitelist_table = dynamodb.Table("twoligma_whitelist")
+    invite_codes_table = dynamodb.Table("twoligma_invite_codes")
+    
     whitelist = TwoLigmaWhitelist(whitelist_table)
+    invite_manager = InviteCodeManager(invite_codes_table)
 
     # Initialize agents
     suggestions_agent = create_suggestions_executor()
@@ -260,6 +264,73 @@ def create_flask_app() -> Flask:
         except Exception as e:
             logger.error(f"Error submitting feedback: {str(e)}")
             logger.error(f"Traceback: {traceback.format_exc()}")
+            return jsonify({"error": "Internal server error"}), 500
+
+    @app.route("/api/invite/generate", methods=["POST"])
+    def generate_invite_code():
+        try:
+            request_data = request.get_json()
+            if not request_data or "address" not in request_data:
+                return jsonify({"error": "Address is required"}), 400
+
+            creator_address = request_data["address"]
+            
+            # Check if creator is whitelisted
+            if not whitelist.is_allowed(creator_address):
+                return jsonify({"error": "Only whitelisted users can generate invite codes"}), 403
+
+            # Generate invite code
+            invite_code = invite_manager.generate_invite_code(creator_address)
+            if not invite_code:
+                return jsonify({"error": "Failed to generate invite code"}), 500
+
+            return jsonify({"invite_code": invite_code})
+        except Exception as e:
+            logger.error(f"Error generating invite code: {e}")
+            return jsonify({"error": "Internal server error"}), 500
+
+    @app.route("/api/invite/use", methods=["POST"])
+    def use_invite_code():
+        try:
+            request_data = request.get_json()
+            if not request_data or "code" not in request_data or "address" not in request_data:
+                return jsonify({"error": "Code and address are required"}), 400
+
+            code = request_data["code"]
+            user_address = request_data["address"]
+
+            # Check if user is already whitelisted
+            if whitelist.is_allowed(user_address):
+                return jsonify({"error": "User is already whitelisted"}), 400
+
+            # Try to use the invite code
+            if not invite_manager.use_invite_code(code, user_address):
+                return jsonify({"error": "Invalid or already used invite code"}), 400
+
+            # Add user to whitelist
+            if not whitelist.add(user_address):
+                return jsonify({"error": "Failed to whitelist user"}), 500
+
+            return jsonify({"status": "success"})
+        except Exception as e:
+            logger.error(f"Error using invite code: {e}")
+            return jsonify({"error": "Internal server error"}), 500
+
+    @app.route("/api/invite/stats", methods=["GET"])
+    def get_invite_stats():
+        try:
+            address = request.args.get("address")
+            if not address:
+                return jsonify({"error": "Address parameter is required"}), 400
+
+            # Check if user is whitelisted
+            if not whitelist.is_allowed(address):
+                return jsonify({"error": "Only whitelisted users can view invite stats"}), 403
+
+            stats = invite_manager.get_invite_stats(address)
+            return jsonify(stats)
+        except Exception as e:
+            logger.error(f"Error getting invite stats: {e}")
             return jsonify({"error": "Internal server error"}), 500
 
     return app
