@@ -13,7 +13,7 @@ class TwoLigmaWhitelist:
         self.table = table
         self._allowed: Set[str] = set()  # Permanent cache for allowed addresses
         self._not_allowed = TTLCache(
-            maxsize=100_00, ttl=300
+            maxsize=10000, ttl=300
         )  # 5 min TTL for not allowed addresses
 
         self._load_whitelist()
