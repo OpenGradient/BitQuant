@@ -7,3 +7,8 @@ list:
 count:
 	curl 'https://agents-api.opengradient.ai/api/whitelist' -H "X-API-Key: ${WHITELIST_API_KEY}" | jq '.allowed | length'
 
+add:
+	curl 'https://agents-api.opengradient.ai/api/whitelist/add' -H "X-API-Key: ${WHITELIST_API_KEY}" -XPOST --data '{"address":""}' -H "Content-Type: application/json"
+
+check:
+	curl 'https://agents-api.opengradient.ai/api/whitelisted?address=5PrqzSAWim3zHfDWoTVfGv85d7eTJGZBmrv4NVqoTTqt'
