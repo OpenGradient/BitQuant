@@ -157,7 +157,12 @@ def create_flask_app() -> Flask:
     @app.route("/api/whitelist", methods=["GET"])
     @require_api_key
     def get_whitelist():
-        return jsonify({"allowed": whitelist.get_allowed()})
+        response = jsonify({"allowed": whitelist.get_allowed()})
+
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
 
     @app.route("/api/whitelist/add", methods=["POST"])
     @require_api_key
