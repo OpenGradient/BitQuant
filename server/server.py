@@ -65,13 +65,15 @@ NUM_MESSAGES_TO_KEEP = 6
 # API key for whitelist management
 API_KEY = os.environ.get("WHITELIST_API_KEY")
 
+
 def require_api_key(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        api_key = request.headers.get('X-API-Key')
+        api_key = request.headers.get("X-API-Key")
         if not api_key or api_key != API_KEY:
             return jsonify({"error": "Invalid or missing API key"}), 401
         return f(*args, **kwargs)
+
     return decorated_function
 
 
@@ -147,11 +149,13 @@ def create_flask_app() -> Flask:
         address = request.args.get("address")
         if not address:
             return jsonify({"error": "Address parameter is required"}), 400
-        
+
         response = jsonify({"allowed": whitelist.is_allowed(address)})
-        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
+        response.headers["Cache-Control"] = (
+            "no-store, no-cache, must-revalidate, max-age=0"
+        )
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
         return response
 
     @app.route("/api/whitelist", methods=["GET"])
@@ -159,9 +163,11 @@ def create_flask_app() -> Flask:
     def get_whitelist():
         response = jsonify({"allowed": whitelist.get_allowed()})
 
-        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
+        response.headers["Cache-Control"] = (
+            "no-store, no-cache, must-revalidate, max-age=0"
+        )
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
         return response
 
     @app.route("/api/whitelist/add", methods=["POST"])
@@ -177,21 +183,6 @@ def create_flask_app() -> Flask:
             return jsonify({"error": "Failed to add address"}), 500
         except Exception as e:
             logger.error(f"Error adding to whitelist: {e}")
-            return jsonify({"error": "Internal server error"}), 500
-
-    @app.route("/api/whitelist/remove", methods=["POST"])
-    @require_api_key
-    def remove_from_whitelist():
-        try:
-            request_data = request.get_json()
-            if not request_data or "address" not in request_data:
-                return jsonify({"error": "Address is required"}), 400
-
-            if whitelist.remove(request_data["address"]):
-                return jsonify({"status": "success"})
-            return jsonify({"error": "Failed to remove address"}), 500
-        except Exception as e:
-            logger.error(f"Error removing from whitelist: {e}")
             return jsonify({"error": "Internal server error"}), 500
 
     @app.route("/api/tokenlist", methods=["GET"])
