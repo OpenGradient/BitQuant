@@ -18,7 +18,7 @@ def get_trending_tokens(
     config: RunnableConfig = None,
 ) -> List[TokenMetadata]:
     """Get trending tokens from CoinGecko's Solana trending pools endpoint."""
-    return get_trending_tokens_from_coingecko()
+    return f"Latest trending tokens: {get_trending_tokens_from_coingecko()[:8]}"
 
 
 @cached(cache=TTLCache(maxsize=100, ttl=60 * 10))
