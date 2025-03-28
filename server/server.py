@@ -35,6 +35,7 @@ from agent.agent_executors import (
     create_investor_executor,
     create_suggestions_executor,
     create_analytics_executor,
+    create_routing_model,
 )
 from agent.prompts import (
     get_investor_agent_prompt,
@@ -104,7 +105,7 @@ def create_flask_app() -> Flask:
     analytics_agent = create_analytics_executor()
     investor_agent = create_investor_executor()
 
-    router_model = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.0)
+    router_model = create_routing_model()
 
     token_metadata_repo = TokenMetadataRepo(tokens_table)
     portfolio_fetcher = PortfolioFetcher(token_metadata_repo)
