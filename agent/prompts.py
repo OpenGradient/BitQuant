@@ -111,7 +111,8 @@ def get_router_prompt(message_history: List[Message], current_message: str) -> s
             "type": message.type,
             "message": (
                 message.message[:MAX_AGENT_MESSAGE_LENGTH] + "..."
-                if message.type == "assistant" and len(message.message) > MAX_AGENT_MESSAGE_LENGTH
+                if message.type == "assistant"
+                and len(message.message) > MAX_AGENT_MESSAGE_LENGTH
                 else message.message
             ),
         }

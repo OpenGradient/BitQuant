@@ -519,17 +519,32 @@ def run_suggestions_agent(
     # Extract final message
     last_message = result["messages"][-1]
 
-    try:
-        string_list = last_message.content
-        # Remove brackets and split by comma
-        cleaned = string_list.strip("[]")
-        # Split by comma and remove quotes
-        python_list = [item.strip().strip("'\"") for item in cleaned.split(",")]
+    # Clean the content by removing markdown code block syntax if present
+    content = last_message.content
+    if content.startswith("```json"):
+        content = content[7:]  # Remove ```json
+    if content.endswith("```"):
+        content = content[:-3]  # Remove ```
+    content = content.strip()
 
-        return python_list
-    except json.JSONDecodeError as e:
-        print(f"Error parsing suggestions JSON: {e}")
-        return []
+    try:
+        # First try parsing as JSON
+        suggestions = json.loads(content)
+        if isinstance(suggestions, list):
+            return suggestions
+    except json.JSONDecodeError:
+        # If JSON parsing fails, try parsing as string array
+        try:
+            # Remove any JSON-like syntax and split by comma
+            cleaned = content.strip("[]")
+            # Split by comma and remove quotes
+            suggestions = [item.strip().strip("'\"") for item in cleaned.split(",")]
+            return suggestions
+        except Exception as e:
+            logger.error(f"Error parsing suggestions string: {e}")
+            return []
+
+    return []
 
 
 def convert_to_agent_msg(message: Message) -> Tuple[str, str]:
