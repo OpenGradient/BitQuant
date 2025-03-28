@@ -33,7 +33,7 @@ from api.api_types import (
 )
 from agent.agent_executors import (
     create_investor_executor,
-    create_suggestions_executor,
+    create_suggestions_model,
     create_analytics_executor,
     create_routing_model,
 )
@@ -101,11 +101,10 @@ def create_flask_app() -> Flask:
     invite_manager = InviteCodeManager(invite_codes_table)
 
     # Initialize agents
-    suggestions_agent = create_suggestions_executor()
+    router_model = create_routing_model()
+    suggestions_model = create_suggestions_model()
     analytics_agent = create_analytics_executor()
     investor_agent = create_investor_executor()
-
-    router_model = create_routing_model()
 
     token_metadata_repo = TokenMetadataRepo(tokens_table)
     portfolio_fetcher = PortfolioFetcher(token_metadata_repo)
@@ -229,7 +228,7 @@ def create_flask_app() -> Flask:
         suggestions = handle_suggestions_request(
             request=agent_request,
             portfolio=portfolio,
-            suggestions_agent=suggestions_agent,
+            suggestions_model=suggestions_model,
         )
         return jsonify({"suggestions": suggestions})
 
@@ -435,43 +434,48 @@ def handle_investor_chat_request(
 def handle_suggestions_request(
     request: AgentChatRequest,
     portfolio: Portfolio,
-    suggestions_agent: CompiledGraph,
+    suggestions_model: ChatOpenAI,
 ) -> List[str]:
     # Get tools from agent config and format them
     tools = create_investor_agent_toolkit() + create_analytics_agent_toolkit()
     tools_list = "\n".join([f"- {tool.name}: {tool.description}" for tool in tools])
 
-    # Build suggestions agent system prompt
+    # Build suggestions system prompt
     suggestions_system_prompt = get_suggestions_prompt(
+        conversation_history=request.context.conversationHistory,
         tokens=portfolio.holdings,
         tools=tools_list,
     )
 
-    # Prepare message history (last 10 messages)
-    message_history = [
-        convert_to_agent_msg(m)
-        for m in request.context.conversationHistory[-NUM_MESSAGES_TO_KEEP:]
-    ]
+    # Run suggestions model directly
+    response = suggestions_model.invoke(suggestions_system_prompt)
+    content = response.content
 
-    # Create messages for suggestions agent
-    suggestions_messages = [
-        ("system", suggestions_system_prompt),
-        *message_history,
-    ]
+    # Clean the content by removing markdown code block syntax if present
+    if content.startswith("```json"):
+        content = content[7:]  # Remove ```json
+    if content.endswith("```"):
+        content = content[:-3]  # Remove ```
+    content = content.strip()
 
-    # Create config for the agent
-    agent_config = RunnableConfig(
-        configurable={
-            "tokens": portfolio.holdings,
-        }
-    )
+    try:
+        # First try parsing as JSON
+        suggestions = json.loads(content)
+        if isinstance(suggestions, list):
+            return suggestions
+    except json.JSONDecodeError:
+        # If JSON parsing fails, try parsing as string array
+        try:
+            # Remove any JSON-like syntax and split by comma
+            cleaned = content.strip("[]")
+            # Split by comma and remove quotes
+            suggestions = [item.strip().strip("'\"") for item in cleaned.split(",")]
+            return suggestions
+        except Exception as e:
+            logger.error(f"Error parsing suggestions string: {e}")
+            return []
 
-    # Run suggestions agent
-    suggestions = run_suggestions_agent(
-        suggestions_agent, suggestions_messages, agent_config
-    )
-
-    return suggestions
+    return []
 
 
 def run_main_agent(
@@ -508,43 +512,6 @@ def run_main_agent(
             "pools": [],
             "messages": result["messages"],
         }
-
-
-def run_suggestions_agent(
-    agent: CompiledGraph, messages: List, config: RunnableConfig
-) -> List[str]:
-    # Run agent directly
-    result = agent.invoke({"messages": messages}, config=config)
-
-    # Extract final message
-    last_message = result["messages"][-1]
-
-    # Clean the content by removing markdown code block syntax if present
-    content = last_message.content
-    if content.startswith("```json"):
-        content = content[7:]  # Remove ```json
-    if content.endswith("```"):
-        content = content[:-3]  # Remove ```
-    content = content.strip()
-
-    try:
-        # First try parsing as JSON
-        suggestions = json.loads(content)
-        if isinstance(suggestions, list):
-            return suggestions
-    except json.JSONDecodeError:
-        # If JSON parsing fails, try parsing as string array
-        try:
-            # Remove any JSON-like syntax and split by comma
-            cleaned = content.strip("[]")
-            # Split by comma and remove quotes
-            suggestions = [item.strip().strip("'\"") for item in cleaned.split(",")]
-            return suggestions
-        except Exception as e:
-            logger.error(f"Error parsing suggestions string: {e}")
-            return []
-
-    return []
 
 
 def convert_to_agent_msg(message: Message) -> Tuple[str, str]:

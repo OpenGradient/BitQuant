@@ -19,7 +19,7 @@ DEEPSEEK_CHAT_V3_MODEL = (
 )
 GROK_MODEL = "x-ai/grok-2-1212"  # $2/M input tokens; $10/M output tokens
 
-SUGGESTIONS_MODEL = GOOGLE_GEMINI_20_FLASH_MODEL
+SUGGESTIONS_MODEL = GOOGLE_GEMINI_FLASH_15_8B_MODEL
 ROUTING_MODEL = GOOGLE_GEMINI_FLASH_15_8B_MODEL
 REASONING_MODEL = GROK_MODEL
 
@@ -35,23 +35,17 @@ def create_routing_model() -> ChatOpenAI:
     )
 
 
-def create_suggestions_executor() -> CompiledGraph:
-    openai_model = ChatOpenAI(
+def create_suggestions_model() -> ChatOpenAI:
+    return ChatOpenAI(
         model=SUGGESTIONS_MODEL,
         temperature=0.0,
         openai_api_base="https://openrouter.ai/api/v1",
         openai_api_key=os.getenv("OPENROUTER_API_KEY"),
         request_timeout=60,
-        max_tokens=100,
+        max_tokens=500,
         streaming=False,
         default_headers={"X-Title": "two-ligma"},
     )
-    agent_executor = create_react_agent(
-        model=openai_model,
-        tools=[],
-    )
-
-    return agent_executor
 
 
 def create_investor_executor() -> CompiledGraph:

@@ -47,6 +47,7 @@ def get_investor_agent_prompt(
 
 
 def get_suggestions_prompt(
+    conversation_history: List[Message],
     tokens: List[WalletTokenHolding],
     tools: str,
 ) -> str:
@@ -68,6 +69,7 @@ def get_suggestions_prompt(
 
     agent_prompt = suggestions_template.render(
         tokens=token_metadata,
+        conversation_history=conversation_history,
         tools=tools,
     )
 
