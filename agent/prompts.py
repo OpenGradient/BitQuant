@@ -103,9 +103,9 @@ def get_analytics_prompt(
 def get_router_prompt(message_history: List[Message], current_message: str) -> str:
     """Get the router prompt to determine which agent should handle the request."""
 
-    MAX_AGENT_MESSAGE_LENGTH = 500
+    MAX_AGENT_MESSAGE_LENGTH = 400
 
-    # Truncate assistant response to 500 characters, also include the message type
+    # Truncate assistant response to 400 characters, also include the message type
     message_history = [
         {
             "type": message.type,
