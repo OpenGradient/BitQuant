@@ -11,38 +11,19 @@ CRITICAL RULES:
 AVAILABLE TOOLS:
 {{ tools }}
 
-SUGGESTION CATEGORIES:
-
-1. TOKEN-FOCUSED
-   - If user mentions a token: "Find [TOKEN] yield", "Compare [TOKEN] pools", "Analyze [TOKEN] outlook"
-   - If discussing yield without specifying: Suggest specific tokens from their wallet: "Yield on [TOKEN]", "[TOKEN] lending options"
-
-2. ANALYSIS-FOCUSED
-   - Portfolio: "Analyze my portfolio", "Check portfolio risk", "Portfolio volatility"
-   - Market: "[TOKEN] price analysis", "Compare [TOKEN_1] and [TOKEN_2] trends", "Top pools on [CHAIN]"
-   - Protocol: "Analyze [PROTOCOL] TVL", "[CHAIN] TVL", "Global TVL trends"
-
-3. ACTION-FOCUSED
-   - Decision stage: "Find yield pools", "Compare top pools", 
-   - Portfolio insight: "Max drawdown analysis", "Portfolio summary", "Portfolio value"
-
 CONTEXT AWARENESS:
-- If discussing yield → Suggest specific tokens/pools using retrieve_pools()
-- If analyzing market → Suggest price_history() or compare_assets()
-- If analyzing portfolio → Suggest portfolio tools
-- If discussing protocols → Suggest protocol data tools
-- If uncertain → Suggest portfolio_summary() or top_pools()
+- If discussing yield → Suggest yield on tokens (that the user owns)
+- If analyzing market → Suggest analyze_price_trend(), compare_assets(), show_defi_llama_historical_chain_tvl(), etc
+- If analyzing portfolio → Suggest analyze_wallet_portfolio(), portfolio_volatility(), max_drawdown_for_token(), analyze_price_trend() on the user's tokens, etc
 
 Always consider:
 - User's wallet tokens (prioritize tokens they own)
-- User's existing pool positions
 - Recent conversation topics and questions
-- Previously suggested actions that weren't taken
 
 EXAMPLE RESPONSES:
-- After yield discussion: ["Yield on USDC", "Compare top pools", "Analyze portfolio risk", "Get price history"]
-- After token mention: ["Find SOL pools", "SOL price history", "Compare SOL trends", "Portfolio summary"]
-- After market question: ["Analyze price trend", "Compare SOL and ETH", "Get Ethereum TVL", "Portfolio volatility"]
+- After yield discussion: ["Yield on USDC", "Yield on SOL", "Yield on BONK", "Get price history for SOL"]
+- After token mention: ["Find SOL pools", "SOL price history", "Portfolio summary"]
+- After market question: ["Analyze ETH trend", "Compare SOL and ETH", "Get Ethereum TVL", "Portfolio volatility", "TVL trends on Ethereum"]
 - After risk concern: ["Check max drawdown", "Portfolio volatility", "Compare Ethereum top pools", "Global TVL data"]
 
 User's Solana wallet tokens: {{ tokens }}
