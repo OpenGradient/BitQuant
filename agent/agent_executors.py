@@ -7,8 +7,12 @@ from langchain_openai import ChatOpenAI
 
 from agent.tools import create_investor_agent_toolkit, create_analytics_agent_toolkit
 
+GOOGLE_GEMINI_25_MODEL = "google/gemini-2.5-pro-exp-03-25:free"
+GOOGLE_GEMINI_20_FLASH_MODEL = "google/gemini-2.0-flash-001"
+DEEPSEEK_CHAT_V3_MODEL = "deepseek/deepseek-chat-v3-0324"
+GROK_MODEL = "x-ai/grok-2-1212"
 
-REASONING_MODEL = "deepseek/deepseek-chat-v3-0324"
+REASONING_MODEL = GROK_MODEL
 
 
 def create_suggestions_executor() -> CompiledGraph:
@@ -17,6 +21,9 @@ def create_suggestions_executor() -> CompiledGraph:
         temperature=0.0,
         openai_api_base="https://openrouter.ai/api/v1",
         openai_api_key=os.getenv("OPENROUTER_API_KEY"),
+        request_timeout=60,
+        max_tokens=100,
+        streaming=False
     )
     agent_executor = create_react_agent(
         model=openai_model,
@@ -32,6 +39,9 @@ def create_investor_executor() -> CompiledGraph:
         temperature=0.0,
         openai_api_base="https://openrouter.ai/api/v1",
         openai_api_key=os.getenv("OPENROUTER_API_KEY"),
+        request_timeout=60,
+        max_tokens=4096,
+        streaming=False,
     )
     agent_executor = create_react_agent(
         model=openai_model, tools=create_investor_agent_toolkit()
@@ -46,6 +56,9 @@ def create_analytics_executor() -> CompiledGraph:
         temperature=0.0,
         openai_api_base="https://openrouter.ai/api/v1",
         openai_api_key=os.getenv("OPENROUTER_API_KEY"),
+        request_timeout=60,
+        max_tokens=4096,
+        streaming=False
     )
     analytics_executor = create_react_agent(
         model=openai_model,
