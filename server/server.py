@@ -399,10 +399,9 @@ def handle_investor_chat_request(
     )
 
     # Prepare message history
-    message_history = [
-        convert_to_agent_msg(m)
-        for m in request.context.conversationHistory[-NUM_MESSAGES_TO_KEEP:]
-    ]
+    message_history = convert_to_agent_message_history(
+        request.context.conversationHistory
+    )
 
     # Create messages for investor agent
     investor_messages = [
@@ -514,7 +513,27 @@ def run_main_agent(
         }
 
 
-def convert_to_agent_msg(message: Message, max_length: int = 400) -> Tuple[str, str]:
+def convert_to_agent_message_history(messages: List[Message]) -> List[Tuple[str, str]]:
+    # Get the last NUM_MESSAGES_TO_KEEP messages
+    recent_messages = messages[-NUM_MESSAGES_TO_KEEP:]
+
+    # Convert all messages except the last one with truncation
+    converted_messages = [
+        convert_to_agent_msg(m, truncate=True) for m in recent_messages[:-1]
+    ]
+
+    # Convert the last message without truncation
+    if recent_messages:
+        converted_messages.append(
+            convert_to_agent_msg(recent_messages[-1], truncate=False)
+        )
+
+    return converted_messages
+
+
+def convert_to_agent_msg(
+    message: Message, truncate=False, max_length=400
+) -> Tuple[str, str]:
     if isinstance(message, UserMessage):
         return ("user", message.message)
     elif isinstance(message, AgentMessage):
@@ -524,7 +543,7 @@ def convert_to_agent_msg(message: Message, max_length: int = 400) -> Tuple[str, 
                 {
                     "text": (
                         message.message[:max_length] + "... [truncated]"
-                        if len(message.message) > max_length
+                        if truncate and len(message.message) > max_length
                         else message.message
                     ),
                     "pools": [pool.id for pool in message.pools],
@@ -555,11 +574,9 @@ def handle_analytics_chat_request(
         tokens=portfolio.holdings,
     )
 
-    # Prepare message history (last 10 messages)
-    message_history = [
-        convert_to_agent_msg(m)
-        for m in request.context.conversationHistory[-NUM_MESSAGES_TO_KEEP:]
-    ]
+    message_history = convert_to_agent_message_history(
+        request.context.conversationHistory
+    )
 
     # Create messages for analytics agent
     analytics_messages = [
