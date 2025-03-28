@@ -20,6 +20,7 @@ from onchain.analytics.analytics_tools import (
     compare_assets,
     analyze_wallet_portfolio,
 )
+from onchain.memecoins.trending import get_trending_tokens
 from onchain.pools.protocol import ProtocolRegistry
 
 
@@ -53,7 +54,6 @@ def create_investor_agent_toolkit() -> List[BaseTool]:
 
 def create_analytics_agent_toolkit() -> List[BaseTool]:
     return [
-        show_defi_llama_protocol,
         show_defi_llama_global_tvl,
         show_defi_llama_historical_global_tvl,
         show_defi_llama_historical_chain_tvl,
@@ -64,4 +64,5 @@ def create_analytics_agent_toolkit() -> List[BaseTool]:
         portfolio_volatility,
         analyze_volatility_trend,
         analyze_wallet_portfolio,
+        get_trending_tokens,
     ]
