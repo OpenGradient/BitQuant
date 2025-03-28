@@ -514,7 +514,7 @@ def run_main_agent(
         }
 
 
-def convert_to_agent_msg(message: Message) -> Tuple[str, str]:
+def convert_to_agent_msg(message: Message, max_length: int = 400) -> Tuple[str, str]:
     if isinstance(message, UserMessage):
         return ("user", message.message)
     elif isinstance(message, AgentMessage):
@@ -522,7 +522,11 @@ def convert_to_agent_msg(message: Message) -> Tuple[str, str]:
             "assistant",
             json.dumps(
                 {
-                    "text": message.message,
+                    "text": (
+                        message.message[:max_length] + "... [truncated]"
+                        if len(message.message) > max_length
+                        else message.message
+                    ),
                     "pools": [pool.id for pool in message.pools],
                 }
             ),
