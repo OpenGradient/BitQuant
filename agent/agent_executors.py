@@ -7,11 +7,11 @@ from langchain_openai import ChatOpenAI
 
 from agent.tools import create_investor_agent_toolkit, create_analytics_agent_toolkit
 
-GOOGLE_GEMINI_25_MODEL = "google/gemini-2.5-pro-exp-03-25:free"
-GOOGLE_GEMINI_20_FLASH_MODEL = "google/gemini-2.0-flash-001"
-GOOGLE_GEMINI_FLASH_15_8B_MODEL = "google/gemini-flash-1.5-8b"
-DEEPSEEK_CHAT_V3_MODEL = "deepseek/deepseek-chat-v3-0324"
-GROK_MODEL = "x-ai/grok-2-1212"
+GOOGLE_GEMINI_25_MODEL = "google/gemini-2.5-pro-exp-03-25:free" # Free
+GOOGLE_GEMINI_20_FLASH_MODEL = "google/gemini-2.0-flash-001" # $0.1/M input tokens; $0.4/M output tokens
+GOOGLE_GEMINI_FLASH_15_8B_MODEL = "google/gemini-flash-1.5-8b" # $0.0375/M input tokens; $0.15/M output tokens
+DEEPSEEK_CHAT_V3_MODEL = "deepseek/deepseek-chat-v3-0324" # $0.27/M input tokens; $1.1/M output tokens
+GROK_MODEL = "x-ai/grok-2-1212" # $2/M input tokens; $10/M output tokens
 
 SUGGESTIONS_MODEL = GOOGLE_GEMINI_FLASH_15_8B_MODEL
 ROUTING_MODEL = GOOGLE_GEMINI_FLASH_15_8B_MODEL
