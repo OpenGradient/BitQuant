@@ -3,10 +3,20 @@ from typing import List, Union, Optional, Dict, Literal
 from enum import IntEnum, StrEnum
 
 
+# Token metadata for pools
 class Token(BaseModel):
     address: str
     name: str
     symbol: str
+
+
+# Full token metadata
+class TokenMetadata(BaseModel):
+    address: str
+    name: str
+    symbol: str
+    price_usd: str
+    market_cap_usd: Optional[str] = None
 
 
 class Chain(IntEnum):
