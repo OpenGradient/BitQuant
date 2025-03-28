@@ -19,6 +19,13 @@ from defi.analytics.analytics_tools import (
     analyze_price_trend,
     compare_assets,
     analyze_wallet_portfolio,
+    get_coingecko_price_history,
+    get_coingecko_token_list,
+    get_coingecko_token_price,
+    get_coingecko_token_data,
+    search_coingecko_tokens,
+    analyze_price_trend_with_coingecko,
+    symbol_to_coingecko_id,
 )
 from defi.pools.protocol import ProtocolRegistry
 
@@ -64,4 +71,11 @@ def create_analytics_agent_toolkit() -> List[BaseTool]:
         portfolio_volatility,
         analyze_volatility_trend,
         analyze_wallet_portfolio,
+        get_coingecko_price_history,
+        get_coingecko_token_list,
+        get_coingecko_token_price,
+        get_coingecko_token_data,
+        search_coingecko_tokens,
+        analyze_price_trend_with_coingecko,
+        symbol_to_coingecko_id,
     ]
