@@ -17,7 +17,7 @@ TRENDING_POOLS_URL = (
 def get_trending_tokens(
     config: RunnableConfig = None,
 ) -> List[TokenMetadata]:
-    """Get trending tokens from CoinGecko's Solana trending pools endpoint."""
+    """Retrieve the latest trending tokens on Solana from DEX data."""
     return f"Latest trending tokens: {get_trending_tokens_from_coingecko()[:8]}"
 
 
