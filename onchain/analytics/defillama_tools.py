@@ -1,6 +1,6 @@
 from typing import Dict, Any, List
 from langchain_core.tools import tool
-from defi.analytics.defillama_metrics import DefiLlamaMetrics
+from onchain.analytics.defillama_metrics import DefiLlamaMetrics
 
 defillama = DefiLlamaMetrics()
 

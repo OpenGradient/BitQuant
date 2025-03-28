@@ -15,10 +15,10 @@ from datetime import datetime
 from functools import wraps
 
 import boto3.data
-from defi.pools.protocol import ProtocolRegistry
-from defi.pools.solana.orca_protocol import OrcaProtocol
-from defi.pools.solana.save_protocol import SaveProtocol
-from defi.pools.solana.kamino_protocol import KaminoProtocol
+from onchain.pools.protocol import ProtocolRegistry
+from onchain.pools.solana.orca_protocol import OrcaProtocol
+from onchain.pools.solana.save_protocol import SaveProtocol
+from onchain.pools.solana.kamino_protocol import KaminoProtocol
 from tokens.metadata import TokenMetadataRepo
 from tokens.portfolio import PortfolioFetcher
 from api.api_types import (

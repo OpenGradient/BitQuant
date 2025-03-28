@@ -2,9 +2,9 @@ import logging
 from dotenv import load_dotenv
 from server import create_flask_app
 
-from defi.pools.solana.orca_protocol import OrcaProtocol
-from defi.pools.solana.save_protocol import SaveProtocol
-from defi.pools.solana.kamino_protocol import KaminoProtocol
+from onchain.pools.solana.orca_protocol import OrcaProtocol
+from onchain.pools.solana.save_protocol import SaveProtocol
+from onchain.pools.solana.kamino_protocol import KaminoProtocol
 
 # Load environment variables
 load_dotenv()

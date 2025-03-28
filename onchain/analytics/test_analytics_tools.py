@@ -1,7 +1,7 @@
 import unittest
 from langgraph.graph.graph import RunnableConfig
 
-from defi.analytics.analytics_tools import (
+from onchain.analytics.analytics_tools import (
     get_binance_price_history,
     portfolio_value,
     portfolio_volatility,

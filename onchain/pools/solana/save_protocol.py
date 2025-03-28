@@ -3,7 +3,7 @@ from typing import List, Dict, Any
 import requests
 
 from api.api_types import Pool, Token, Chain, PoolType
-from defi.pools.protocol import Protocol
+from onchain.pools.protocol import Protocol
 from tokens.metadata import TokenMetadataRepo
 
 

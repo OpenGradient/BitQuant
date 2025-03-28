@@ -3,7 +3,7 @@ from typing import List
 from langgraph.graph.graph import RunnableConfig
 from langchain_core.tools import BaseTool, tool
 
-from defi.analytics.defillama_tools import (
+from onchain.analytics.defillama_tools import (
     show_defi_llama_protocol,
     show_defi_llama_global_tvl,
     show_defi_llama_chain_tvl,
@@ -12,7 +12,7 @@ from defi.analytics.defillama_tools import (
     show_defi_llama_historical_chain_tvl,
 )
 from api.api_types import Pool, WalletTokenHolding, Chain, PoolQuery
-from defi.analytics.analytics_tools import (
+from onchain.analytics.analytics_tools import (
     max_drawdown_for_token,
     portfolio_volatility,
     analyze_volatility_trend,
@@ -20,7 +20,7 @@ from defi.analytics.analytics_tools import (
     compare_assets,
     analyze_wallet_portfolio,
 )
-from defi.pools.protocol import ProtocolRegistry
+from onchain.pools.protocol import ProtocolRegistry
 
 
 @tool

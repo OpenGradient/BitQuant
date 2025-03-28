@@ -5,8 +5,8 @@ from datetime import datetime, timedelta, UTC
 import statistics
 
 from api.api_types import Pool, Token, Chain, PoolType
-from defi.pools.protocol import Protocol
-from defi.pools.solana.constants import stablecoin_symbols
+from onchain.pools.protocol import Protocol
+from onchain.pools.solana.constants import stablecoin_symbols
 from tokens.metadata import TokenMetadataRepo
 
 
