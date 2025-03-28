@@ -19,7 +19,6 @@ from defi.analytics.analytics_tools import (
     analyze_price_trend,
     compare_assets,
     analyze_wallet_portfolio,
-    # New CoinMarketCap tools
     get_coinmarketcap_price_history,
     analyze_price_trend_cmc,
     compare_assets_cmc,
@@ -34,16 +33,12 @@ def retrieve_solana_pools(
     tokens: List[str] = None,
     config: RunnableConfig = None,
 ) -> List[Pool]:
-    """
-    Retrieves Solana pools matching the specified criteria that the user can invest in.
-    """
     configurable = config["configurable"]
     user_tokens: List[WalletTokenHolding] = configurable["tokens"]
     protocol_registry: ProtocolRegistry = configurable["protocol_registry"]
 
-    # Create a query to filter pools
     query = PoolQuery(
-        chain=Chain.SOLANA,  # Currently only supporting Solana
+        chain=Chain.SOLANA,
         tokens=tokens or [],
         user_tokens=user_tokens,
     )
@@ -64,13 +59,11 @@ def create_analytics_agent_toolkit() -> List[BaseTool]:
         show_defi_llama_historical_global_tvl,
         show_defi_llama_historical_chain_tvl,
         show_defi_llama_top_pools,
-        # Using CoinMarketCap tools as primary tools
         get_coinmarketcap_price_history,
         analyze_price_trend_cmc,
         compare_assets_cmc,
         max_drawdown_for_token_cmc,
         analyze_volatility_trend_cmc,
-        # Keep Binance tools as fallback
         analyze_wallet_portfolio,
         portfolio_volatility,
     ]
