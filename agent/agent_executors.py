@@ -31,6 +31,7 @@ def create_routing_model() -> ChatOpenAI:
         openai_api_base="https://openrouter.ai/api/v1",
         openai_api_key=os.getenv("OPENROUTER_API_KEY"),
         request_timeout=60,
+        default_headers={"X-Title": "two-ligma"},
     )
 
 
@@ -43,6 +44,7 @@ def create_suggestions_executor() -> CompiledGraph:
         request_timeout=60,
         max_tokens=100,
         streaming=False,
+        default_headers={"X-Title": "two-ligma"},
     )
     agent_executor = create_react_agent(
         model=openai_model,
@@ -61,6 +63,7 @@ def create_investor_executor() -> CompiledGraph:
         request_timeout=60,
         max_tokens=4096,
         streaming=False,
+        default_headers={"X-Title": "two-ligma"},
     )
     agent_executor = create_react_agent(
         model=openai_model, tools=create_investor_agent_toolkit()
@@ -78,6 +81,7 @@ def create_analytics_executor() -> CompiledGraph:
         request_timeout=60,
         max_tokens=4096,
         streaming=False,
+        default_headers={"X-Title": "two-ligma"},
     )
     analytics_executor = create_react_agent(
         model=openai_model,
