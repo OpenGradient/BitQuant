@@ -19,6 +19,12 @@ from defi.analytics.analytics_tools import (
     analyze_price_trend,
     compare_assets,
     analyze_wallet_portfolio,
+    # New CoinMarketCap tools
+    get_coinmarketcap_price_history,
+    analyze_price_trend_cmc,
+    compare_assets_cmc,
+    max_drawdown_for_token_cmc,
+    analyze_volatility_trend_cmc,
 )
 from defi.pools.protocol import ProtocolRegistry
 
@@ -58,10 +64,13 @@ def create_analytics_agent_toolkit() -> List[BaseTool]:
         show_defi_llama_historical_global_tvl,
         show_defi_llama_historical_chain_tvl,
         show_defi_llama_top_pools,
-        analyze_price_trend,
-        compare_assets,
-        max_drawdown_for_token,
-        portfolio_volatility,
-        analyze_volatility_trend,
+        # Using CoinMarketCap tools as primary tools
+        get_coinmarketcap_price_history,
+        analyze_price_trend_cmc,
+        compare_assets_cmc,
+        max_drawdown_for_token_cmc,
+        analyze_volatility_trend_cmc,
+        # Keep Binance tools as fallback
         analyze_wallet_portfolio,
+        portfolio_volatility,
     ]
