@@ -38,7 +38,7 @@ def create_routing_model() -> ChatOpenAI:
 def create_suggestions_model() -> ChatOpenAI:
     return ChatOpenAI(
         model=SUGGESTIONS_MODEL,
-        temperature=0.0,
+        temperature=0.3,
         openai_api_base="https://openrouter.ai/api/v1",
         openai_api_key=os.getenv("OPENROUTER_API_KEY"),
         request_timeout=60,
