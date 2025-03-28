@@ -102,6 +102,20 @@ def get_analytics_prompt(
 
 def get_router_prompt(message_history: List[Message], current_message: str) -> str:
     """Get the router prompt to determine which agent should handle the request."""
+
+    # Truncate assistant response to 1000 characters, also include the message type
+    message_history = [
+        {
+            "type": message.type,
+            "message": (
+                message.message[:1000] + "..."
+                if message.type == "assistant" and len(message.message) > 1000
+                else message.message
+            ),
+        }
+        for message in message_history
+    ]
+
     router_prompt = router_template.render(
         message_history=message_history,
         current_message=current_message,
