@@ -18,6 +18,8 @@ class TokenMetadata:
     symbol: str
     image_url: Optional[str]
     price: Optional[float]
+    dex_pool_address: Optional[str]
+    market_cap_usd: Optional[str]
 
 
 class TokenMetadataRepo:
@@ -86,7 +88,10 @@ class TokenMetadataRepo:
                 timestamp=item["timestamp"],
                 image_url=item.get("image_url"),
                 price=item.get("price"),
+                dex_pool_address=item.get("dex_pool_address"),
+                market_cap_usd=item.get("market_cap_usd"),
             )
+
             return metadata
         except botocore.exceptions.ClientError as error:
             if error.response["Error"]["Code"] == "ResourceNotFoundException":
@@ -108,6 +113,10 @@ class TokenMetadataRepo:
             item["price"] = metadata.price
         if metadata.image_url:
             item["image_url"] = metadata.image_url
+        if metadata.dex_pool_address:
+            item["dex_pool_address"] = metadata.dex_pool_address
+        if metadata.market_cap_usd:
+            item["market_cap_usd"] = metadata.market_cap_usd
 
         self._tokens_table.put_item(Item=item)
         logging.info(f"Stored metadata for token: {metadata.address}")
@@ -158,5 +167,7 @@ class TokenMetadataRepo:
             symbol=metadata["baseToken"]["symbol"],
             image_url=metadata["info"]["imageUrl"] if "info" in metadata else None,
             price=metadata["priceUsd"],
+            dex_pool_address=str(metadata["pairAddress"]),
+            market_cap_usd=str(metadata["marketCap"]),
             timestamp=int(time.time()),
         )
