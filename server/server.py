@@ -11,6 +11,7 @@ import json
 import logging
 import traceback
 import boto3
+import re
 from datetime import datetime
 from functools import wraps
 
@@ -485,27 +486,35 @@ def run_main_agent(
 ) -> Dict[str, Any]:
     # Run agent directly
     result = agent.invoke({"messages": messages}, config=config, debug=False)
-
     # Extract final state and last message
     last_message = result["messages"][-1]
-
     try:
-        # Parse the JSON response from the agent's content
-        response_data = json.loads(last_message.content)
+        # The problem is that the response isn't actually JSON
+        # Instead, it's plain text with pool IDs embedded in code blocks
+        response_text = last_message.content
 
-        # Get full pool objects for the returned pool IDs
-        pool_objects = protocol_registry.get_pools_by_ids(response_data["pools"])
+        # Extract pool IDs and clean text in one pass
+        pool_ids = []
+
+        def extract_pool(match):
+            pool_ids.append(match.group(1))
+            return ""
+
+        # Find all occurrences of ```pool:ID``` patterns
+        cleaned_text = re.sub(r"```pool:([^`]+)```", extract_pool, response_text)
+
+        # Get full pool objects for the extracted pool IDs
+        pool_objects = protocol_registry.get_pools_by_ids(pool_ids)
 
         return {
-            "content": response_data["text"],
+            "content": cleaned_text,
             "pools": pool_objects,
             "messages": result["messages"],
         }
-    except json.JSONDecodeError as e:
-        logger.error(
-            f"Failed to parse agent response ({last_message.content}) as JSON: {e}"
-        )
-        # Fallback to treating the entire response as text if JSON parsing fails
+    except Exception as e:
+        # Add error handling to catch and log parsing issues
+        print(f"Error parsing agent response: {e}")
+        # Return the original message content if parsing fails
         return {
             "content": last_message.content,
             "pools": [],
