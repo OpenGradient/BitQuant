@@ -51,6 +51,7 @@ from agent.tools import (
 from langchain_openai import ChatOpenAI
 from server.whitelist import TwoLigmaWhitelist
 from server.invitecode import InviteCodeManager
+from server.utils import extract_patterns
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
@@ -488,38 +489,18 @@ def run_main_agent(
     result = agent.invoke({"messages": messages}, config=config, debug=False)
     # Extract final state and last message
     last_message = result["messages"][-1]
-    try:
-        # The problem is that the response isn't actually JSON
-        # Instead, it's plain text with pool IDs embedded in code blocks
-        response_text = last_message.content
 
-        # Extract pool IDs and clean text in one pass
-        pool_ids = []
+    # Extract pool IDs and clean text
+    cleaned_text, pool_ids = extract_patterns(last_message.content, "pool")
 
-        def extract_pool(match):
-            pool_ids.append(match.group(1))
-            return ""
+    # Get full pool objects for the extracted pool IDs
+    pool_objects = protocol_registry.get_pools_by_ids(pool_ids)
 
-        # Find all occurrences of ```pool:ID``` patterns
-        cleaned_text = re.sub(r"```pool:([^`]+)```", extract_pool, response_text)
-
-        # Get full pool objects for the extracted pool IDs
-        pool_objects = protocol_registry.get_pools_by_ids(pool_ids)
-
-        return {
-            "content": cleaned_text,
-            "pools": pool_objects,
-            "messages": result["messages"],
-        }
-    except Exception as e:
-        # Add error handling to catch and log parsing issues
-        print(f"Error parsing agent response: {e}")
-        # Return the original message content if parsing fails
-        return {
-            "content": last_message.content,
-            "pools": [],
-            "messages": result["messages"],
-        }
+    return {
+        "content": cleaned_text,
+        "pools": pool_objects,
+        "messages": result["messages"],
+    }
 
 
 def convert_to_agent_message_history(messages: List[Message]) -> List[Tuple[str, str]]:
@@ -603,19 +584,22 @@ def handle_analytics_chat_request(
         }
     )
 
-    # Run analytics agent
-    analytics_result = run_analytics_agent(agent, analytics_messages, agent_config)
-
-    return AgentMessage(message=analytics_result["content"], pools=[])
+    return run_analytics_agent(agent, analytics_messages, agent_config)
 
 
 def run_analytics_agent(
     agent: CompiledGraph, messages: List, config: RunnableConfig
-) -> Dict[str, Any]:
+) -> AgentMessage:
     # Run agent directly
     result = agent.invoke({"messages": messages}, config=config, debug=False)
 
     # Extract final state and last message
     last_message = result["messages"][-1]
 
-    return {"content": last_message.content, "messages": result["messages"]}
+    cleaned_text, token_ids = extract_patterns(last_message.content, "token")
+
+    return AgentMessage(
+        message=cleaned_text,
+        tokens=token_ids,
+        pools=[],
+    )

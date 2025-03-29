@@ -18,7 +18,7 @@ def get_trending_tokens_on_solana(
     config: RunnableConfig = None,
 ) -> List[TokenMetadata]:
     """Retrieve the latest trending tokens on Solana from DEX data."""
-    return f"Latest trending tokens: {get_trending_tokens_from_coingecko()[:8]}"
+    return f"""Latest trending tokens: {get_trending_tokens_from_coingecko()[:8]}. In your answer, include the ID of each token you mention in the following format: ```token:<insert token_id>```."""
 
 
 @cached(cache=TTLCache(maxsize=100, ttl=60 * 10))
