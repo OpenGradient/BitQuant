@@ -560,12 +560,12 @@ def handle_analytics_chat_request(
         }
     )
 
-    return run_analytics_agent(agent, analytics_messages, agent_config)
+    return run_analytics_agent(agent, token_metadata_repo, analytics_messages, agent_config)
 
 
 def run_analytics_agent(
-    token_metadata_repo: TokenMetadataRepo,
     agent: CompiledGraph,
+    token_metadata_repo: TokenMetadataRepo,
     messages: List,
     config: RunnableConfig,
 ) -> AgentMessage:
@@ -586,8 +586,8 @@ def run_analytics_agent(
             name=token.name,
             symbol=token.symbol,
             price_usd=token.price,
-            market_cap_usd=token.market_cap_usd,
-            dex_pool_address=token.dex_pool_address or "unknown",
+            market_cap_usd=str(token.market_cap_usd) if token.market_cap_usd else None,
+            dex_pool_address=token.dex_pool_address,
             image_url=token.image_url,
         )
         for token in token_metadata

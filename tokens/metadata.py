@@ -19,7 +19,7 @@ class TokenMetadata:
     image_url: Optional[str]
     price: Optional[float]
     dex_pool_address: Optional[str]
-    market_cap_usd: Optional[str]
+    market_cap_usd: Optional[float]
 
 
 class TokenMetadataRepo:
@@ -167,7 +167,7 @@ class TokenMetadataRepo:
             symbol=metadata["baseToken"]["symbol"],
             image_url=metadata["info"]["imageUrl"] if "info" in metadata else None,
             price=metadata["priceUsd"],
-            dex_pool_address=str(metadata["pairAddress"]),
-            market_cap_usd=str(metadata["marketCap"]),
+            dex_pool_address=metadata.get("pairAddress"),
+            market_cap_usd=metadata.get("marketCap"),
             timestamp=int(time.time()),
         )
