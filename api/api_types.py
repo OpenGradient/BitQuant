@@ -97,7 +97,8 @@ class UserMessage(BaseModel):
 class AgentMessage(BaseModel):
     type: Literal["assistant"] = "assistant"
     message: str
-    pools: List[Pool]
+    pools: List[Pool] = []
+    tokens: List[TokenMetadata] = []
 
 
 Message = Union[UserMessage, AgentMessage]
