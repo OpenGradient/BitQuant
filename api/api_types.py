@@ -15,8 +15,8 @@ class TokenMetadata(BaseModel):
     address: str
     name: str
     symbol: str
-    pool_id: str
     price_usd: str
+    dex_pool_address: str
     market_cap_usd: Optional[str] = None
 
 

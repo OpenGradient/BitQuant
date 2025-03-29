@@ -53,7 +53,7 @@ def get_trending_tokens_from_coingecko() -> List[TokenMetadata]:
             address=token_id,
             name=token_name,
             symbol=token_name,
-            pool_id=attributes["address"],
+            dex_pool_address=attributes["address"],
             price_usd=attributes["base_token_price_usd"],
             market_cap_usd=attributes.get("market_cap_usd"),
         )
