@@ -18,6 +18,7 @@ class TokenMetadata(BaseModel):
     price_usd: str
     dex_pool_address: str
     market_cap_usd: Optional[str] = None
+    image_url: Optional[str] = None
 
 
 class Chain(IntEnum):

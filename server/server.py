@@ -208,6 +208,7 @@ def create_flask_app() -> Flask:
 
         portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
         response = handle_agent_chat_request(
+            token_metadata_repo=token_metadata_repo,
             protocol_registry=protocol_registry,
             request=agent_request,
             portfolio=portfolio,
@@ -354,6 +355,7 @@ def handle_agent_chat_request(
     protocol_registry: ProtocolRegistry,
     request: AgentChatRequest,
     portfolio: Portfolio,
+    token_metadata_repo: TokenMetadataRepo,
     investor_agent: CompiledGraph,
     analytics_agent: CompiledGraph,
     router_model: ChatOpenAI,
@@ -361,7 +363,9 @@ def handle_agent_chat_request(
     # If agent is explicitly specified, bypass router
     if request.agent is not None:
         if request.agent == AgentType.ANALYTICS:
-            return handle_analytics_chat_request(request, portfolio, analytics_agent)
+            return handle_analytics_chat_request(
+                request, token_metadata_repo, portfolio, analytics_agent
+            )
         elif request.agent == AgentType.INVESTOR:
             return handle_investor_chat_request(
                 request, portfolio, investor_agent, protocol_registry
@@ -379,7 +383,9 @@ def handle_agent_chat_request(
     selected_agent = router_response.content.strip().lower()
 
     if selected_agent == AgentType.ANALYTICS:
-        return handle_analytics_chat_request(request, portfolio, analytics_agent)
+        return handle_analytics_chat_request(
+            request, token_metadata_repo, portfolio, analytics_agent
+        )
     elif selected_agent == AgentType.INVESTOR:
         return handle_investor_chat_request(
             request, portfolio, investor_agent, protocol_registry
@@ -524,6 +530,7 @@ def convert_to_agent_message_history(messages: List[Message]) -> List[Tuple[str,
 
 def handle_analytics_chat_request(
     request: AgentChatRequest,
+    token_metadata_repo: TokenMetadataRepo,
     portfolio: Portfolio,
     agent: CompiledGraph,
 ) -> AgentMessage:
@@ -557,7 +564,10 @@ def handle_analytics_chat_request(
 
 
 def run_analytics_agent(
-    agent: CompiledGraph, messages: List, config: RunnableConfig
+    token_metadata_repo: TokenMetadataRepo,
+    agent: CompiledGraph,
+    messages: List,
+    config: RunnableConfig,
 ) -> AgentMessage:
     # Run agent directly
     result = agent.invoke({"messages": messages}, config=config, debug=False)
@@ -567,18 +577,24 @@ def run_analytics_agent(
 
     cleaned_text, token_ids = extract_patterns(last_message.content, "token")
 
+    token_metadata = [
+        token_metadata_repo.get_token_metadata(token_id) for token_id in token_ids
+    ]
+    api_token_metadata = [
+        TokenMetadata(
+            address=token.address,
+            name=token.name,
+            symbol=token.symbol,
+            price_usd=token.price,
+            market_cap_usd=token.market_cap_usd,
+            dex_pool_address=token.dex_pool_address or "unknown",
+            image_url=token.image_url,
+        )
+        for token in token_metadata
+    ]
+
     return AgentMessage(
         message=cleaned_text,
-        tokens=[
-            TokenMetadata(
-                address=token_id,
-                name=token_id,
-                symbol=token_id,
-                price_usd="0",
-                market_cap_usd="0",
-                dex_pool_address=token_id,
-            )
-            for token_id in token_ids
-        ],
+        tokens=api_token_metadata,
         pools=[],
     )
