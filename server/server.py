@@ -31,6 +31,7 @@ from api.api_types import (
     AgentType,
     Portfolio,
     FeedbackRequest,
+    TokenMetadata,
 )
 from agent.agent_executors import (
     create_investor_executor,
@@ -51,7 +52,7 @@ from agent.tools import (
 from langchain_openai import ChatOpenAI
 from server.whitelist import TwoLigmaWhitelist
 from server.invitecode import InviteCodeManager
-from server.utils import extract_patterns
+from server.utils import extract_patterns, convert_to_agent_msg
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
@@ -521,38 +522,6 @@ def convert_to_agent_message_history(messages: List[Message]) -> List[Tuple[str,
     return converted_messages
 
 
-def convert_to_agent_msg(
-    message: Message, truncate=False, max_length=400
-) -> Tuple[str, str]:
-    if isinstance(message, UserMessage):
-        return ("user", message.message)
-    elif isinstance(message, AgentMessage):
-        return (
-            "assistant",
-            json.dumps(
-                {
-                    "text": (
-                        message.message[:max_length] + "... [truncated]"
-                        if truncate and len(message.message) > max_length
-                        else message.message
-                    ),
-                    "pools": [pool.id for pool in message.pools],
-                }
-            ),
-        )
-    else:
-        raise TypeError(f"Unexpected message type: {type(message)}")
-
-
-def extract_pools(messages: List[Any]) -> List[Pool]:
-    return [
-        a
-        for msg in messages
-        if hasattr(msg, "artifact") and msg.artifact
-        for a in msg.artifact
-    ]
-
-
 def handle_analytics_chat_request(
     request: AgentChatRequest,
     portfolio: Portfolio,
@@ -600,6 +569,16 @@ def run_analytics_agent(
 
     return AgentMessage(
         message=cleaned_text,
-        tokens=token_ids,
+        tokens=[
+            TokenMetadata(
+                address=token_id,
+                name=token_id,
+                symbol=token_id,
+                price_usd="0",
+                market_cap_usd="0",
+                dex_pool_address=token_id,
+            )
+            for token_id in token_ids
+        ],
         pools=[],
     )

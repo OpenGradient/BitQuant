@@ -33,13 +33,14 @@ def main():
         agent_output = response.json()
         answer = agent_output["message"]
         pools = agent_output.get("pools", [])
+        tokens = agent_output.get("tokens", [])
 
         # print results
         print(f"Two-Ligma: {answer}")
         if pools:
-            print(pools)
-        else:
-            print(">No pools returned")
+            print(f"Pools: {pools}")
+        if tokens:
+            print(f"Tokens: {tokens}")
 
         # append to history
         context["conversationHistory"].append(message)

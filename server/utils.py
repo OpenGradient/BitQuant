@@ -1,6 +1,30 @@
 from typing import Tuple, List
 import re
 
+from api.api_types import Message, UserMessage, AgentMessage
+
+
+def convert_to_agent_msg(
+    message: Message, truncate=False, max_length=400
+) -> Tuple[str, str]:
+    if isinstance(message, UserMessage):
+        return ("user", message.message)
+    elif isinstance(message, AgentMessage):
+        message_to_return = message.message
+        if truncate and len(message.message) > max_length:
+            message_to_return = message.message[:max_length] + "... [truncated]\n"
+
+        if len(message.pools) > 0:
+            message_to_return += "\n"
+            for pool in message.pools:
+                message_to_return += f"```pool:{pool.id}```\n"
+        if len(message.tokens) > 0:
+            message_to_return += "\n"
+            for token in message.tokens:
+                message_to_return += f"```token:{token.address}```"
+
+        return ("assistant", message_to_return)
+
 
 def extract_patterns(text: str, pattern_type: str) -> Tuple[str, List[str]]:
     """
