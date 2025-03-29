@@ -14,7 +14,7 @@ TRENDING_POOLS_URL = (
 
 
 @tool
-def get_trending_tokens(
+def get_trending_tokens_on_solana(
     config: RunnableConfig = None,
 ) -> List[TokenMetadata]:
     """Retrieve the latest trending tokens on Solana from DEX data."""
