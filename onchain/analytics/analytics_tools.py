@@ -11,31 +11,14 @@ import csv
 import requests
 import random
 from time import sleep
-import logging
 import json
 from datetime import datetime
 import sys
-from functools import lru_cache, wraps
+from functools import wraps
 from datetime import datetime, timedelta
+from cachetools import cached, TTLCache
 
 from api.api_types import WalletTokenHolding
-
-# Set up basic logging
-logger = logging.getLogger("coingecko_api")
-logger.setLevel(logging.INFO)
-
-if not logger.handlers:
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    console_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
-
-logger.info("CoinGecko API module initialized")
-
-from api.api_types import WalletTokenHolding
-
-from langchain_core.tools import tool
 
 class CandleInterval(StrEnum):
     """One of 1d, 1h, 1w"""
@@ -62,41 +45,12 @@ INTERVAL_TO_DAYS = {
     CandleInterval.WEEK: 180, # 1 week intervals, fetch 180 days of data
 }
 
-# Create caches to reduce API calls
-_SYMBOL_TO_ID_CACHE = {}
-_PRICE_DATA_CACHE = {}
-
-def ttl_cache(maxsize=128, ttl=300):
-    """A decorator that creates a cache with a time-to-live (TTL)."""
-    def decorator(func):
-        cache = {}
-        
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            key = str(args) + str(kwargs)
-            current_time = datetime.now()
-            
-            if key in cache:
-                creation_time, result = cache[key]
-                if (current_time - creation_time).total_seconds() < ttl:
-                    return result
-            
-            result = func(*args, **kwargs)
-            cache[key] = (current_time, result)
-            
-            # Clean expired items
-            for k in list(cache.keys()):
-                if (current_time - cache[k][0]).total_seconds() >= ttl:
-                    del cache[k]
-                    
-            return result
-        return wrapper
-    return decorator
+# Create caches
+symbol_to_id_cache = TTLCache(maxsize=100, ttl=3600)  # 1 hour TTL
+price_data_cache = TTLCache(maxsize=100, ttl=600)     # 10 minutes TTL
 
 def make_coingecko_request(url, params=None, max_retries=3, backoff_factor=0.5):
-    """Make a request to the CoinGecko Pro API with retries and error handling."""
-    request_id = f"req_{datetime.now().strftime('%H%M%S')}"
-    
+    """Makes a request to the CoinGecko API with retries."""
     retry_count = 0
     while retry_count < max_retries:
         try:
@@ -109,14 +63,12 @@ def make_coingecko_request(url, params=None, max_retries=3, backoff_factor=0.5):
             # Handle rate limiting
             if response.status_code == 429:
                 retry_after = int(response.headers.get('Retry-After', 60))
-                logger.warning(f"Rate limited. Retrying after {retry_after} seconds")
                 sleep(retry_after)
                 retry_count += 1
                 continue
                 
             # Raise for non-200 status codes
             if response.status_code != 200:
-                logger.error(f"API error: {response.status_code} - {response.text}")
                 response.raise_for_status()
                 
             return response.json()
@@ -124,37 +76,21 @@ def make_coingecko_request(url, params=None, max_retries=3, backoff_factor=0.5):
         except requests.exceptions.RequestException as e:
             retry_count += 1
             wait_time = backoff_factor * (2 ** (retry_count - 1))
-            logger.warning(f"Request failed: {e}. Retrying in {wait_time:.2f}s (Attempt {retry_count}/{max_retries})")
             sleep(wait_time)
             
     # All retries failed
     raise Exception(f"Failed to make request to {url} after {max_retries} attempts")
 
-@ttl_cache(maxsize=100, ttl=3600)  # Cache ID lookups for 1 hour
+@cached(cache=symbol_to_id_cache)
 def get_coingecko_id(token_symbol: str) -> str:
-    """
-    Convert a token symbol to CoinGecko ID using the CSV data file.
-    
-    Args:
-        token_symbol: Token symbol to convert (e.g., "BTC")
-        
-    Returns:
-        CoinGecko ID for the token (e.g., "bitcoin")
-    """
+    """Converts a token symbol to CoinGecko ID."""
     token_symbol_lower = token_symbol.lower()
     
-    # 1. Check cache first for efficiency
-    if token_symbol_lower in _SYMBOL_TO_ID_CACHE:
-        return _SYMBOL_TO_ID_CACHE[token_symbol_lower]
-    
-    # 2. Use the CSV file for lookup
+    # Use the CSV file for lookup
     csv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
                            'static', 'coingecko_ids.csv')
     
     if not os.path.exists(csv_path):
-        logger.warning(f"CoinGecko IDs CSV file not found at {csv_path}")
-        # Fallback to using symbol as ID
-        _SYMBOL_TO_ID_CACHE[token_symbol_lower] = token_symbol_lower
         return token_symbol_lower
     
     try:
@@ -182,39 +118,26 @@ def get_coingecko_id(token_symbol: str) -> str:
             if matches:
                 # If we have multiple matches, prioritize by name length (shorter names are usually the main tokens)
                 matches.sort(key=lambda x: len(x['name']))
-                chosen_id = matches[0]['id']
-                
-                logger.info(f"Mapped {token_symbol} to {chosen_id} from CSV (found {len(matches)} matches)")
-                _SYMBOL_TO_ID_CACHE[token_symbol_lower] = chosen_id
-                return chosen_id
-            
-            logger.warning(f"No matches found for {token_symbol} in CoinGecko IDs CSV")
-            
-    except Exception as e:
-        logger.error(f"Error reading coingecko_ids.csv: {str(e)}")
+                return matches[0]['id']
+    except Exception:
+        pass
     
-    # 3. Fallback to using the lowercase symbol if all else fails
-    logger.warning(f"Using symbol directly as CoinGecko ID fallback: {token_symbol_lower}")
-    _SYMBOL_TO_ID_CACHE[token_symbol_lower] = token_symbol_lower
+    # Fallback to using the lowercase symbol if all else fails
     return token_symbol_lower
 
 
 @tool()
-@ttl_cache(maxsize=100, ttl=600)  # Cache for 10 minutes
 def get_coingecko_price_history(
     token_symbol: str, candle_interval: CandleInterval, num_candles: int
 ) -> Dict[str, Any]:
-    """
-    Retrieves historical price data for a token using CoinGecko API's OHLC range endpoint.
+    """Retrieves historical price data for a token using CoinGecko."""
+    # Create a cache key for lookup
+    cache_key = f"{token_symbol}_{candle_interval}_{num_candles}"
     
-    Args:
-        token_symbol: The token symbol (e.g., "BTC")
-        candle_interval: Time interval for candles (1h, 1d, 1w)
-        num_candles: Number of historical candles to retrieve
-        
-    Returns:
-        Dictionary with price history data or error information
-    """
+    # Check if we have this in cache
+    if cache_key in price_data_cache:
+        return price_data_cache[cache_key]
+    
     # Min value of 2 ensures we have at least two data points for calculating trends
     num_candles = min(max(2, int(num_candles)), 1000)
     
@@ -222,9 +145,7 @@ def get_coingecko_price_history(
     try:
         token_id = get_coingecko_id(token_symbol)
     except Exception as e:
-        error_msg = f"Failed to map {token_symbol} to CoinGecko ID: {str(e)}"
-        logger.error(error_msg)
-        return {"error": error_msg, "token_symbol": token_symbol, "source": "coingecko"}
+        return {"error": f"Failed to map {token_symbol} to CoinGecko ID: {str(e)}", "token_symbol": token_symbol, "source": "coingecko"}
     
     # Set currency to USD
     vs_currency = "usd"
@@ -254,30 +175,6 @@ def get_coingecko_price_history(
     if from_timestamp < min_timestamp:
         from_timestamp = min_timestamp
     
-    # Create a cache key
-    cache_key = f"{token_id}_{vs_currency}_{from_timestamp}_{now}_{interval}"
-    
-    # Check if we have cached data
-    if cache_key in _PRICE_DATA_CACHE:
-        cached_data = _PRICE_DATA_CACHE[cache_key]
-        return {
-            "token_symbol": token_symbol,
-            "token_id": token_id,
-            "candle_interval": candle_interval,
-            "num_candles": len(cached_data),
-            "data": cached_data,
-            "columns": [
-                "open_time",
-                "open",
-                "high",
-                "low",
-                "close",
-                "volume",
-            ],
-            "source": "coingecko",
-            "cached": True
-        }
-    
     try:
         # Construct the OHLC range endpoint URL
         ohlc_url = f"{COINGECKO_BASE_URL}/coins/{token_id}/ohlc/range"
@@ -294,15 +191,11 @@ def get_coingecko_price_history(
         
         # Check if the API returned an error message
         if isinstance(ohlc_data, dict) and "error" in ohlc_data:
-            error_msg = f"CoinGecko API returned an error: {ohlc_data['error']}"
-            logger.error(error_msg)
-            return {"error": error_msg, "token_symbol": token_symbol, "source": "coingecko"}
+            return {"error": f"CoinGecko API returned an error: {ohlc_data['error']}", "token_symbol": token_symbol, "source": "coingecko"}
             
         # Check if we got valid data
         if not isinstance(ohlc_data, list) or len(ohlc_data) == 0:
-            error_msg = f"CoinGecko API returned invalid or empty data"
-            logger.error(error_msg)
-            return {"error": error_msg, "token_symbol": token_symbol, "source": "coingecko"}
+            return {"error": "CoinGecko API returned invalid or empty data", "token_symbol": token_symbol, "source": "coingecko"}
         
         # Format data to match expected structure
         # CoinGecko OHLC format: [timestamp, open, high, low, close]
@@ -314,13 +207,10 @@ def get_coingecko_price_history(
                 # Add a placeholder volume value (0)
                 formatted_data.append([timestamp, open_price, high, low, close, 0])
         
-        # Cache the data
-        _PRICE_DATA_CACHE[cache_key] = formatted_data
-        
         # Limit to requested number of candles
         formatted_data = formatted_data[-num_candles:]
         
-        return {
+        result = {
             "token_symbol": token_symbol,
             "token_id": token_id,
             "candle_interval": candle_interval,
@@ -336,12 +226,15 @@ def get_coingecko_price_history(
             ],
             "source": "coingecko"
         }
+        
+        # Cache the result
+        price_data_cache[cache_key] = result
+        
+        return result
 
     except Exception as e:
-        error_msg = f"Error fetching CoinGecko data for {token_symbol}: {str(e)}"
-        logger.error(error_msg)
         return {
-            "error": error_msg,
+            "error": f"Error fetching CoinGecko data for {token_symbol}: {str(e)}",
             "token_symbol": token_symbol,
             "source": "coingecko"
         }
@@ -643,7 +536,6 @@ def compare_assets(
     """
     # Generate a request ID for this comparison operation
     comparison_id = f"compare_{datetime.now().strftime('%H%M%S')}"
-    logger.info(f"[{comparison_id}] Starting comparison of {len(token_symbols)} assets: {token_symbols}")
     
     results = {}
     detailed_results = {}
@@ -653,11 +545,9 @@ def compare_assets(
     # Step 1: Collect individual asset data
     for idx, token_symbol in enumerate(token_symbols):
         token_id = f"{comparison_id}_{token_symbol}"
-        logger.info(f"[{token_id}] Processing token {idx+1}/{len(token_symbols)}: {token_symbol}")
         
         try:
             # Get price data first to check for errors
-            logger.info(f"[{token_id}] Fetching price data")
             price_data = get_coingecko_price_history.invoke(
                 {
                     "token_symbol": token_symbol,
@@ -669,15 +559,11 @@ def compare_assets(
             # Check for errors in price data
             if "error" in price_data:
                 error_msg = price_data["error"]
-                logger.error(f"[{token_id}] Error fetching price data: {error_msg}")
                 results[token_symbol] = {"error": error_msg}
                 error_count += 1
                 continue
             
-            logger.info(f"[{token_id}] Successfully fetched price data with {len(price_data.get('data', []))} candles")
-                
             # Now get the analysis
-            logger.info(f"[{token_id}] Analyzing price trend")
             analysis = analyze_price_trend.invoke(
                 {
                     "token_symbol": token_symbol,
@@ -689,13 +575,10 @@ def compare_assets(
             # Skip if there was an error
             if "error" in analysis:
                 error_msg = analysis["error"]
-                logger.error(f"[{token_id}] Error analyzing price trend: {error_msg}")
                 results[token_symbol] = {"error": error_msg}
                 error_count += 1
                 continue
             
-            logger.info(f"[{token_id}] Successfully analyzed price trend")
-
             # Store detailed analysis results
             detailed_results[token_symbol] = analysis
 
@@ -753,15 +636,10 @@ def compare_assets(
                     )
 
             successful_tokens.append(token_symbol)
-            logger.info(f"[{token_id}] Successfully processed")
-
-            # Add a small delay between tokens to avoid rate limiting
-            time.sleep(1.0)  # Increased delay to be more conservative
 
         except Exception as e:
             error_traceback = traceback.format_exc()
             error_msg = f"Error analyzing {token_symbol}: {str(e)}"
-            logger.error(f"[{token_id}] {error_msg}\n{error_traceback}")
             results[token_symbol] = {
                 "error": error_msg
             }
@@ -769,14 +647,11 @@ def compare_assets(
 
     # If all tokens had errors, return a general error
     if error_count == len(token_symbols):
-        logger.error(f"[{comparison_id}] All tokens failed. Rate limiting may be the cause.")
         return {
             "error": "Could not analyze any of the requested tokens. The CoinGecko API may be rate-limited or temporarily unavailable. Please try again later.",
             "source": "coingecko"
         }
     
-    logger.info(f"[{comparison_id}] Successfully processed {len(successful_tokens)}/{len(token_symbols)} tokens")
-
     # Step 2: Calculate investor-friendly comparative metrics
     valid_tokens = {
         symbol: data
@@ -784,13 +659,9 @@ def compare_assets(
         if "error" not in data and data.get("current_price") is not None
     }
     
-    logger.info(f"[{comparison_id}] Found {len(valid_tokens)} valid tokens for comparison")
-
     comparative_analysis = {}
 
     if valid_tokens:
-        logger.info(f"[{comparison_id}] Generating comparative analysis")
-        
         # Performance ranking
         performance_ranking = sorted(
             valid_tokens.items(),
@@ -890,7 +761,6 @@ def compare_assets(
         
         # Step 3: Create actionable insights for investors
         investment_insights = []
-        logger.info(f"[{comparison_id}] Generating investment insights")
 
         # Add general market insight
         market_trend = comparative_analysis.get("market_trend")
@@ -928,8 +798,6 @@ def compare_assets(
                 f"{most_stable['token']} has the lowest volatility, potentially suitable for risk-averse investors."
             )
             
-        logger.info(f"[{comparison_id}] Generated {len(investment_insights)} investment insights")
-
         # Format period in user-friendly terms
         period_text = f"{num_candles} "
         if candle_interval == "1d":
@@ -938,8 +806,6 @@ def compare_assets(
             period_text += "hours"
         elif candle_interval == "1w":
             period_text += "weeks"
-            
-        logger.info(f"[{comparison_id}] Comparison complete. Period: {period_text}")
             
         # Return the final results
         return {
@@ -953,7 +819,6 @@ def compare_assets(
             "successful_tokens": len(successful_tokens)
         }
     else:
-        logger.error(f"[{comparison_id}] No valid tokens for comparison after processing")
         return {
             "error": "Could not generate comparative analysis due to insufficient valid data.",
             "individual_tokens": results,
