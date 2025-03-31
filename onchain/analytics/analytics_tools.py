@@ -16,7 +16,9 @@ from cachetools import cached, TTLCache
 from api.api_types import WalletTokenHolding
 
 class CandleInterval(StrEnum):
-    """One of 1d or 1h"""
+    """
+    One of 1d or 1h
+    """
     DAY = "1d"
     HOUR = "1h"
 
@@ -37,7 +39,9 @@ symbol_to_id_cache = TTLCache(maxsize=100, ttl=3600)  # 1 hour TTL
 price_data_cache = TTLCache(maxsize=100, ttl=600)     # 10 minutes TTL
 
 def make_coingecko_request(url, params=None, max_retries=3, backoff_factor=0.5):
-    """Makes a request to the CoinGecko API with retries."""
+    """
+    Makes a request to the CoinGecko API with retries.
+    """
     retry_count = 0
     while retry_count < max_retries:
         try:
@@ -117,7 +121,9 @@ def get_coingecko_id(token_symbol: str) -> str:
 def get_coingecko_price_history(
     token_symbol: str, candle_interval: CandleInterval, num_candles: int
 ) -> Dict[str, Any]:
-    """Retrieves historical price data for a token using CoinGecko."""
+    """
+    Retrieves historical price data for a token using CoinGecko.
+    """
     # Create a cache key for lookup
     cache_key = f"{token_symbol}_{candle_interval}_{num_candles}"
     
@@ -132,7 +138,7 @@ def get_coingecko_price_history(
     try:
         token_id = get_coingecko_id(token_symbol)
     except Exception as e:
-        return {"error": f"Failed to map {token_symbol} to CoinGecko ID: {str(e)}", "token_symbol": token_symbol, "source": "coingecko"}
+        return {"error": f"Failed to map {token_symbol} to CoinGecko ID: {str(e)}", "token_symbol": token_symbol}
     
     # Set currency to USD
     vs_currency = "usd"
@@ -178,11 +184,11 @@ def get_coingecko_price_history(
         
         # Check if the API returned an error message
         if isinstance(ohlc_data, dict) and "error" in ohlc_data:
-            return {"error": f"CoinGecko API returned an error: {ohlc_data['error']}", "token_symbol": token_symbol, "source": "coingecko"}
+            return {"error": f"CoinGecko API returned an error: {ohlc_data['error']}", "token_symbol": token_symbol}
             
         # Check if we got valid data
         if not isinstance(ohlc_data, list) or len(ohlc_data) == 0:
-            return {"error": "CoinGecko API returned invalid or empty data", "token_symbol": token_symbol, "source": "coingecko"}
+            return {"error": "CoinGecko API returned invalid or empty data", "token_symbol": token_symbol}
         
         # Format data to match expected structure
         # CoinGecko OHLC format: [timestamp, open, high, low, close]
@@ -211,7 +217,6 @@ def get_coingecko_price_history(
                 "close",
                 "volume",
             ],
-            "source": "coingecko"
         }
         
         # Cache the result
@@ -222,8 +227,7 @@ def get_coingecko_price_history(
     except Exception as e:
         return {
             "error": f"Error fetching CoinGecko data for {token_symbol}: {str(e)}",
-            "token_symbol": token_symbol,
-            "source": "coingecko"
+            "token_symbol": token_symbol
         }
 
 
@@ -445,21 +449,21 @@ def analyze_price_trend(
             "token_metrics": token_metrics,
             "analysis_summary": get_analysis_summary(
                 sma7, sma20, sma50, sma200, bollinger_bands, volume_analysis
-            ),
-            "source": "coingecko",
+            )
         }
         
         return result
         
     except Exception as e:
         return {
-            "error": f"Error analyzing price trend for {token_symbol}: {e}",
-            "source": "coingecko"
+            "error": f"Error analyzing price trend for {token_symbol}: {e}"
         }
 
 
 def get_analysis_summary(sma7, sma20, sma50, sma200, bollinger_bands, volume_analysis):
-    """Generate a simple summary of the analysis results."""
+    """
+    Generate a simple summary of the analysis results.
+    """
     summary = []
 
     # Moving average summary - Enhanced with multiple timeframes
@@ -512,14 +516,6 @@ def compare_assets(
 ) -> Dict[str, Any]:
     """
     Compare performance of multiple crypto assets with simplified insights for average investors.
-
-    Args:
-        token_symbols: List of token symbols (e.g. ["BTC", "ETH", "SOL"])
-        candle_interval: Time interval for candles (1h, 1d, 1w)
-        num_candles: Number of historical candles to analyze
-
-    Returns:
-        Dictionary with individual asset analyses, comparative metrics, and investment insights
     """
     # Generate a request ID for this comparison operation
     comparison_id = f"compare_{datetime.now().strftime('%H%M%S')}"
@@ -635,8 +631,7 @@ def compare_assets(
     # If all tokens had errors, return a general error
     if error_count == len(token_symbols):
         return {
-            "error": "Could not analyze any of the requested tokens. The CoinGecko API may be rate-limited or temporarily unavailable. Please try again later.",
-            "source": "coingecko"
+            "error": "Could not analyze any of the requested tokens. The CoinGecko API may be rate-limited or temporarily unavailable. Please try again later."
         }
     
     # Step 2: Calculate investor-friendly comparative metrics
@@ -798,8 +793,7 @@ def compare_assets(
             "comparative_analysis": comparative_analysis,
             "investment_insights": investment_insights,
             "period": period_text,
-            "source": "coingecko",
-            "error_count": error_count,
+             "error_count": error_count,
             "total_tokens": len(token_symbols),
             "successful_tokens": len(successful_tokens)
         }
@@ -807,8 +801,7 @@ def compare_assets(
         return {
             "error": "Could not generate comparative analysis due to insufficient valid data.",
             "individual_tokens": results,
-            "source": "coingecko",
-            "error_count": error_count,
+             "error_count": error_count,
             "total_tokens": len(token_symbols)
         }
 
@@ -821,14 +814,6 @@ def max_drawdown_for_token(
 ) -> Dict[str, Any]:
     """
     Calculates the maximum drawdown for a cryptocurrency using CoinGecko price data
-
-    Args:
-        token_symbol: Token symbol (e.g., "BTC")
-        candle_interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
-        num_candles: Number of candlesticks to retrieve (max 1000)
-
-    Returns:
-        Dictionary containing the maximum drawdown value
     """
     try:
         # Get price data from CoinGecko
@@ -842,8 +827,7 @@ def max_drawdown_for_token(
 
         if "error" in price_data:
             return {
-                "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}",
-                "source": "coingecko"
+                "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}"
             }
 
         # Extract closing prices
@@ -860,14 +844,12 @@ def max_drawdown_for_token(
             "period": f"{candle_interval} x {num_candles}",
             "max_drawdown": max_dd,
             "max_drawdown_percent": f"{max_dd * 100:.2f}%",
-            "explanation": "Maximum drawdown represents the largest percentage drop from a peak to a subsequent trough",
-            "source": "coingecko"
+            "explanation": "Maximum drawdown represents the largest percentage drop from a peak to a subsequent trough"
         }
     except Exception as e:
         return {
             "error": f"Error calculating maximum drawdown: {str(e)}",
-            "traceback": traceback.format_exc(),
-            "source": "coingecko"
+            "traceback": traceback.format_exc()
         }
 
 
@@ -910,8 +892,7 @@ def analyze_wallet_portfolio(
 
         if not all_price_data:
             return {
-                "error": "Could not fetch price data for any of the tokens in your wallet. Please try with custom symbols that are available on CoinGecko.",
-                "source": "coingecko"
+                "error": "Could not fetch price data for any of the tokens in your wallet. Please try with custom symbols that are available on CoinGecko."
             }
 
         # Convert to numpy arrays and transpose to get [time][asset] format
@@ -1130,14 +1111,12 @@ def analyze_wallet_portfolio(
                 },
                 "asset_allocation": asset_allocation,
             },
-            "personalized_insights": insights,
-            "source": "coingecko"
+            "personalized_insights": insights
         }
     except Exception as e:
         return {
             "error": f"Error analyzing portfolio: {str(e)}",
-            "traceback": traceback.format_exc(),
-            "source": "coingecko"
+            "traceback": traceback.format_exc()
         }
 
 
@@ -1169,8 +1148,7 @@ def portfolio_value(
 
             if "error" in price_data:
                 return {
-                    "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}",
-                    "source": "coingecko"
+                    "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}"
                 }
 
             # Extract closing prices
@@ -1191,14 +1169,12 @@ def portfolio_value(
             "initial_value": float(portfolio_values[0]),
             "final_value": float(portfolio_values[-1]),
             "change_percent": f"{((portfolio_values[-1] / portfolio_values[0]) - 1) * 100:.2f}%",
-            "period": f"{candle_interval} x {num_candles}",
-            "source": "coingecko"
+            "period": f"{candle_interval} x {num_candles}"
         }
     except Exception as e:
         return {
             "error": f"Error calculating portfolio value: {str(e)}",
-            "traceback": traceback.format_exc(),
-            "source": "coingecko"
+            "traceback": traceback.format_exc()
         }
 
 
@@ -1230,8 +1206,7 @@ def portfolio_volatility(
 
             if "error" in price_data:
                 return {
-                    "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}",
-                    "source": "coingecko"
+                    "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}"
                 }
 
             # Extract closing prices
@@ -1259,14 +1234,12 @@ def portfolio_volatility(
             "annualized_volatility_percent": f"{float(portfolio_sd * np.sqrt(252) * 100):.2f}%",
             "returns_mean": float(portfolio_returns.mean()),
             "risk_analysis": "Higher volatility indicates higher risk but potentially higher returns",
-            "period": f"{candle_interval} x {num_candles}",
-            "source": "coingecko"
+            "period": f"{candle_interval} x {num_candles}"
         }
     except Exception as e:
         return {
             "error": f"Error calculating portfolio volatility: {str(e)}",
-            "traceback": traceback.format_exc(),
-            "source": "coingecko"
+            "traceback": traceback.format_exc()
         }
 
 
@@ -1317,8 +1290,7 @@ def analyze_volatility_trend(
 
         if "error" in price_data:
             return {
-                "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}",
-                "source": "coingecko"
+                "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}"
             }
 
         # Extract closing prices
@@ -1351,12 +1323,10 @@ def analyze_volatility_trend(
             "current_volatility": std_volatility,
             "annualized_volatility": f"{float(std_volatility * np.sqrt(252) * 100):.2f}%",
             "interpretation": interpretation,
-            "explanation": "A positive coefficient indicates volatility is increasing over time, while a negative coefficient indicates decreasing volatility.",
-            "source": "coingecko"
+            "explanation": "A positive coefficient indicates volatility is increasing over time, while a negative coefficient indicates decreasing volatility."
         }
     except Exception as e:
         return {
             "error": f"Error analyzing volatility trend: {str(e)}",
-            "traceback": traceback.format_exc(),
-            "source": "coingecko"
+            "traceback": traceback.format_exc()
         }
