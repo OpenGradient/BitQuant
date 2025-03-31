@@ -6,12 +6,48 @@ import traceback
 import numpy as np
 import time
 from enum import StrEnum
+import os
+import csv
+import requests
+import random
+from time import sleep
+import logging
+import json
+from datetime import datetime
+import sys
+from functools import lru_cache, wraps
+from datetime import datetime, timedelta
+
+# Set up logging
+logger = logging.getLogger("coingecko_api")
+logger.setLevel(logging.DEBUG)
+
+# Create a file handler that logs to a file
+log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'logs')
+os.makedirs(log_dir, exist_ok=True)
+log_file = os.path.join(log_dir, f'coingecko_api_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log')
+
+file_handler = logging.FileHandler(log_file)
+file_handler.setLevel(logging.DEBUG)
+
+# Create a console handler
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.INFO)
+
+# Create a formatter and add it to the handlers
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+console_handler.setFormatter(formatter)
+
+# Add the handlers to the logger
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
+
+logger.info("CoinGecko API module initialized")
 
 from api.api_types import WalletTokenHolding
 
 from langchain_core.tools import tool
-from binance.spot import Spot  # type: ignore
-
 
 class CandleInterval(StrEnum):
     """
@@ -22,33 +58,305 @@ class CandleInterval(StrEnum):
     HOUR = "1h"
     WEEK = "1w"
 
+# Initialize CoinGecko API key
+api_key = os.environ.get("COINGECKO_API_KEY", "")
+
+# Log API key info (partially obscured for security)
+if api_key:
+    masked_key = f"{api_key[:4]}...{api_key[-4:]}" if len(api_key) > 8 else "[TOO SHORT]"
+    logger.info(f"Using CoinGecko API key: {masked_key}")
+else:
+    logger.error("COINGECKO_API_KEY environment variable is not set or empty!")
+
+# Set up headers for direct API calls (always use Pro API)
+COINGECKO_HEADERS = {
+    "accept": "application/json",
+    "x-cg-pro-api-key": api_key
+}
+
+# Base URL for CoinGecko API (Pro endpoint only)
+COINGECKO_BASE_URL = "https://pro-api.coingecko.com/api/v3"
+
+# Map for converting CandleInterval to CoinGecko's 'days' parameter
+INTERVAL_TO_DAYS = {
+    CandleInterval.HOUR: 1,   # 1 hour intervals, fetch 1 day of data
+    CandleInterval.DAY: 30,   # 1 day intervals, fetch 30 days of data
+    CandleInterval.WEEK: 180, # 1 week intervals, fetch 180 days of data
+}
+
+# Create a cache for symbol to ID mappings
+_SYMBOL_TO_ID_CACHE = {}
+
+# Create a cache for price data to reduce API calls
+_PRICE_DATA_CACHE = {}
+
+# Simple function to create a TTL cache
+def ttl_cache(maxsize=128, ttl=300):
+    """A decorator that creates a cache with a time-to-live (TTL)."""
+    def decorator(func):
+        cache = {}
+        
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            key = str(args) + str(kwargs)
+            current_time = datetime.now()
+            
+            # Check if key exists and if it's still valid
+            if key in cache:
+                creation_time, result = cache[key]
+                if (current_time - creation_time).total_seconds() < ttl:
+                    return result
+            
+            # If not in cache or expired, call the function
+            result = func(*args, **kwargs)
+            
+            # Store in cache with current time
+            cache[key] = (current_time, result)
+            
+            # Clean old items (optional, can be removed for better performance)
+            for k in list(cache.keys()):
+                if (current_time - cache[k][0]).total_seconds() >= ttl:
+                    del cache[k]
+                    
+            return result
+        return wrapper
+    return decorator
+
+def make_coingecko_request(url, params=None, max_retries=3, backoff_factor=0.5):
+    """Helper function to make CoinGecko Pro API requests with retries and backoff."""
+    # Generate request ID for tracking
+    request_id = f"req_{datetime.now().strftime('%H%M%S')}_{random.randint(1000, 9999)}"
+    
+    # Validate API key
+    if not api_key:
+        logger.error(f"[{request_id}] API key is missing or empty!")
+    else:
+        # Log headers with masked API key
+        debug_headers = COINGECKO_HEADERS.copy()
+        if 'x-cg-pro-api-key' in debug_headers:
+            key = debug_headers['x-cg-pro-api-key']
+            debug_headers['x-cg-pro-api-key'] = f"{key[:4]}...{key[-4:]}" if len(key) > 8 else "[TOO SHORT]"
+        
+        logger.debug(f"[{request_id}] Request headers: {debug_headers}")
+    
+    # Log request details
+    logger.debug(f"[{request_id}] CoinGecko Pro API Request: {url}, Params: {params}")
+    
+    retry_count = 0
+    while retry_count < max_retries:
+        try:
+            # Add a small random delay to avoid rate limits
+            sleep_time = random.uniform(0.1, 0.5)
+            logger.debug(f"[{request_id}] Sleeping for {sleep_time:.2f}s before request")
+            sleep(sleep_time)
+            
+            # Make request with timeout
+            start_time = time.time()
+            response = requests.get(url, params=params, headers=COINGECKO_HEADERS, timeout=10)
+            elapsed_time = time.time() - start_time
+            
+            # Log response details
+            logger.debug(f"[{request_id}] Response received in {elapsed_time:.2f}s: Status {response.status_code}")
+            
+            # Check for rate limiting
+            if response.status_code == 429:
+                retry_after = int(response.headers.get('Retry-After', 60))
+                logger.warning(f"[{request_id}] Rate limited. Retrying after {retry_after} seconds...")
+                sleep(retry_after)
+                retry_count += 1
+                continue
+            
+            # Check for authentication issues
+            if response.status_code == 401:
+                logger.error(f"[{request_id}] Authentication error: {response.text}")
+                # Let's check if API key is present in environment at runtime
+                runtime_key = os.environ.get("COINGECKO_API_KEY", "")
+                if not runtime_key:
+                    logger.error(f"[{request_id}] API key missing from environment at runtime!")
+                else:
+                    masked_key = f"{runtime_key[:4]}...{runtime_key[-4:]}" if len(runtime_key) > 8 else "[TOO SHORT]"
+                    logger.error(f"[{request_id}] API key in environment at runtime: {masked_key}")
+            
+            # Check for other error codes
+            if response.status_code != 200:
+                logger.error(f"[{request_id}] API error: {response.status_code} - {response.text}")
+                response.raise_for_status()
+                
+            # Parse response
+            data = response.json()
+            
+            # Log truncated response for debugging
+            data_str = str(data)
+            logged_data = data_str[:500] + "..." if len(data_str) > 500 else data_str
+            logger.debug(f"[{request_id}] Response data: {logged_data}")
+            
+            return data
+        
+        except requests.exceptions.RequestException as e:
+            retry_count += 1
+            wait_time = backoff_factor * (2 ** (retry_count - 1))
+            logger.warning(f"[{request_id}] Request failed: {e}. Retrying in {wait_time:.2f}s... (Attempt {retry_count}/{max_retries})")
+            sleep(wait_time)
+            
+    # If we get here, all retries failed
+    error_msg = f"[{request_id}] Failed to make request to {url} after {max_retries} attempts"
+    logger.error(error_msg)
+    raise Exception(error_msg)
+
+@ttl_cache(maxsize=100, ttl=3600)  # Cache ID lookups for 1 hour
+def get_coingecko_id(token_symbol: str) -> str:
+    """
+    Convert a token symbol to CoinGecko ID using the CSV data file.
+    
+    CoinGecko IDs are used in API calls and differ from token symbols.
+    
+    Args:
+        token_symbol: Token symbol to convert (e.g., "BTC")
+        
+    Returns:
+        CoinGecko ID for the token (e.g., "bitcoin")
+    """
+    # Check cache first
+    token_symbol_lower = token_symbol.lower()
+    if token_symbol_lower in _SYMBOL_TO_ID_CACHE:
+        return _SYMBOL_TO_ID_CACHE[token_symbol_lower]
+    
+    # Hardcoded common tokens to ensure tests work even without CSV
+    common_tokens = {
+        "btc": "bitcoin",
+        "eth": "ethereum",
+        "sol": "solana",
+        "ada": "cardano",
+        "dot": "polkadot",
+        "doge": "dogecoin",
+        "xrp": "ripple",
+        "link": "chainlink",
+        "uni": "uniswap",
+        "bnb": "binancecoin",
+        "usdt": "tether",
+        "usdc": "usd-coin",
+        "dai": "dai",
+        "matic": "matic-network",
+        "avax": "avalanche-2",
+        "atom": "cosmos",
+        "shib": "shiba-inu",
+        "ltc": "litecoin"
+    }
+    
+    if token_symbol_lower in common_tokens:
+        logger.info(f"Using hardcoded mapping for {token_symbol}: {common_tokens[token_symbol_lower]}")
+        _SYMBOL_TO_ID_CACHE[token_symbol_lower] = common_tokens[token_symbol_lower]
+        return common_tokens[token_symbol_lower]
+    
+    # Path to coingecko_ids.csv
+    csv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
+                           'static', 'coingecko_ids.csv')
+    
+    try:
+        # Try to find in CSV file
+        if os.path.exists(csv_path):
+            with open(csv_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                # Skip the first row which contains the note
+                next(reader, None)
+                
+                # Find all matches by symbol (case-insensitive)
+                matches = []
+                for row in reader:
+                    if row.get('Symbol', '').lower() == token_symbol_lower:
+                        matches.append(row.get('Id (API id)', ''))
+                
+                # If we found matches, use the first one
+                if matches:
+                    _SYMBOL_TO_ID_CACHE[token_symbol_lower] = matches[0]
+                    return matches[0]
+    except Exception as e:
+        logger.error(f"Error reading coingecko_ids.csv: {e}")
+    
+    # If we couldn't find it in the CSV, use the lowercase symbol as fallback
+    logger.warning(f"Could not find CoinGecko ID for {token_symbol} in CSV, using symbol as fallback")
+    _SYMBOL_TO_ID_CACHE[token_symbol_lower] = token_symbol_lower
+    return token_symbol_lower
+
 
 @tool()
-def get_binance_price_history(
+@ttl_cache(maxsize=100, ttl=600)  # Cache for 10 minutes
+def get_coingecko_price_history(
     token_symbol: str, candle_interval: CandleInterval, num_candles: int
 ) -> Dict[str, Any]:
     """
-    Retrieves historical price data for a token.
+    Retrieves historical price data for a token using CoinGecko API's OHLC range endpoint.
+    
+    Args:
+        token_symbol: The token symbol (e.g., "BTC")
+        candle_interval: Time interval for candles (1h, 1d, 1w)
+        num_candles: Number of historical candles to retrieve
+        
+    Returns:
+        Dictionary with price history data or error information
     """
+    # Generate a request ID for tracking
+    request_id = f"{token_symbol}_{datetime.now().strftime('%H%M%S')}"
+    logger.info(f"[{request_id}] Getting price history for {token_symbol}, interval: {candle_interval}, candles: {num_candles}")
+    
     # Min value of 2 ensures we have at least two data points for calculating trends
     num_candles = min(max(2, int(num_candles)), 1000)
-
-    trading_pair = f"{token_symbol.upper()}USDT"
-
+    
+    # Get CoinGecko ID for the token
     try:
-        client = Spot(base_url="https://api.binance.us")
-        klines = client.klines(
-            symbol=trading_pair, interval=candle_interval, limit=num_candles
-        )
-
-        # keep only the columns we need
-        klines = [candle[:6] for candle in klines]
-
+        token_id = get_coingecko_id(token_symbol)
+        logger.info(f"[{request_id}] Mapped {token_symbol} to CoinGecko ID: {token_id}")
+    except Exception as e:
+        error_msg = f"Failed to map {token_symbol} to CoinGecko ID: {str(e)}"
+        logger.error(f"[{request_id}] {error_msg}")
+        return {"error": error_msg, "token_symbol": token_symbol, "source": "coingecko"}
+    
+    # Set currency to USD
+    vs_currency = "usd"
+    
+    # Calculate from and to timestamps based on candle_interval and num_candles
+    now = int(datetime.now().timestamp())  # Current time in seconds
+    
+    # Determine interval parameter based on candle_interval
+    if candle_interval == CandleInterval.HOUR:
+        interval = "hourly"
+        # For hourly data, go back num_candles hours
+        # Maximum 31 days (744 hourly candles) for hourly interval
+        seconds_per_candle = 60 * 60  # 1 hour in seconds
+        max_candles = 744  # 31 days * 24 hours
+    else:  # DAY or WEEK (use daily as default)
+        interval = "daily"
+        # For daily data, go back num_candles days
+        # Maximum 180 days for daily interval
+        seconds_per_candle = 60 * 60 * 24  # 1 day in seconds
+        max_candles = 180  # 180 days
+    
+    # Limit num_candles to API capabilities
+    num_candles = min(num_candles, max_candles)
+    
+    # Calculate from_timestamp
+    time_range_seconds = num_candles * seconds_per_candle
+    from_timestamp = int((datetime.now() - timedelta(seconds=time_range_seconds)).timestamp())  # From time in seconds
+    
+    # Ensure from_timestamp is not before the minimum timestamp supported by CoinGecko (2018-01-01)
+    min_timestamp = 1514764800  # January 1, 2018 in Unix timestamp (seconds)
+    if from_timestamp < min_timestamp:
+        logger.warning(f"[{request_id}] Adjusted from_timestamp to minimum supported by CoinGecko: {min_timestamp}")
+        from_timestamp = min_timestamp
+    
+    # Create a cache key
+    cache_key = f"{token_id}_{vs_currency}_{from_timestamp}_{now}_{interval}"
+    
+    # Check if we have cached data
+    if cache_key in _PRICE_DATA_CACHE:
+        logger.info(f"[{request_id}] Using cached data for {token_symbol}")
+        cached_data = _PRICE_DATA_CACHE[cache_key]
         return {
             "token_symbol": token_symbol,
+            "token_id": token_id,
             "candle_interval": candle_interval,
-            "num_candles": num_candles,
-            "data": klines,
+            "num_candles": len(cached_data),
+            "data": cached_data,
             "columns": [
                 "open_time",
                 "open",
@@ -57,10 +365,91 @@ def get_binance_price_history(
                 "close",
                 "volume",
             ],
+            "source": "coingecko",
+            "cached": True
+        }
+    
+    try:
+        # Construct the OHLC range endpoint URL
+        # Reference: https://docs.coingecko.com/reference/coins-id-ohlc-range
+        ohlc_url = f"{COINGECKO_BASE_URL}/coins/{token_id}/ohlc/range"
+        
+        params = {
+            "vs_currency": vs_currency,
+            "from": from_timestamp,
+            "to": now,
+            "interval": interval
+        }
+        
+        logger.info(f"[{request_id}] Requesting OHLC data from CoinGecko Pro API: {ohlc_url} with {interval} interval")
+        
+        # Make the request with proper error handling and retries
+        ohlc_data = make_coingecko_request(ohlc_url, params=params)
+        
+        # Check if the API returned an error message
+        if isinstance(ohlc_data, dict) and "error" in ohlc_data:
+            error_msg = f"CoinGecko API returned an error: {ohlc_data['error']}"
+            logger.error(f"[{request_id}] {error_msg}")
+            return {"error": error_msg, "token_symbol": token_symbol, "source": "coingecko"}
+            
+        # Check if we got valid data
+        if not isinstance(ohlc_data, list) or len(ohlc_data) == 0:
+            error_msg = f"CoinGecko API returned invalid or empty data: {str(ohlc_data)[:200]}"
+            logger.error(f"[{request_id}] {error_msg}")
+            return {"error": error_msg, "token_symbol": token_symbol, "source": "coingecko"}
+        
+        logger.info(f"[{request_id}] Received {len(ohlc_data)} OHLC entries from CoinGecko Pro API")
+        
+        # Format data to match expected structure
+        # CoinGecko OHLC format: [timestamp, open, high, low, close]
+        # We need to add volume data (setting to 0 as CoinGecko OHLC doesn't provide it directly)
+        formatted_data = []
+        for candle in ohlc_data:
+            if len(candle) >= 5:  # Ensure we have all required fields
+                timestamp, open_price, high, low, close = candle
+                # Add a placeholder volume value (0)
+                formatted_data.append([timestamp, open_price, high, low, close, 0])
+        
+        logger.info(f"[{request_id}] Formatted {len(formatted_data)} valid candles")
+        
+        # Cache the data
+        _PRICE_DATA_CACHE[cache_key] = formatted_data
+        
+        # Limit to requested number of candles
+        formatted_data = formatted_data[-num_candles:]
+        
+        return {
+            "token_symbol": token_symbol,
+            "token_id": token_id,
+            "candle_interval": candle_interval,
+            "num_candles": len(formatted_data),
+            "data": formatted_data,
+            "columns": [
+                "open_time",
+                "open",
+                "high",
+                "low",
+                "close",
+                "volume",
+            ],
+            "source": "coingecko"
         }
 
     except Exception as e:
-        return {"error": f"Error fetching Binance data for {token_symbol}: {e}"}
+        # Get traceback for better debugging
+        error_traceback = traceback.format_exc()
+        error_msg = f"Error fetching CoinGecko data for {token_symbol}: {str(e)}"
+        logger.error(f"[{request_id}] {error_msg}\n{error_traceback}")
+        
+        return {
+            "error": error_msg,
+            "token_symbol": token_symbol,
+            "source": "coingecko"
+        }
+
+
+# Alias to maintain backward compatibility with existing code
+get_binance_price_history = get_coingecko_price_history
 
 
 @tool()
@@ -73,7 +462,7 @@ def analyze_price_trend(
     """
     try:
         # Get the price history first
-        price_data = get_binance_price_history.invoke(
+        price_data = get_coingecko_price_history.invoke(
             {
                 "token_symbol": token_symbol,
                 "candle_interval": candle_interval,
@@ -89,6 +478,8 @@ def analyze_price_trend(
         open_prices = [float(candle[1]) for candle in raw_data]
         high_prices = [float(candle[2]) for candle in raw_data]
         low_prices = [float(candle[3]) for candle in raw_data]
+        # Note: For CoinGecko, we don't have volume data directly from OHLC
+        # We'll use zeros or try to fetch volume separately if needed
         volumes = [float(candle[5]) for candle in raw_data]
 
         # Enhanced moving averages calculations with more periods and types
@@ -124,20 +515,21 @@ def analyze_price_trend(
             upper_band = middle_band + (2 * std_dev)
             lower_band = middle_band - (2 * std_dev)
 
+            # Calculate normalized width and position safely to avoid division by zero
+            width = 0
+            if middle_band != 0:
+                width = (upper_band - lower_band) / middle_band
+            
+            position = 0.5  # Default to middle if bands are identical
+            if upper_band != lower_band:
+                position = (close_prices[-1] - lower_band) / (upper_band - lower_band)
+
             bollinger_bands = {
                 "upper": round(upper_band, 2),
                 "middle": round(middle_band, 2),
                 "lower": round(lower_band, 2),
-                "width": round(
-                    (upper_band - lower_band) / middle_band, 4
-                ),  # Normalized width
-                "position": (
-                    round(
-                        (close_prices[-1] - lower_band) / (upper_band - lower_band), 2
-                    )
-                    if upper_band != lower_band
-                    else 0.5
-                ),
+                "width": round(width, 4),  # Normalized width
+                "position": round(position, 2),
             }
 
         # 4. Fibonacci Retracement Levels (based on recent high and low)
@@ -187,11 +579,16 @@ def analyze_price_trend(
                 not price_up and volume_trend == "Decreasing"
             )
 
+            # Calculate percent change safely
+            current_vs_avg = 0
+            if avg_volume > 0:  # Avoid division by zero
+                current_vs_avg = (current_volume / avg_volume - 1) * 100
+
             volume_analysis = {
                 "trend": volume_trend,
                 "avg_volume": round(avg_volume, 2),
                 "current_volume": round(current_volume, 2),
-                "current_vs_avg": round((current_volume / avg_volume - 1) * 100, 2),
+                "current_vs_avg": round(current_vs_avg, 2),
                 "confirms_price": volume_confirms,
             }
 
@@ -203,19 +600,22 @@ def analyze_price_trend(
                 7, len(volumes)
             )
 
+            # Calculate volatility safely
+            volatility = None
+            if len(close_prices) >= 7:
+                max_price = max(close_prices[-7:])
+                min_price = min(close_prices[-7:])
+                if min_price > 0:  # Avoid division by zero
+                    volatility = round(((max_price / min_price - 1) * 100), 2)
+
             token_metrics = {
                 "price": round(current_price, 4),
                 "avg_daily_volume_usd": round(avg_daily_volume * current_price, 2),
-                "volatility": (
-                    round(
-                        ((max(close_prices[-7:]) / min(close_prices[-7:]) - 1) * 100), 2
-                    )
-                    if len(close_prices) >= 7
-                    else None
-                ),
+                "volatility": volatility,
             }
 
-        return {
+        # Add source information to the output
+        result = {
             "token_symbol": token_symbol,
             "current_price": close_prices[-1] if close_prices else None,
             "price_range": {
@@ -267,10 +667,15 @@ def analyze_price_trend(
             "analysis_summary": get_analysis_summary(
                 sma7, sma20, sma50, sma200, bollinger_bands, volume_analysis
             ),
+            "source": "coingecko",
         }
+        
+        return result
+        
     except Exception as e:
         return {
             "error": f"Error analyzing price trend for {token_symbol}: {e}",
+            "source": "coingecko"
         }
 
 
@@ -337,12 +742,43 @@ def compare_assets(
     Returns:
         Dictionary with individual asset analyses, comparative metrics, and investment insights
     """
+    # Generate a request ID for this comparison operation
+    comparison_id = f"compare_{datetime.now().strftime('%H%M%S')}"
+    logger.info(f"[{comparison_id}] Starting comparison of {len(token_symbols)} assets: {token_symbols}")
+    
     results = {}
     detailed_results = {}
+    error_count = 0
+    successful_tokens = []
 
     # Step 1: Collect individual asset data
-    for token_symbol in token_symbols:
+    for idx, token_symbol in enumerate(token_symbols):
+        token_id = f"{comparison_id}_{token_symbol}"
+        logger.info(f"[{token_id}] Processing token {idx+1}/{len(token_symbols)}: {token_symbol}")
+        
         try:
+            # Get price data first to check for errors
+            logger.info(f"[{token_id}] Fetching price data")
+            price_data = get_coingecko_price_history.invoke(
+                {
+                    "token_symbol": token_symbol,
+                    "candle_interval": candle_interval,
+                    "num_candles": num_candles,
+                }
+            )
+            
+            # Check for errors in price data
+            if "error" in price_data:
+                error_msg = price_data["error"]
+                logger.error(f"[{token_id}] Error fetching price data: {error_msg}")
+                results[token_symbol] = {"error": error_msg}
+                error_count += 1
+                continue
+            
+            logger.info(f"[{token_id}] Successfully fetched price data with {len(price_data.get('data', []))} candles")
+                
+            # Now get the analysis
+            logger.info(f"[{token_id}] Analyzing price trend")
             analysis = analyze_price_trend.invoke(
                 {
                     "token_symbol": token_symbol,
@@ -353,29 +789,28 @@ def compare_assets(
 
             # Skip if there was an error
             if "error" in analysis:
-                results[token_symbol] = {"error": analysis["error"]}
+                error_msg = analysis["error"]
+                logger.error(f"[{token_id}] Error analyzing price trend: {error_msg}")
+                results[token_symbol] = {"error": error_msg}
+                error_count += 1
                 continue
+            
+            logger.info(f"[{token_id}] Successfully analyzed price trend")
 
             # Store detailed analysis results
             detailed_results[token_symbol] = analysis
 
-            # Extract price data
-            price_data = get_binance_price_history.invoke(
-                {
-                    "token_symbol": token_symbol,
-                    "candle_interval": candle_interval,
-                    "num_candles": num_candles,
-                }
-            )
-
             # Calculate actual price change
             price_history = price_data.get("data", [])
+            price_change_pct = 0
+            
             if len(price_history) >= 2:
                 start_price = float(price_history[0][4])  # Close price of first candle
                 end_price = float(price_history[-1][4])  # Close price of last candle
-                price_change_pct = ((end_price / start_price) - 1) * 100
-            else:
-                price_change_pct = 0
+                
+                # Calculate percentage change safely
+                if start_price > 0:  # Avoid division by zero
+                    price_change_pct = ((end_price / start_price) - 1) * 100
 
             # Store useful metrics for average investors
             results[token_symbol] = {
@@ -385,7 +820,7 @@ def compare_assets(
                     "short_term": analysis.get("moving_averages", {}).get(
                         "short_trend"
                     ),
-                    "long_term": analysis.get("moving_averages", {}).get("long_trend"),
+                    "long_term": analysis.get("moving_averages", {}).get("long_term"),
                 },
                 "volatility": analysis.get("token_metrics", {}).get("volatility"),
                 "volume_trend": analysis.get("technical_indicators", {})
@@ -418,10 +853,30 @@ def compare_assets(
                         "OPPORTUNITY: Potentially oversold"
                     )
 
+            successful_tokens.append(token_symbol)
+            logger.info(f"[{token_id}] Successfully processed")
+
+            # Add a small delay between tokens to avoid rate limiting
+            time.sleep(1.0)  # Increased delay to be more conservative
+
         except Exception as e:
+            error_traceback = traceback.format_exc()
+            error_msg = f"Error analyzing {token_symbol}: {str(e)}"
+            logger.error(f"[{token_id}] {error_msg}\n{error_traceback}")
             results[token_symbol] = {
-                "error": f"Error analyzing {token_symbol}: {str(e)}"
+                "error": error_msg
             }
+            error_count += 1
+
+    # If all tokens had errors, return a general error
+    if error_count == len(token_symbols):
+        logger.error(f"[{comparison_id}] All tokens failed. Rate limiting may be the cause.")
+        return {
+            "error": "Could not analyze any of the requested tokens. The CoinGecko API may be rate-limited or temporarily unavailable. Please try again later.",
+            "source": "coingecko"
+        }
+    
+    logger.info(f"[{comparison_id}] Successfully processed {len(successful_tokens)}/{len(token_symbols)} tokens")
 
     # Step 2: Calculate investor-friendly comparative metrics
     valid_tokens = {
@@ -429,10 +884,14 @@ def compare_assets(
         for symbol, data in results.items()
         if "error" not in data and data.get("current_price") is not None
     }
+    
+    logger.info(f"[{comparison_id}] Found {len(valid_tokens)} valid tokens for comparison")
 
     comparative_analysis = {}
 
     if valid_tokens:
+        logger.info(f"[{comparison_id}] Generating comparative analysis")
+        
         # Performance ranking
         performance_ranking = sorted(
             valid_tokens.items(),
@@ -442,58 +901,59 @@ def compare_assets(
 
         # Volatility ranking (lower is better for risk-averse investors)
         volatility_ranking = sorted(
-            valid_tokens.items(), key=lambda x: x[1].get("volatility", float("inf"))
+            [(symbol, data) for symbol, data in valid_tokens.items() if data.get("volatility", 0) is not None],
+            key=lambda x: x[1].get("volatility", float("inf"))
         )
 
         # Calculate simple risk-adjusted returns
         risk_adjusted = {}
         for symbol, data in valid_tokens.items():
-            volatility = data.get("volatility", 0)
+            volatility = data.get("volatility")
             price_change = data.get("price_change_pct", 0)
 
-            if volatility and volatility > 0:
+            # Only calculate if volatility exists and is greater than zero
+            if volatility is not None and volatility > 0:
                 risk_adjusted[symbol] = price_change / volatility
-            else:
-                risk_adjusted[symbol] = 0
+            # Skip tokens with no volatility data or zero volatility
 
         risk_adjusted_ranking = sorted(
             risk_adjusted.items(), key=lambda x: x[1], reverse=True
         )
 
         # Create a more beginner-friendly comparative analysis
+        best_performer = None
+        if performance_ranking:
+            best_performer = {
+                "token": performance_ranking[0][0],
+                "return": f"{performance_ranking[0][1].get('price_change_pct', 0):.2f}%",
+            }
+            
+        worst_performer = None
+        if performance_ranking and len(performance_ranking) > 1:
+            worst_performer = {
+                "token": performance_ranking[-1][0],
+                "return": f"{performance_ranking[-1][1].get('price_change_pct', 0):.2f}%",
+            }
+            
+        most_stable = None
+        if volatility_ranking:
+            most_stable = {
+                "token": volatility_ranking[0][0],
+                "volatility": volatility_ranking[0][1].get("volatility", 0),
+            }
+            
+        best_risk_adjusted = None
+        if risk_adjusted_ranking:
+            best_risk_adjusted = {
+                "token": risk_adjusted_ranking[0][0],
+                "value": round(risk_adjusted_ranking[0][1], 2) if risk_adjusted_ranking[0][1] != float("inf") else "High",
+            }
+            
         comparative_analysis = {
-            "best_performer": (
-                {
-                    "token": performance_ranking[0][0],
-                    "return": f"{performance_ranking[0][1].get('price_change_pct', 0):.2f}%",
-                }
-                if performance_ranking
-                else None
-            ),
-            "worst_performer": (
-                {
-                    "token": performance_ranking[-1][0],
-                    "return": f"{performance_ranking[-1][1].get('price_change_pct', 0):.2f}%",
-                }
-                if performance_ranking
-                else None
-            ),
-            "most_stable": (
-                {
-                    "token": volatility_ranking[0][0],
-                    "volatility": volatility_ranking[0][1].get("volatility", 0),
-                }
-                if volatility_ranking
-                else None
-            ),
-            "best_risk_adjusted": (
-                {
-                    "token": risk_adjusted_ranking[0][0],
-                    "value": round(risk_adjusted_ranking[0][1], 2),
-                }
-                if risk_adjusted_ranking
-                else None
-            ),
+            "best_performer": best_performer,
+            "worst_performer": worst_performer,
+            "most_stable": most_stable,
+            "best_risk_adjusted": best_risk_adjusted,
             "all_tokens_ranked_by_performance": [
                 {
                     "token": symbol,
@@ -507,7 +967,7 @@ def compare_assets(
             ],
         }
 
-        # Calculate average market trend
+        # Calculate average market trend with safety checks
         bullish_count = sum(
             1
             for symbol, data in valid_tokens.items()
@@ -528,11 +988,11 @@ def compare_assets(
             market_trend = "Mixed"
 
         comparative_analysis["market_trend"] = market_trend
+        
+        # Step 3: Create actionable insights for investors
+        investment_insights = []
+        logger.info(f"[{comparison_id}] Generating investment insights")
 
-    # Step 3: Create actionable insights for investors
-    investment_insights = []
-
-    if comparative_analysis:
         # Add general market insight
         market_trend = comparative_analysis.get("market_trend")
         if market_trend == "Bullish":
@@ -549,14 +1009,12 @@ def compare_assets(
             )
 
         # Add risk-based suggestions
-        best_risk_adjusted = comparative_analysis.get("best_risk_adjusted")
         if best_risk_adjusted:
             investment_insights.append(
                 f"{best_risk_adjusted['token']} shows the best balance of return vs risk."
             )
 
         # Add momentum-based suggestion
-        best_performer = comparative_analysis.get("best_performer")
         if best_performer:
             token = best_performer["token"]
             trend = valid_tokens[token].get("moving_averages", {}).get("short_term")
@@ -566,28 +1024,44 @@ def compare_assets(
                 )
 
         # Add stability suggestion
-        most_stable = comparative_analysis.get("most_stable")
         if most_stable:
             investment_insights.append(
                 f"{most_stable['token']} has the lowest volatility, potentially suitable for risk-averse investors."
             )
+            
+        logger.info(f"[{comparison_id}] Generated {len(investment_insights)} investment insights")
 
-    # Format period in user-friendly terms
-    period_text = f"{num_candles} "
-    if candle_interval == "1d":
-        period_text += "days"
-    elif candle_interval == "1h":
-        period_text += "hours"
-    elif candle_interval == "1w":
-        period_text += "weeks"
-
-    # Step 4: Return the final results
-    return {
-        "individual_tokens": results,
-        "comparative_analysis": comparative_analysis,
-        "investment_insights": investment_insights,
-        "period": period_text,
-    }
+        # Format period in user-friendly terms
+        period_text = f"{num_candles} "
+        if candle_interval == "1d":
+            period_text += "days"
+        elif candle_interval == "1h":
+            period_text += "hours"
+        elif candle_interval == "1w":
+            period_text += "weeks"
+            
+        logger.info(f"[{comparison_id}] Comparison complete. Period: {period_text}")
+            
+        # Return the final results
+        return {
+            "individual_tokens": results,
+            "comparative_analysis": comparative_analysis,
+            "investment_insights": investment_insights,
+            "period": period_text,
+            "source": "coingecko",
+            "error_count": error_count,
+            "total_tokens": len(token_symbols),
+            "successful_tokens": len(successful_tokens)
+        }
+    else:
+        logger.error(f"[{comparison_id}] No valid tokens for comparison after processing")
+        return {
+            "error": "Could not generate comparative analysis due to insufficient valid data.",
+            "individual_tokens": results,
+            "source": "coingecko",
+            "error_count": error_count,
+            "total_tokens": len(token_symbols)
+        }
 
 
 @tool()
@@ -597,7 +1071,7 @@ def max_drawdown_for_token(
     num_candles: int = 90,
 ) -> Dict[str, Any]:
     """
-    Calculates the maximum drawdown for a cryptocurrency using Binance price data
+    Calculates the maximum drawdown for a cryptocurrency using CoinGecko price data
 
     Args:
         token_symbol: Token symbol (e.g., "BTC")
@@ -608,8 +1082,8 @@ def max_drawdown_for_token(
         Dictionary containing the maximum drawdown value
     """
     try:
-        # Get price data from Binance
-        price_data = get_binance_price_history.invoke(
+        # Get price data from CoinGecko
+        price_data = get_coingecko_price_history.invoke(
             {
                 "token_symbol": token_symbol,
                 "candle_interval": candle_interval,
@@ -619,7 +1093,8 @@ def max_drawdown_for_token(
 
         if "error" in price_data:
             return {
-                "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}"
+                "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}",
+                "source": "coingecko"
             }
 
         # Extract closing prices
@@ -637,11 +1112,13 @@ def max_drawdown_for_token(
             "max_drawdown": max_dd,
             "max_drawdown_percent": f"{max_dd * 100:.2f}%",
             "explanation": "Maximum drawdown represents the largest percentage drop from a peak to a subsequent trough",
+            "source": "coingecko"
         }
     except Exception as e:
         return {
             "error": f"Error calculating maximum drawdown: {str(e)}",
             "traceback": traceback.format_exc(),
+            "source": "coingecko"
         }
 
 
@@ -664,7 +1141,7 @@ def analyze_wallet_portfolio(
         error_symbols = []
 
         for i, token in enumerate(tokens):
-            price_data = get_binance_price_history.invoke(
+            price_data = get_coingecko_price_history.invoke(
                 {
                     "token_symbol": token.symbol,
                     "candle_interval": candle_interval,
@@ -684,7 +1161,8 @@ def analyze_wallet_portfolio(
 
         if not all_price_data:
             return {
-                "error": "Could not fetch price data for any of the tokens in your wallet. Please try with custom symbols that are available on Binance."
+                "error": "Could not fetch price data for any of the tokens in your wallet. Please try with custom symbols that are available on CoinGecko.",
+                "source": "coingecko"
             }
 
         # Convert to numpy arrays and transpose to get [time][asset] format
@@ -906,11 +1384,13 @@ def analyze_wallet_portfolio(
                 "asset_allocation": asset_allocation,
             },
             "personalized_insights": insights,
+            "source": "coingecko"
         }
     except Exception as e:
         return {
             "error": f"Error analyzing portfolio: {str(e)}",
             "traceback": traceback.format_exc(),
+            "source": "coingecko"
         }
 
 
@@ -922,7 +1402,7 @@ def portfolio_value(
     num_candles: int = 90,
 ) -> Dict[str, Any]:
     """
-    Creates the time series of portfolio total value using Binance price data over the specified time period.
+    Creates the time series of portfolio total value using CoinGecko price data over the specified time period.
     """
     try:
         if len(token_symbols) != len(token_quantities):
@@ -932,7 +1412,7 @@ def portfolio_value(
         all_price_data = []
 
         for token_symbol in token_symbols:
-            price_data = get_binance_price_history.invoke(
+            price_data = get_coingecko_price_history.invoke(
                 {
                     "token_symbol": token_symbol,
                     "candle_interval": candle_interval,
@@ -942,7 +1422,8 @@ def portfolio_value(
 
             if "error" in price_data:
                 return {
-                    "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}"
+                    "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}",
+                    "source": "coingecko"
                 }
 
             # Extract closing prices
@@ -964,11 +1445,13 @@ def portfolio_value(
             "final_value": float(portfolio_values[-1]),
             "change_percent": f"{((portfolio_values[-1] / portfolio_values[0]) - 1) * 100:.2f}%",
             "period": f"{candle_interval} x {num_candles}",
+            "source": "coingecko"
         }
     except Exception as e:
         return {
             "error": f"Error calculating portfolio value: {str(e)}",
             "traceback": traceback.format_exc(),
+            "source": "coingecko"
         }
 
 
@@ -990,7 +1473,7 @@ def portfolio_volatility(
         all_price_data = []
 
         for token_symbol in token_symbols:
-            price_data = get_binance_price_history.invoke(
+            price_data = get_coingecko_price_history.invoke(
                 {
                     "token_symbol": token_symbol,
                     "candle_interval": candle_interval,
@@ -1000,7 +1483,8 @@ def portfolio_volatility(
 
             if "error" in price_data:
                 return {
-                    "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}"
+                    "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}",
+                    "source": "coingecko"
                 }
 
             # Extract closing prices
@@ -1029,11 +1513,13 @@ def portfolio_volatility(
             "returns_mean": float(portfolio_returns.mean()),
             "risk_analysis": "Higher volatility indicates higher risk but potentially higher returns",
             "period": f"{candle_interval} x {num_candles}",
+            "source": "coingecko"
         }
     except Exception as e:
         return {
             "error": f"Error calculating portfolio volatility: {str(e)}",
             "traceback": traceback.format_exc(),
+            "source": "coingecko"
         }
 
 
@@ -1073,8 +1559,8 @@ def analyze_volatility_trend(
     Analyzes the trend in volatility for a cryptocurrency over the specified time period.
     """
     try:
-        # Get price data from Binance
-        price_data = get_binance_price_history.invoke(
+        # Get price data from CoinGecko
+        price_data = get_coingecko_price_history.invoke(
             {
                 "token_symbol": token_symbol,
                 "candle_interval": candle_interval,
@@ -1084,7 +1570,8 @@ def analyze_volatility_trend(
 
         if "error" in price_data:
             return {
-                "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}"
+                "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}",
+                "source": "coingecko"
             }
 
         # Extract closing prices
@@ -1118,9 +1605,11 @@ def analyze_volatility_trend(
             "annualized_volatility": f"{float(std_volatility * np.sqrt(252) * 100):.2f}%",
             "interpretation": interpretation,
             "explanation": "A positive coefficient indicates volatility is increasing over time, while a negative coefficient indicates decreasing volatility.",
+            "source": "coingecko"
         }
     except Exception as e:
         return {
             "error": f"Error analyzing volatility trend: {str(e)}",
             "traceback": traceback.format_exc(),
+            "source": "coingecko"
         }
