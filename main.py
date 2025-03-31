@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 from dotenv import load_dotenv
+from flask import jsonify
 
 # Add the current directory to the Python path to make imports work properly
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -27,6 +28,11 @@ protocols = [
 
 # Create flask app
 app = create_flask_app()
+
+# Add a health check endpoint
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "ok", "service": "quant-agent-server"})
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
