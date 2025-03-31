@@ -21,10 +21,9 @@ from cachetools import cached, TTLCache
 from api.api_types import WalletTokenHolding
 
 class CandleInterval(StrEnum):
-    """One of 1d, 1h, 1w"""
+    """One of 1d or 1h"""
     DAY = "1d"
     HOUR = "1h"
-    WEEK = "1w"
 
 # Initialize CoinGecko API key
 api_key = os.environ.get("COINGECKO_API_KEY", "")
@@ -37,13 +36,6 @@ COINGECKO_HEADERS = {
 
 # Base URL for CoinGecko Pro API
 COINGECKO_BASE_URL = "https://pro-api.coingecko.com/api/v3"
-
-# Map for converting CandleInterval to CoinGecko's 'days' parameter
-INTERVAL_TO_DAYS = {
-    CandleInterval.HOUR: 1,   # 1 hour intervals, fetch 1 day of data
-    CandleInterval.DAY: 30,   # 1 day intervals, fetch 30 days of data
-    CandleInterval.WEEK: 180, # 1 week intervals, fetch 180 days of data
-}
 
 # Create caches
 symbol_to_id_cache = TTLCache(maxsize=100, ttl=3600)  # 1 hour TTL
@@ -158,7 +150,7 @@ def get_coingecko_price_history(
         interval = "hourly"
         seconds_per_candle = 60 * 60  # 1 hour in seconds
         max_candles = 744  # 31 days * 24 hours
-    else:  # DAY or WEEK (use daily as default)
+    else:  # DAY (use daily as default)
         interval = "daily"
         seconds_per_candle = 60 * 60 * 24  # 1 day in seconds
         max_candles = 180  # 180 days
@@ -804,8 +796,6 @@ def compare_assets(
             period_text += "days"
         elif candle_interval == "1h":
             period_text += "hours"
-        elif candle_interval == "1w":
-            period_text += "weeks"
             
         # Return the final results
         return {
@@ -1102,9 +1092,7 @@ def analyze_wallet_portfolio(
             period_text = f"{num_candles} days"
         elif candle_interval == "1h":
             period_text = f"{num_candles} hours"
-        elif candle_interval == "1w":
-            period_text = f"{num_candles} weeks"
-
+            
         # Check for missing tokens
         missing_tokens_message = ""
         if error_symbols:
