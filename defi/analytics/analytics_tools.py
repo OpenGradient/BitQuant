@@ -6,6 +6,8 @@ import traceback
 import numpy as np
 import time
 from enum import StrEnum
+import os
+from pathlib import Path
 
 from api.api_types import WalletTokenHolding
 
@@ -13,6 +15,9 @@ from langchain_core.tools import tool
 from binance.spot import Spot  # type: ignore
 from pycoingecko import CoinGeckoAPI
 
+# Initialize CoinGecko client once at module level
+COINGECKO_API_KEY = os.getenv('COINGECKO_API_KEY')
+cg_client = CoinGeckoAPI(api_key=COINGECKO_API_KEY)
 
 class CandleInterval(StrEnum):
     """
@@ -84,48 +89,30 @@ def get_coingecko_price_history(
 ) -> Dict[str, Any]:
     """
     Retrieves historical price data for a token using CoinGecko API.
-    
-    Args:
-        token_id: The CoinGecko ID for the token (e.g., 'bitcoin', 'ethereum')
-        candle_interval: Time interval for candles (1h, 1d, 1w)
-        num_candles: Number of candles to retrieve
-        
-    Returns:
-        Dictionary with price history data
     """
     # Min value of 2 ensures we have at least two data points for calculating trends
     num_candles = min(max(2, int(num_candles)), 1000)
     
     try:
-        cg = CoinGeckoAPI()
-        
-        # Map our interval to days parameter for CoinGecko
         days = _map_interval_to_days(candle_interval, num_candles)
-        
-        # Map our interval to CoinGecko interval parameter
         interval = 'hourly' if candle_interval == CandleInterval.HOUR else 'daily'
         
-        # Get market chart data from CoinGecko
-        data = cg.get_coin_market_chart_by_id(
+        data = cg_client.get_coin_market_chart_by_id(
             id=token_id,
             vs_currency='usd',
             days=days,
             interval=interval if candle_interval == CandleInterval.HOUR else None
         )
         
-        # Process the data into the expected format
-        # CoinGecko returns prices as [[timestamp, price], ...]
+        # Transform CoinGecko data format to match expected structure
         prices = data['prices']
         volumes = data['total_volumes']
         
-        # Format like Binance klines to maintain compatibility
         klines = []
         for i in range(min(len(prices), num_candles)):
             timestamp = prices[i][0]
             close_price = prices[i][1]
             
-            # Use the same price for OHLC when we only have close prices
-            # For more accurate OHLC, we would need additional API calls
             volume = volumes[i][1] if i < len(volumes) else 0
             
             kline = [
@@ -138,7 +125,6 @@ def get_coingecko_price_history(
             ]
             klines.append(kline)
         
-        # Ensure we're returning only the requested number of candles
         klines = klines[-num_candles:]
         
         return {
@@ -164,13 +150,9 @@ def get_coingecko_price_history(
 def get_coingecko_token_list() -> Dict[str, Any]:
     """
     Retrieves the list of all tokens available on CoinGecko.
-    
-    Returns:
-        Dictionary with token list data containing id, symbol, and name
     """
     try:
-        cg = CoinGeckoAPI()
-        coins_list = cg.get_coins_list()
+        coins_list = cg_client.get_coins_list()
         
         return {
             "count": len(coins_list),
@@ -185,17 +167,9 @@ def get_coingecko_token_list() -> Dict[str, Any]:
 def get_coingecko_token_price(token_ids: List[str], vs_currencies: List[str] = ["usd"]) -> Dict[str, Any]:
     """
     Retrieves current price for specified tokens in given currencies.
-    
-    Args:
-        token_ids: List of CoinGecko token IDs (e.g., ['bitcoin', 'ethereum'])
-        vs_currencies: List of currencies to get prices in (default: ['usd'])
-        
-    Returns:
-        Dictionary with current prices
     """
     try:
-        cg = CoinGeckoAPI()
-        prices = cg.get_price(ids=token_ids, vs_currencies=vs_currencies)
+        prices = cg_client.get_price(ids=token_ids, vs_currencies=vs_currencies)
         
         return {
             "prices": prices
@@ -209,16 +183,9 @@ def get_coingecko_token_price(token_ids: List[str], vs_currencies: List[str] = [
 def get_coingecko_token_data(token_id: str) -> Dict[str, Any]:
     """
     Retrieves detailed information about a specific token.
-    
-    Args:
-        token_id: CoinGecko token ID (e.g., 'bitcoin')
-        
-    Returns:
-        Dictionary with detailed token data
     """
     try:
-        cg = CoinGeckoAPI()
-        data = cg.get_coin_by_id(id=token_id)
+        data = cg_client.get_coin_by_id(id=token_id)
         
         return {
             "token_id": token_id,
@@ -233,16 +200,9 @@ def get_coingecko_token_data(token_id: str) -> Dict[str, Any]:
 def search_coingecko_tokens(query: str) -> Dict[str, Any]:
     """
     Searches for tokens on CoinGecko by name or symbol.
-    
-    Args:
-        query: Search query string
-        
-    Returns:
-        Dictionary with search results
     """
     try:
-        cg = CoinGeckoAPI()
-        results = cg.search(query)
+        results = cg_client.search(query)
         
         return {
             "query": query,
@@ -518,14 +478,6 @@ def compare_assets(
 ) -> Dict[str, Any]:
     """
     Compare performance of multiple crypto assets with simplified insights for average investors.
-
-    Args:
-        token_symbols: List of token symbols (e.g. ["BTC", "ETH", "SOL"])
-        candle_interval: Time interval for candles (1h, 1d, 1w)
-        num_candles: Number of historical candles to analyze
-
-    Returns:
-        Dictionary with individual asset analyses, comparative metrics, and investment insights
     """
     results = {}
     detailed_results = {}
@@ -787,15 +739,7 @@ def max_drawdown_for_token(
     num_candles: int = 90,
 ) -> Dict[str, Any]:
     """
-    Calculates the maximum drawdown for a cryptocurrency using Binance price data
-
-    Args:
-        token_symbol: Token symbol (e.g., "BTC")
-        candle_interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
-        num_candles: Number of candlesticks to retrieve (max 1000)
-
-    Returns:
-        Dictionary containing the maximum drawdown value
+    Calculates the maximum drawdown for a cryptocurrency using Binance data.
     """
     try:
         # Get price data from Binance
@@ -1320,17 +1264,8 @@ def analyze_volatility_trend(
 def analyze_price_trend_with_coingecko(
     token_id: str, candle_interval: str, num_candles: int
 ) -> Dict[str, Any]:
-    """
-    Analyzes price trend for a token including moving averages, volatility metrics,
-    and enhanced technical indicators over the specified time period using CoinGecko data.
-    
-    Args:
-        token_id: CoinGecko token ID (e.g., 'bitcoin')
-        candle_interval: Time interval for candles (1h, 1d, 1w)
-        num_candles: Number of candles to retrieve
-    """
+    """Analyzes price trend for a token using CoinGecko data."""
     try:
-        # Get the price history first using CoinGecko
         price_data = get_coingecko_price_history.invoke(
             {
                 "token_id": token_id,
@@ -1342,26 +1277,14 @@ def analyze_price_trend_with_coingecko(
         if "error" in price_data:
             return {"error": price_data["error"]}
 
-        # The rest of the function remains the same as analyze_price_trend
-        # Extract relevant data for analysis
         raw_data = price_data["data"]
         
-        # Process price data
         close_prices = [float(candle[4]) for candle in raw_data]
         open_prices = [float(candle[1]) for candle in raw_data]
         high_prices = [float(candle[2]) for candle in raw_data]
         low_prices = [float(candle[3]) for candle in raw_data]
         volumes = [float(candle[5]) for candle in raw_data]
         
-        # Continue with the rest of your analyze_price_trend function...
-        # ... existing analysis code ...
-        
-        # Return the same structure as your original function
-        
-        # For brevity, I'm not including the entire function body here
-        # In practice, you would include all the same analysis code from
-        # your original analyze_price_trend function after fetching the data
-
         # Return a simplified response for this example
         return {
             "token_id": token_id,
@@ -1382,56 +1305,102 @@ def analyze_price_trend_with_coingecko(
         }
 
 
-# Additional helper function to map from Binance symbols to CoinGecko IDs
+# Path to the mappings file
+MAPPINGS_FILE_PATH = Path(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "static", "coingecko_id_mappings.txt"))
+
+# Load mappings from file at module import time
+SYMBOL_TO_ID_CACHE = {}
+SYMBOL_TO_NAME_CACHE = {}
+
+def _load_mappings():
+    global SYMBOL_TO_ID_CACHE, SYMBOL_TO_NAME_CACHE
+    if MAPPINGS_FILE_PATH.exists():
+        try:
+            with open(MAPPINGS_FILE_PATH, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    # Skip comments and empty lines
+                    if line and not line.startswith('#'):
+                        parts = line.split(':')
+                        if len(parts) >= 2:
+                            symbol = parts[0].strip()
+                            coin_id = parts[1].strip()
+                            SYMBOL_TO_ID_CACHE[symbol] = coin_id
+                            
+                            # If we have the name part too
+                            if len(parts) >= 3:
+                                coin_name = parts[2].strip()
+                                SYMBOL_TO_NAME_CACHE[symbol] = coin_name
+        except Exception as e:
+            print(f"Error loading CoinGecko mappings: {e}")
+    return SYMBOL_TO_ID_CACHE
+
+# Load mappings at module import time
+_load_mappings()
+
 @tool()
 def symbol_to_coingecko_id(symbol: str) -> str:
-    """
-    Converts a token symbol to a CoinGecko ID.
+    """Converts a token symbol to a CoinGecko ID."""
+    # Normalize symbol to uppercase for consistent lookups
+    symbol_upper = symbol.upper()
     
-    Args:
-        symbol: Token symbol (e.g., 'BTC')
-        
-    Returns:
-        Corresponding CoinGecko ID or best match
-    """
+    # Check the loaded mappings
+    if symbol_upper in SYMBOL_TO_ID_CACHE:
+        return SYMBOL_TO_ID_CACHE[symbol_upper]
+    
+    # If not found in mappings file, fallback to API call
     try:
-        cg = CoinGeckoAPI()
-        
-        # Common mappings for popular tokens
-        common_mappings = {
-            "BTC": "bitcoin",
-            "ETH": "ethereum",
-            "SOL": "solana",
-            "BNB": "binancecoin",
-            "XRP": "ripple",
-            "ADA": "cardano",
-            "DOGE": "dogecoin",
-            "DOT": "polkadot",
-            "LINK": "chainlink",
-            "MATIC": "matic-network",
-            "UNI": "uniswap",
-            "AVAX": "avalanche-2",
-        }
-        
-        # Check common mappings first
-        if symbol.upper() in common_mappings:
-            return common_mappings[symbol.upper()]
-        
-        # Otherwise search
-        search_results = cg.search(symbol)
+        # Search CoinGecko
+        search_results = cg_client.search(symbol)
         coins = search_results.get('coins', [])
         
         if not coins:
-            return f"unknown-{symbol.lower()}"
-            
-        # Find exact symbol match first
-        for coin in coins:
-            if coin['symbol'].lower() == symbol.lower():
-                return coin['id']
-                
-        # If no exact match, return the first result
-        return coins[0]['id']
+            result = f"unknown-{symbol.lower()}"
+        else:
+            # Find exact symbol match first
+            for coin in coins:
+                if coin['symbol'].lower() == symbol.lower():
+                    result = coin['id']
+                    name = coin.get('name', '')
+                    break
+            else:
+                # If no exact match, use the first result
+                result = coins[0]['id']
+                name = coins[0].get('name', '')
+        
+        # Cache the result for this session
+        SYMBOL_TO_ID_CACHE[symbol_upper] = result
+        if name:
+            SYMBOL_TO_NAME_CACHE[symbol_upper] = name
+        
+        # Also append to the file for future runs
+        try:
+            with open(MAPPINGS_FILE_PATH, 'a') as f:
+                safe_name = name.replace(':', '-') if name else ''
+                f.write(f"\n# Added via API lookup\n{symbol_upper}:{result}:{safe_name}\n")
+        except Exception:
+            pass
+        
+        return result
         
     except Exception as e:
         # Return a sanitized version of the symbol if we can't find it
         return f"unknown-{symbol.lower()}"
+
+# Additional helper function to get name from symbol
+def get_token_name_from_symbol(symbol: str) -> str:
+    """Gets the token name from a symbol using the cached mappings."""
+    symbol_upper = symbol.upper()
+    
+    if symbol_upper in SYMBOL_TO_NAME_CACHE:
+        return SYMBOL_TO_NAME_CACHE[symbol_upper]
+    
+    # Try to get the name via the ID lookup
+    symbol_to_coingecko_id(symbol)
+    
+    # Check if we now have the name in cache
+    if symbol_upper in SYMBOL_TO_NAME_CACHE:
+        return SYMBOL_TO_NAME_CACHE[symbol_upper]
+    
+    # Return the symbol as fallback
+    return symbol
