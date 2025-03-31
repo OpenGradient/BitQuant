@@ -18,30 +18,18 @@ import sys
 from functools import lru_cache, wraps
 from datetime import datetime, timedelta
 
-# Set up logging
+from api.api_types import WalletTokenHolding
+
+# Set up basic logging
 logger = logging.getLogger("coingecko_api")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 
-# Create a file handler that logs to a file
-log_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'logs')
-os.makedirs(log_dir, exist_ok=True)
-log_file = os.path.join(log_dir, f'coingecko_api_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log')
-
-file_handler = logging.FileHandler(log_file)
-file_handler.setLevel(logging.DEBUG)
-
-# Create a console handler
-console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setLevel(logging.INFO)
-
-# Create a formatter and add it to the handlers
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-file_handler.setFormatter(formatter)
-console_handler.setFormatter(formatter)
-
-# Add the handlers to the logger
-logger.addHandler(file_handler)
-logger.addHandler(console_handler)
+if not logger.handlers:
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
 
 logger.info("CoinGecko API module initialized")
 
@@ -50,10 +38,7 @@ from api.api_types import WalletTokenHolding
 from langchain_core.tools import tool
 
 class CandleInterval(StrEnum):
-    """
-    One of 1d, 1h, 1w
-    """
-
+    """One of 1d, 1h, 1w"""
     DAY = "1d"
     HOUR = "1h"
     WEEK = "1w"
@@ -61,20 +46,13 @@ class CandleInterval(StrEnum):
 # Initialize CoinGecko API key
 api_key = os.environ.get("COINGECKO_API_KEY", "")
 
-# Log API key info (partially obscured for security)
-if api_key:
-    masked_key = f"{api_key[:4]}...{api_key[-4:]}" if len(api_key) > 8 else "[TOO SHORT]"
-    logger.info(f"Using CoinGecko API key: {masked_key}")
-else:
-    logger.error("COINGECKO_API_KEY environment variable is not set or empty!")
-
-# Set up headers for direct API calls (always use Pro API)
+# Set up headers for API calls
 COINGECKO_HEADERS = {
     "accept": "application/json",
     "x-cg-pro-api-key": api_key
 }
 
-# Base URL for CoinGecko API (Pro endpoint only)
+# Base URL for CoinGecko Pro API
 COINGECKO_BASE_URL = "https://pro-api.coingecko.com/api/v3"
 
 # Map for converting CandleInterval to CoinGecko's 'days' parameter
@@ -84,13 +62,10 @@ INTERVAL_TO_DAYS = {
     CandleInterval.WEEK: 180, # 1 week intervals, fetch 180 days of data
 }
 
-# Create a cache for symbol to ID mappings
+# Create caches to reduce API calls
 _SYMBOL_TO_ID_CACHE = {}
-
-# Create a cache for price data to reduce API calls
 _PRICE_DATA_CACHE = {}
 
-# Simple function to create a TTL cache
 def ttl_cache(maxsize=128, ttl=300):
     """A decorator that creates a cache with a time-to-live (TTL)."""
     def decorator(func):
@@ -101,19 +76,15 @@ def ttl_cache(maxsize=128, ttl=300):
             key = str(args) + str(kwargs)
             current_time = datetime.now()
             
-            # Check if key exists and if it's still valid
             if key in cache:
                 creation_time, result = cache[key]
                 if (current_time - creation_time).total_seconds() < ttl:
                     return result
             
-            # If not in cache or expired, call the function
             result = func(*args, **kwargs)
-            
-            # Store in cache with current time
             cache[key] = (current_time, result)
             
-            # Clean old items (optional, can be removed for better performance)
+            # Clean expired items
             for k in list(cache.keys()):
                 if (current_time - cache[k][0]).total_seconds() >= ttl:
                     del cache[k]
@@ -123,92 +94,46 @@ def ttl_cache(maxsize=128, ttl=300):
     return decorator
 
 def make_coingecko_request(url, params=None, max_retries=3, backoff_factor=0.5):
-    """Helper function to make CoinGecko Pro API requests with retries and backoff."""
-    # Generate request ID for tracking
-    request_id = f"req_{datetime.now().strftime('%H%M%S')}_{random.randint(1000, 9999)}"
-    
-    # Validate API key
-    if not api_key:
-        logger.error(f"[{request_id}] API key is missing or empty!")
-    else:
-        # Log headers with masked API key
-        debug_headers = COINGECKO_HEADERS.copy()
-        if 'x-cg-pro-api-key' in debug_headers:
-            key = debug_headers['x-cg-pro-api-key']
-            debug_headers['x-cg-pro-api-key'] = f"{key[:4]}...{key[-4:]}" if len(key) > 8 else "[TOO SHORT]"
-        
-        logger.debug(f"[{request_id}] Request headers: {debug_headers}")
-    
-    # Log request details
-    logger.debug(f"[{request_id}] CoinGecko Pro API Request: {url}, Params: {params}")
+    """Make a request to the CoinGecko Pro API with retries and error handling."""
+    request_id = f"req_{datetime.now().strftime('%H%M%S')}"
     
     retry_count = 0
     while retry_count < max_retries:
         try:
             # Add a small random delay to avoid rate limits
-            sleep_time = random.uniform(0.1, 0.5)
-            logger.debug(f"[{request_id}] Sleeping for {sleep_time:.2f}s before request")
-            sleep(sleep_time)
+            sleep(random.uniform(0.1, 0.5))
             
             # Make request with timeout
-            start_time = time.time()
             response = requests.get(url, params=params, headers=COINGECKO_HEADERS, timeout=10)
-            elapsed_time = time.time() - start_time
             
-            # Log response details
-            logger.debug(f"[{request_id}] Response received in {elapsed_time:.2f}s: Status {response.status_code}")
-            
-            # Check for rate limiting
+            # Handle rate limiting
             if response.status_code == 429:
                 retry_after = int(response.headers.get('Retry-After', 60))
-                logger.warning(f"[{request_id}] Rate limited. Retrying after {retry_after} seconds...")
+                logger.warning(f"Rate limited. Retrying after {retry_after} seconds")
                 sleep(retry_after)
                 retry_count += 1
                 continue
-            
-            # Check for authentication issues
-            if response.status_code == 401:
-                logger.error(f"[{request_id}] Authentication error: {response.text}")
-                # Let's check if API key is present in environment at runtime
-                runtime_key = os.environ.get("COINGECKO_API_KEY", "")
-                if not runtime_key:
-                    logger.error(f"[{request_id}] API key missing from environment at runtime!")
-                else:
-                    masked_key = f"{runtime_key[:4]}...{runtime_key[-4:]}" if len(runtime_key) > 8 else "[TOO SHORT]"
-                    logger.error(f"[{request_id}] API key in environment at runtime: {masked_key}")
-            
-            # Check for other error codes
+                
+            # Raise for non-200 status codes
             if response.status_code != 200:
-                logger.error(f"[{request_id}] API error: {response.status_code} - {response.text}")
+                logger.error(f"API error: {response.status_code} - {response.text}")
                 response.raise_for_status()
                 
-            # Parse response
-            data = response.json()
-            
-            # Log truncated response for debugging
-            data_str = str(data)
-            logged_data = data_str[:500] + "..." if len(data_str) > 500 else data_str
-            logger.debug(f"[{request_id}] Response data: {logged_data}")
-            
-            return data
+            return response.json()
         
         except requests.exceptions.RequestException as e:
             retry_count += 1
             wait_time = backoff_factor * (2 ** (retry_count - 1))
-            logger.warning(f"[{request_id}] Request failed: {e}. Retrying in {wait_time:.2f}s... (Attempt {retry_count}/{max_retries})")
+            logger.warning(f"Request failed: {e}. Retrying in {wait_time:.2f}s (Attempt {retry_count}/{max_retries})")
             sleep(wait_time)
             
-    # If we get here, all retries failed
-    error_msg = f"[{request_id}] Failed to make request to {url} after {max_retries} attempts"
-    logger.error(error_msg)
-    raise Exception(error_msg)
+    # All retries failed
+    raise Exception(f"Failed to make request to {url} after {max_retries} attempts")
 
 @ttl_cache(maxsize=100, ttl=3600)  # Cache ID lookups for 1 hour
 def get_coingecko_id(token_symbol: str) -> str:
     """
     Convert a token symbol to CoinGecko ID using the CSV data file.
-    
-    CoinGecko IDs are used in API calls and differ from token symbols.
     
     Args:
         token_symbol: Token symbol to convert (e.g., "BTC")
@@ -216,65 +141,60 @@ def get_coingecko_id(token_symbol: str) -> str:
     Returns:
         CoinGecko ID for the token (e.g., "bitcoin")
     """
-    # Check cache first
     token_symbol_lower = token_symbol.lower()
+    
+    # 1. Check cache first for efficiency
     if token_symbol_lower in _SYMBOL_TO_ID_CACHE:
         return _SYMBOL_TO_ID_CACHE[token_symbol_lower]
     
-    # Hardcoded common tokens to ensure tests work even without CSV
-    common_tokens = {
-        "btc": "bitcoin",
-        "eth": "ethereum",
-        "sol": "solana",
-        "ada": "cardano",
-        "dot": "polkadot",
-        "doge": "dogecoin",
-        "xrp": "ripple",
-        "link": "chainlink",
-        "uni": "uniswap",
-        "bnb": "binancecoin",
-        "usdt": "tether",
-        "usdc": "usd-coin",
-        "dai": "dai",
-        "matic": "matic-network",
-        "avax": "avalanche-2",
-        "atom": "cosmos",
-        "shib": "shiba-inu",
-        "ltc": "litecoin"
-    }
-    
-    if token_symbol_lower in common_tokens:
-        logger.info(f"Using hardcoded mapping for {token_symbol}: {common_tokens[token_symbol_lower]}")
-        _SYMBOL_TO_ID_CACHE[token_symbol_lower] = common_tokens[token_symbol_lower]
-        return common_tokens[token_symbol_lower]
-    
-    # Path to coingecko_ids.csv
+    # 2. Use the CSV file for lookup
     csv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
                            'static', 'coingecko_ids.csv')
     
-    try:
-        # Try to find in CSV file
-        if os.path.exists(csv_path):
-            with open(csv_path, 'r', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                # Skip the first row which contains the note
-                next(reader, None)
-                
-                # Find all matches by symbol (case-insensitive)
-                matches = []
-                for row in reader:
-                    if row.get('Symbol', '').lower() == token_symbol_lower:
-                        matches.append(row.get('Id (API id)', ''))
-                
-                # If we found matches, use the first one
-                if matches:
-                    _SYMBOL_TO_ID_CACHE[token_symbol_lower] = matches[0]
-                    return matches[0]
-    except Exception as e:
-        logger.error(f"Error reading coingecko_ids.csv: {e}")
+    if not os.path.exists(csv_path):
+        logger.warning(f"CoinGecko IDs CSV file not found at {csv_path}")
+        # Fallback to using symbol as ID
+        _SYMBOL_TO_ID_CACHE[token_symbol_lower] = token_symbol_lower
+        return token_symbol_lower
     
-    # If we couldn't find it in the CSV, use the lowercase symbol as fallback
-    logger.warning(f"Could not find CoinGecko ID for {token_symbol} in CSV, using symbol as fallback")
+    try:
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            # Skip first line which is a note about the API
+            next(f)
+            
+            reader = csv.DictReader(f)
+            matches = []
+            
+            # Collect all matching symbols
+            for row in reader:
+                if not row:
+                    continue
+                    
+                # CSV columns are: "Id (API id)", "Symbol", "Name"
+                csv_symbol = row.get('Symbol', '').lower()
+                
+                if csv_symbol == token_symbol_lower:
+                    matches.append({
+                        'id': row.get('Id (API id)', ''),
+                        'name': row.get('Name', '')
+                    })
+            
+            if matches:
+                # If we have multiple matches, prioritize by name length (shorter names are usually the main tokens)
+                matches.sort(key=lambda x: len(x['name']))
+                chosen_id = matches[0]['id']
+                
+                logger.info(f"Mapped {token_symbol} to {chosen_id} from CSV (found {len(matches)} matches)")
+                _SYMBOL_TO_ID_CACHE[token_symbol_lower] = chosen_id
+                return chosen_id
+            
+            logger.warning(f"No matches found for {token_symbol} in CoinGecko IDs CSV")
+            
+    except Exception as e:
+        logger.error(f"Error reading coingecko_ids.csv: {str(e)}")
+    
+    # 3. Fallback to using the lowercase symbol if all else fails
+    logger.warning(f"Using symbol directly as CoinGecko ID fallback: {token_symbol_lower}")
     _SYMBOL_TO_ID_CACHE[token_symbol_lower] = token_symbol_lower
     return token_symbol_lower
 
@@ -295,20 +215,15 @@ def get_coingecko_price_history(
     Returns:
         Dictionary with price history data or error information
     """
-    # Generate a request ID for tracking
-    request_id = f"{token_symbol}_{datetime.now().strftime('%H%M%S')}"
-    logger.info(f"[{request_id}] Getting price history for {token_symbol}, interval: {candle_interval}, candles: {num_candles}")
-    
     # Min value of 2 ensures we have at least two data points for calculating trends
     num_candles = min(max(2, int(num_candles)), 1000)
     
     # Get CoinGecko ID for the token
     try:
         token_id = get_coingecko_id(token_symbol)
-        logger.info(f"[{request_id}] Mapped {token_symbol} to CoinGecko ID: {token_id}")
     except Exception as e:
         error_msg = f"Failed to map {token_symbol} to CoinGecko ID: {str(e)}"
-        logger.error(f"[{request_id}] {error_msg}")
+        logger.error(error_msg)
         return {"error": error_msg, "token_symbol": token_symbol, "source": "coingecko"}
     
     # Set currency to USD
@@ -320,14 +235,10 @@ def get_coingecko_price_history(
     # Determine interval parameter based on candle_interval
     if candle_interval == CandleInterval.HOUR:
         interval = "hourly"
-        # For hourly data, go back num_candles hours
-        # Maximum 31 days (744 hourly candles) for hourly interval
         seconds_per_candle = 60 * 60  # 1 hour in seconds
         max_candles = 744  # 31 days * 24 hours
     else:  # DAY or WEEK (use daily as default)
         interval = "daily"
-        # For daily data, go back num_candles days
-        # Maximum 180 days for daily interval
         seconds_per_candle = 60 * 60 * 24  # 1 day in seconds
         max_candles = 180  # 180 days
     
@@ -338,10 +249,9 @@ def get_coingecko_price_history(
     time_range_seconds = num_candles * seconds_per_candle
     from_timestamp = int((datetime.now() - timedelta(seconds=time_range_seconds)).timestamp())  # From time in seconds
     
-    # Ensure from_timestamp is not before the minimum timestamp supported by CoinGecko (2018-01-01)
+    # Ensure from_timestamp is not before the minimum timestamp supported by CoinGecko
     min_timestamp = 1514764800  # January 1, 2018 in Unix timestamp (seconds)
     if from_timestamp < min_timestamp:
-        logger.warning(f"[{request_id}] Adjusted from_timestamp to minimum supported by CoinGecko: {min_timestamp}")
         from_timestamp = min_timestamp
     
     # Create a cache key
@@ -349,7 +259,6 @@ def get_coingecko_price_history(
     
     # Check if we have cached data
     if cache_key in _PRICE_DATA_CACHE:
-        logger.info(f"[{request_id}] Using cached data for {token_symbol}")
         cached_data = _PRICE_DATA_CACHE[cache_key]
         return {
             "token_symbol": token_symbol,
@@ -371,7 +280,6 @@ def get_coingecko_price_history(
     
     try:
         # Construct the OHLC range endpoint URL
-        # Reference: https://docs.coingecko.com/reference/coins-id-ohlc-range
         ohlc_url = f"{COINGECKO_BASE_URL}/coins/{token_id}/ohlc/range"
         
         params = {
@@ -381,24 +289,20 @@ def get_coingecko_price_history(
             "interval": interval
         }
         
-        logger.info(f"[{request_id}] Requesting OHLC data from CoinGecko Pro API: {ohlc_url} with {interval} interval")
-        
         # Make the request with proper error handling and retries
         ohlc_data = make_coingecko_request(ohlc_url, params=params)
         
         # Check if the API returned an error message
         if isinstance(ohlc_data, dict) and "error" in ohlc_data:
             error_msg = f"CoinGecko API returned an error: {ohlc_data['error']}"
-            logger.error(f"[{request_id}] {error_msg}")
+            logger.error(error_msg)
             return {"error": error_msg, "token_symbol": token_symbol, "source": "coingecko"}
             
         # Check if we got valid data
         if not isinstance(ohlc_data, list) or len(ohlc_data) == 0:
-            error_msg = f"CoinGecko API returned invalid or empty data: {str(ohlc_data)[:200]}"
-            logger.error(f"[{request_id}] {error_msg}")
+            error_msg = f"CoinGecko API returned invalid or empty data"
+            logger.error(error_msg)
             return {"error": error_msg, "token_symbol": token_symbol, "source": "coingecko"}
-        
-        logger.info(f"[{request_id}] Received {len(ohlc_data)} OHLC entries from CoinGecko Pro API")
         
         # Format data to match expected structure
         # CoinGecko OHLC format: [timestamp, open, high, low, close]
@@ -409,8 +313,6 @@ def get_coingecko_price_history(
                 timestamp, open_price, high, low, close = candle
                 # Add a placeholder volume value (0)
                 formatted_data.append([timestamp, open_price, high, low, close, 0])
-        
-        logger.info(f"[{request_id}] Formatted {len(formatted_data)} valid candles")
         
         # Cache the data
         _PRICE_DATA_CACHE[cache_key] = formatted_data
@@ -436,11 +338,8 @@ def get_coingecko_price_history(
         }
 
     except Exception as e:
-        # Get traceback for better debugging
-        error_traceback = traceback.format_exc()
         error_msg = f"Error fetching CoinGecko data for {token_symbol}: {str(e)}"
-        logger.error(f"[{request_id}] {error_msg}\n{error_traceback}")
-        
+        logger.error(error_msg)
         return {
             "error": error_msg,
             "token_symbol": token_symbol,
