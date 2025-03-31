@@ -192,13 +192,11 @@ def get_coingecko_price_history(
         
         # Format data to match expected structure
         # CoinGecko OHLC format: [timestamp, open, high, low, close]
-        # We need to add volume data (setting to 0 as CoinGecko OHLC doesn't provide it directly)
         formatted_data = []
         for candle in ohlc_data:
             if len(candle) >= 5:  # Ensure we have all required fields
                 timestamp, open_price, high, low, close = candle
-                # Add a placeholder volume value (0)
-                formatted_data.append([timestamp, open_price, high, low, close, 0])
+                formatted_data.append([timestamp, open_price, high, low, close])
         
         # Limit to requested number of candles
         formatted_data = formatted_data[-num_candles:]
@@ -215,7 +213,6 @@ def get_coingecko_price_history(
                 "high",
                 "low",
                 "close",
-                "volume",
             ],
         }
         
@@ -229,10 +226,6 @@ def get_coingecko_price_history(
             "error": f"Error fetching CoinGecko data for {token_symbol}: {str(e)}",
             "token_symbol": token_symbol
         }
-
-
-# Alias to maintain backward compatibility with existing code
-get_binance_price_history = get_coingecko_price_history
 
 
 @tool()
@@ -261,9 +254,6 @@ def analyze_price_trend(
         open_prices = [float(candle[1]) for candle in raw_data]
         high_prices = [float(candle[2]) for candle in raw_data]
         low_prices = [float(candle[3]) for candle in raw_data]
-        # Note: For CoinGecko, we don't have volume data directly from OHLC
-        # We'll use zeros or try to fetch volume separately if needed
-        volumes = [float(candle[5]) for candle in raw_data]
 
         # Enhanced moving averages calculations with more periods and types
         def calculate_sma(prices, period):
@@ -345,43 +335,10 @@ def analyze_price_trend(
             levels.sort(key=lambda x: abs(current_price - x[1]))
             fibonacci["current_position"] = levels[0][0]
 
-        # 5. Volume Analysis
-        volume_analysis = {
-            "trend": "Neutral",
-            "avg_volume": None,
-            "current_vs_avg": None,
-        }
-        if len(volumes) >= 7:
-            avg_volume = sum(volumes[-7:]) / 7
-            current_volume = volumes[-1]
-
-            volume_trend = "Increasing" if current_volume > avg_volume else "Decreasing"
-            # Check if volume confirms price trend
-            price_up = close_prices[-1] > open_prices[-1]
-            volume_confirms = (price_up and volume_trend == "Increasing") or (
-                not price_up and volume_trend == "Decreasing"
-            )
-
-            # Calculate percent change safely
-            current_vs_avg = 0
-            if avg_volume > 0:  # Avoid division by zero
-                current_vs_avg = (current_volume / avg_volume - 1) * 100
-
-            volume_analysis = {
-                "trend": volume_trend,
-                "avg_volume": round(avg_volume, 2),
-                "current_volume": round(current_volume, 2),
-                "current_vs_avg": round(current_vs_avg, 2),
-                "confirms_price": volume_confirms,
-            }
-
         # 9. Token-specific metrics
         token_metrics = {}
-        if len(close_prices) > 0 and len(volumes) > 0:
+        if len(close_prices) > 0:
             current_price = close_prices[-1]
-            avg_daily_volume = sum(volumes[-min(7, len(volumes)) :]) / min(
-                7, len(volumes)
-            )
 
             # Calculate volatility safely
             volatility = None
@@ -393,7 +350,6 @@ def analyze_price_trend(
 
             token_metrics = {
                 "price": round(current_price, 4),
-                "avg_daily_volume_usd": round(avg_daily_volume * current_price, 2),
                 "volatility": volatility,
             }
 
@@ -444,11 +400,10 @@ def analyze_price_trend(
             "technical_indicators": {
                 "bollinger_bands": bollinger_bands,
                 "fibonacci": fibonacci,
-                "volume_analysis": volume_analysis,
             },
             "token_metrics": token_metrics,
             "analysis_summary": get_analysis_summary(
-                sma7, sma20, sma50, sma200, bollinger_bands, volume_analysis
+                sma7, sma20, sma50, sma200, bollinger_bands
             )
         }
         
@@ -460,7 +415,7 @@ def analyze_price_trend(
         }
 
 
-def get_analysis_summary(sma7, sma20, sma50, sma200, bollinger_bands, volume_analysis):
+def get_analysis_summary(sma7, sma20, sma50, sma200, bollinger_bands):
     """
     Generate a simple summary of the analysis results.
     """
@@ -495,16 +450,6 @@ def get_analysis_summary(sma7, sma20, sma50, sma200, bollinger_bands, volume_ana
         elif position < 0.2:
             bb_desc = "Price near lower Bollinger Band suggests oversold conditions."
             summary.append(bb_desc)
-
-    # Volume confirmation
-    if volume_analysis["avg_volume"] is not None:
-        if volume_analysis["confirms_price"]:
-            vol_desc = "Volume confirms price movement."
-        else:
-            vol_desc = (
-                "Volume does not confirm price movement, suggesting potential reversal."
-            )
-        summary.append(vol_desc)
 
     # Combine into a paragraph
     return " ".join(summary)
@@ -588,9 +533,6 @@ def compare_assets(
                     "long_term": analysis.get("moving_averages", {}).get("long_term"),
                 },
                 "volatility": analysis.get("token_metrics", {}).get("volatility"),
-                "volume_trend": analysis.get("technical_indicators", {})
-                .get("volume_analysis", {})
-                .get("trend"),
                 "key_signals": [],
             }
 
