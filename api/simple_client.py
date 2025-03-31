@@ -68,9 +68,6 @@ def subnet_query(quant_query: QuantQuery) -> QuantResponse:
         "context": context
     }
     
-    # Add metadata if provided
-    if quant_query.metadata:
-        payload["metadata"] = quant_query.metadata
     
     logging.info(f"Making request to {endpoint}")
     logging.info(f"Query: {quant_query.query}")
@@ -99,42 +96,7 @@ def subnet_query(quant_query: QuantQuery) -> QuantResponse:
         response=agent_output.get("message", "No message found in response"),
         signature=b'',  
         proofs=[],      
-        metadata=quant_query.metadata
+        metadata={}
     )
     
     return quant_response
-
-"""
-if __name__ == "__main__":
-    # Sample values for subnet_query
-    wallet_address = "AmZ68oe9jMSqBVyJWieHs6UR1vkyRZnSTyCKobUfT4Pb" 
-    query = "What's the total value locked in Uniswap?"
-    metadata = ["defi", "uniswap", "tvl"]
-    
-    # Create a QuantQuery object
-    quant_query = QuantQuery(
-        query=query,
-        userID=wallet_address,
-        metadata=metadata
-    )
-    
-    print(f"\nTesting subnet_query function with:")
-    print(f"Query: {quant_query.query}")
-    print(f"UserID: {quant_query.userID}")
-    print(f"Metadata: {quant_query.metadata}")
-    
-    # Call subnet_query with the QuantQuery object
-    result = subnet_query(quant_query)
-    
-    if result:
-        # Print the results
-        print(f"\nResults:")
-        print(f"Response: {result.response}")
-        print(f"Signature: {result.signature}")
-        print(f"Proofs: {result.proofs}")
-        print(f"Metadata: {result.metadata}")
-        
-        logging.info("Subnet query test completed successfully")
-    else:
-        logging.error("Subnet query test failed") 
-"""
