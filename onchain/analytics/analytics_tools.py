@@ -33,7 +33,6 @@ COINGECKO_HEADERS = {
 COINGECKO_BASE_URL = "https://pro-api.coingecko.com/api/v3"
 
 # Create caches
-symbol_to_id_cache = TTLCache(maxsize=10000, ttl=3600)  # 1 hour TTL
 price_data_cache = TTLCache(maxsize=1000, ttl=600)     # 10 minutes TTL
 
 # Define preferred mappings for common tokens
@@ -126,8 +125,7 @@ def make_coingecko_request(url, params=None, max_retries=3, backoff_factor=0.5):
     # All retries failed
     raise Exception(f"Failed to make request to {url} after {max_retries} attempts")
 
-@cached(cache=symbol_to_id_cache)
-def get_coingecko_id(token_input: str) -> str:
+def get_coingecko_id(token_input: str) -> tuple:
     """
     Resolves a token symbol/name/id to a valid CoinGecko ID.
     Lookup strategy:
