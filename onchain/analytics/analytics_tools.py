@@ -38,37 +38,67 @@ COINGECKO_BASE_URL = "https://pro-api.coingecko.com/api/v3"
 symbol_to_id_cache = TTLCache(maxsize=10000, ttl=3600)  # 1 hour TTL
 price_data_cache = TTLCache(maxsize=1000, ttl=600)     # 10 minutes TTL
 
+# Define preferred mappings for common tokens
+PREFERRED_TOKEN_IDS = {
+    'btc': 'bitcoin',
+    'eth': 'ethereum',
+    'link': 'chainlink',
+    'uni': 'uniswap',
+    'aave': 'aave',
+    'matic': 'polygon',
+    'sol': 'solana',
+    'doge': 'dogecoin',
+    'shib': 'shiba-inu',
+    'ada': 'cardano',
+    'dot': 'polkadot',
+    'avax': 'avalanche-2',
+    'bnb': 'binancecoin',
+    'usdt': 'tether',
+    'usdc': 'usd-coin',
+    'dai': 'dai',
+}
+
 # Load the CSV file at module import time
 SYMBOL_TO_ID_MAP = {}
+ID_TO_NAME_MAP = {}
+NAME_TO_ID_MAP = {}
 csv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
                        'static', 'coingecko_ids.csv')
 print(f"DEBUG: Looking for CSV at {csv_path}")
 
-if os.path.exists(csv_path):
-    try:
-        print(f"DEBUG: Found CSV file, loading symbols")
-        with open(csv_path, 'r', encoding='utf-8') as f:
-            # Skip first line which is a note about the API
-            next(f)
-            
-            reader = csv.DictReader(f)
-            
-            for row in reader:
-                if not row:
-                    continue
-                
-                # CSV columns are: "Id (API id)", "Symbol", "Name"
-                symbol = row.get('Symbol', '').lower()
-                coingecko_id = row.get('Id (API id)', '')
-                
-                if symbol and coingecko_id:
-                    SYMBOL_TO_ID_MAP[symbol] = coingecko_id
+try:
+    with open(csv_path, 'r', encoding='utf-8') as file:
+        # Skip the first two header rows
+        next(file)  # Skip the note about API
+        next(file)  # Skip the column headers
         
-        print(f"DEBUG: Loaded {len(SYMBOL_TO_ID_MAP)} symbols from CSV")
-    except Exception as e:
-        print(f"DEBUG: Error loading CSV: {str(e)}")
-else:
-    print(f"DEBUG: CSV file not found at {csv_path}")
+        csv_reader = csv.reader(file)
+        for row in csv_reader:
+            if len(row) >= 3:
+                coingecko_id = row[0].strip()
+                symbol = row[1].strip().lower()
+                name = row[2].strip().lower()
+                
+                # Create mappings
+                if symbol:
+                    # If multiple symbols map to the same ID, we keep all of them
+                    if symbol in SYMBOL_TO_ID_MAP:
+                        if not isinstance(SYMBOL_TO_ID_MAP[symbol], list):
+                            SYMBOL_TO_ID_MAP[symbol] = [SYMBOL_TO_ID_MAP[symbol]]
+                        SYMBOL_TO_ID_MAP[symbol].append(coingecko_id)
+                    else:
+                        SYMBOL_TO_ID_MAP[symbol] = coingecko_id
+                
+                # Map ID to name
+                ID_TO_NAME_MAP[coingecko_id] = name
+                
+                # Map name to ID (case-insensitive for better matching)
+                NAME_TO_ID_MAP[name] = coingecko_id
+    
+    print(f"DEBUG: Successfully loaded CoinGecko CSV with {len(ID_TO_NAME_MAP)} coin entries")
+except Exception as e:
+    print(f"DEBUG: Error loading CoinGecko CSV: {str(e)}")
+    print("DEBUG: Falling back to lowercase symbol as ID")
 
 def make_coingecko_request(url, params=None, max_retries=3, backoff_factor=0.5):
     """
@@ -115,20 +145,58 @@ def make_coingecko_request(url, params=None, max_retries=3, backoff_factor=0.5):
     raise Exception(f"Failed to make request to {url} after {max_retries} attempts")
 
 @cached(cache=symbol_to_id_cache)
-def get_coingecko_id(token_symbol: str) -> str:
-    """Converts a token symbol to CoinGecko ID."""
-    print(f"DEBUG: Converting token symbol: {token_symbol}")
-    token_symbol_lower = token_symbol.lower()
+def get_coingecko_id(token_input: str) -> str:
+    """
+    Resolves a token symbol/name/id to a valid CoinGecko ID.
+    Lookup strategy:
+    1. First check if the input is an exact CoinGecko ID
+    2. Then try to lookup by symbol
+    3. Then try to lookup by name
+    4. Finally return the lowercase input as a fallback
     
-    # Use the preloaded mapping
-    if token_symbol_lower in SYMBOL_TO_ID_MAP:
-        coingecko_id = SYMBOL_TO_ID_MAP[token_symbol_lower]
-        print(f"DEBUG: Found mapping: {token_symbol_lower} -> {coingecko_id}")
-        return coingecko_id
+    Returns a tuple of (coingecko_id, error_message)
+    """
+    if not token_input:
+        print(f"DEBUG: Empty token input provided")
+        return "", "Empty token input provided"
+        
+    print(f"DEBUG: Resolving CoinGecko ID for: {token_input}")
+    token_input_lower = token_input.lower()
     
-    # Fallback to lowercase symbol if no match
-    print(f"DEBUG: No mapping found, using lowercase symbol: {token_symbol_lower}")
-    return token_symbol_lower
+    # Check if the input is already a valid CoinGecko ID
+    if token_input in ID_TO_NAME_MAP:
+        print(f"DEBUG: Token input matches exact CoinGecko ID: {token_input}")
+        return token_input, None
+    
+    # Check if we have a preferred mapping for this symbol
+    if token_input_lower in PREFERRED_TOKEN_IDS:
+        preferred_id = PREFERRED_TOKEN_IDS[token_input_lower]
+        print(f"DEBUG: Using preferred CoinGecko ID for {token_input_lower}: {preferred_id}")
+        return preferred_id, None
+    
+    # Try to match by symbol (case-insensitive)
+    if token_input_lower in SYMBOL_TO_ID_MAP:
+        symbol_match = SYMBOL_TO_ID_MAP[token_input_lower]
+        
+        # Handle the case where multiple IDs match a symbol
+        if isinstance(symbol_match, list):
+            print(f"DEBUG: Multiple CoinGecko IDs found for symbol {token_input_lower}: {symbol_match}")
+            # Return the first match by default, with a warning
+            return symbol_match[0], f"Multiple CoinGecko IDs found for symbol {token_input_lower}: {symbol_match}. Using {symbol_match[0]}"
+        
+        print(f"DEBUG: Found CoinGecko ID for symbol {token_input_lower}: {symbol_match}")
+        return symbol_match, None
+    
+    # Try to match by name (case-insensitive)
+    if token_input_lower in NAME_TO_ID_MAP:
+        name_match = NAME_TO_ID_MAP[token_input_lower]
+        print(f"DEBUG: Found CoinGecko ID for name {token_input_lower}: {name_match}")
+        return name_match, None
+    
+    # No exact match found, fallback to lowercase input as a best guess
+    fallback_id = token_input_lower
+    print(f"DEBUG: No CoinGecko ID found, using fallback: {fallback_id}")
+    return fallback_id, f"No exact CoinGecko ID match found for '{token_input}'. Using '{fallback_id}' as a fallback"
 
 
 @tool()
@@ -137,6 +205,14 @@ def get_coingecko_price_history(
 ) -> Dict[str, Any]:
     """
     Retrieves historical price data for a token using CoinGecko.
+    
+    Args:
+        token_symbol: Token symbol, name, or CoinGecko ID
+        candle_interval: CandleInterval.DAY or CandleInterval.HOUR
+        num_candles: Number of candles to retrieve
+        
+    Returns:
+        Dictionary with price history data or error information
     """
     print(f"DEBUG: get_coingecko_price_history called for {token_symbol}, interval: {candle_interval}, num_candles: {num_candles}")
     
@@ -153,8 +229,18 @@ def get_coingecko_price_history(
     
     # Get CoinGecko ID for the token
     try:
-        token_id = get_coingecko_id(token_symbol)
+        token_id, error_message = get_coingecko_id(token_symbol)
+        if not token_id:
+            print(f"DEBUG: Failed to resolve CoinGecko ID for {token_symbol}")
+            return {"error": f"Failed to resolve CoinGecko ID for {token_symbol}", "token_symbol": token_symbol}
+            
         print(f"DEBUG: CoinGecko ID for {token_symbol} is {token_id}")
+        
+        # Include warning in the result if there was one
+        warning = None
+        if error_message:
+            warning = error_message
+            print(f"DEBUG: Warning: {warning}")
     except Exception as e:
         print(f"DEBUG: Error getting CoinGecko ID: {str(e)}")
         return {"error": f"Failed to map {token_symbol} to CoinGecko ID: {str(e)}", "token_symbol": token_symbol}
@@ -206,12 +292,50 @@ def get_coingecko_price_history(
         # Check if the API returned an error message
         if isinstance(ohlc_data, dict) and "error" in ohlc_data:
             print(f"DEBUG: CoinGecko API returned error: {ohlc_data['error']}")
-            return {"error": f"CoinGecko API returned an error: {ohlc_data['error']}", "token_symbol": token_symbol}
+            
+            # Special handling for common "coin not found" error
+            if "Could not find coin" in ohlc_data['error'] and SYMBOL_TO_ID_MAP:
+                # Try to suggest similar coins
+                suggestions = []
+                input_lower = token_symbol.lower()
+                
+                # Find similar symbols
+                for symbol in SYMBOL_TO_ID_MAP:
+                    if input_lower in symbol or symbol in input_lower:
+                        coin_id = SYMBOL_TO_ID_MAP[symbol]
+                        if isinstance(coin_id, list):
+                            for cid in coin_id:
+                                coin_name = ID_TO_NAME_MAP.get(cid, symbol)
+                                suggestions.append(f"{symbol} -> {cid} ({coin_name})")
+                        else:
+                            coin_name = ID_TO_NAME_MAP.get(coin_id, symbol)
+                            suggestions.append(f"{symbol} -> {coin_id} ({coin_name})")
+                        
+                        if len(suggestions) >= 5:  # Limit suggestions to avoid too much noise
+                            break
+                
+                if suggestions:
+                    suggestion_text = "\nSuggested coins: " + ", ".join(suggestions[:5])
+                    return {
+                        "error": f"CoinGecko API couldn't find coin with ID '{token_id}'. {suggestion_text}",
+                        "token_symbol": token_symbol,
+                        "attempted_id": token_id
+                    }
+            
+            return {
+                "error": f"CoinGecko API returned an error: {ohlc_data['error']}",
+                "token_symbol": token_symbol,
+                "attempted_id": token_id
+            }
             
         # Check if we got valid data
         if not isinstance(ohlc_data, list) or len(ohlc_data) == 0:
             print(f"DEBUG: CoinGecko API returned invalid or empty data: {ohlc_data}")
-            return {"error": "CoinGecko API returned invalid or empty data", "token_symbol": token_symbol}
+            return {
+                "error": "CoinGecko API returned invalid or empty data",
+                "token_symbol": token_symbol,
+                "attempted_id": token_id
+            }
         
         print(f"DEBUG: CoinGecko API returned {len(ohlc_data)} data points")
         
@@ -241,6 +365,10 @@ def get_coingecko_price_history(
             ],
         }
         
+        # Add warning if there was one
+        if warning:
+            result["warning"] = warning
+        
         # Cache the result
         price_data_cache[cache_key] = result
         
@@ -251,7 +379,8 @@ def get_coingecko_price_history(
         print(f"DEBUG: Traceback: {traceback.format_exc()}")
         return {
             "error": f"Error fetching CoinGecko data for {token_symbol}: {str(e)}",
-            "token_symbol": token_symbol
+            "token_symbol": token_symbol,
+            "attempted_id": token_id if 'token_id' in locals() else None
         }
 
 
@@ -832,7 +961,7 @@ def analyze_wallet_portfolio(
     Provides a comprehensive analysis of a crypto wallet portfolio with investor-friendly insights and recommendations.
     """
     try:
-        tokens: List[WalletTokenHolding] = config["configurable"]["tokens"]
+        tokens = config["configurable"]["tokens"]
 
         # Fetch price data for each asset
         all_price_data = []
@@ -841,23 +970,32 @@ def analyze_wallet_portfolio(
         error_symbols = []
 
         for i, token in enumerate(tokens):
+            # Handle both WalletTokenHolding objects and dicts
+            if hasattr(token, "symbol"):
+                symbol = token.symbol
+                amount = token.amount
+            else:
+                # Handle dict format
+                symbol = token.get("symbol")
+                amount = token.get("amount")
+                
             price_data = get_coingecko_price_history.invoke(
                 {
-                    "token_symbol": token.symbol,
+                    "token_symbol": symbol,
                     "candle_interval": candle_interval,
                     "num_candles": num_candles,
                 }
             )
 
             if "error" in price_data:
-                error_symbols.append(token.symbol)
+                error_symbols.append(symbol)
                 continue  # Skip this token but continue with others
 
             # Extract closing prices
             close_prices = [float(candle[4]) for candle in price_data["data"]]
             all_price_data.append(close_prices)
-            valid_symbols.append(token.symbol)
-            valid_quantities.append(token.amount)
+            valid_symbols.append(symbol)
+            valid_quantities.append(amount)
 
         if not all_price_data:
             return {

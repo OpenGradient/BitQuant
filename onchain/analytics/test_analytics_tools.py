@@ -2,7 +2,7 @@ import unittest
 from langgraph.graph.graph import RunnableConfig
 
 from onchain.analytics.analytics_tools import (
-    get_binance_price_history,
+    get_coingecko_price_history,
     portfolio_value,
     portfolio_volatility,
     analyze_volatility_trend,
@@ -16,8 +16,8 @@ from onchain.analytics.analytics_tools import (
 
 class TestFinancialAnalyticsTools(unittest.TestCase):
 
-    def test_get_binance_price_history(self):
-        response = get_binance_price_history.invoke(
+    def test_get_coingecko_price_history(self):
+        response = get_coingecko_price_history.invoke(
             {
                 "token_symbol": "BTC",
                 "candle_interval": CandleInterval.DAY,
@@ -115,7 +115,7 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
 
     def test_btc_price_history_basic(self):
         """Test fetching Bitcoin price history with default parameters"""
-        btc_history = get_binance_price_history.invoke(
+        btc_history = get_coingecko_price_history.invoke(
             {
                 "token_symbol": "BTC",
                 "candle_interval": CandleInterval.DAY,
@@ -138,7 +138,7 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
 
     def test_eth_custom_interval(self):
         """Test fetching Ethereum price history with custom time interval"""
-        eth_history = get_binance_price_history.invoke(
+        eth_history = get_coingecko_price_history.invoke(
             {
                 "token_symbol": "ETH",
                 "candle_interval": CandleInterval.HOUR,
@@ -154,7 +154,7 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
 
     def test_invalid_token_symbol(self):
         """Test error handling for invalid token symbol"""
-        response = get_binance_price_history.invoke(
+        response = get_coingecko_price_history.invoke(
             {
                 "token_symbol": "INVALIDTOKEN",
                 "candle_interval": CandleInterval.DAY,
@@ -166,7 +166,7 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
     def test_small_data_limit(self):
         """Test fetching price history with a small number of candles"""
         small_limit = 5
-        small_history = get_binance_price_history.invoke(
+        small_history = get_coingecko_price_history.invoke(
             {
                 "token_symbol": "BTC",
                 "num_candles": small_limit,
@@ -185,7 +185,7 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
 
     def test_candlestick_data_structure(self):
         """Test the structure and content of individual candlesticks"""
-        btc_history = get_binance_price_history.invoke(
+        btc_history = get_coingecko_price_history.invoke(
             {
                 "token_symbol": "BTC",
                 "candle_interval": CandleInterval.DAY,
@@ -200,7 +200,7 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
         sample = data[0]
 
         # Verify all expected columns are present
-        expected_columns = {"open", "high", "low", "close", "open_time", "volume"}
+        expected_columns = {"open", "high", "low", "close", "open_time"}
         self.assertTrue(all(col in columns for col in expected_columns))
 
         # Verify data types
