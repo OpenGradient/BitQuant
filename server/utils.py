@@ -10,9 +10,10 @@ def convert_to_agent_msg(
     if isinstance(message, UserMessage):
         return ("user", message.message)
     elif isinstance(message, AgentMessage):
-        message_to_return = message.message
         if truncate and len(message.message) > max_length:
-            message_to_return = message.message[:max_length] + "... [truncated]\n"
+            message_to_return = message.message[:max_length] + "... [truncated]"
+        else:
+            message_to_return = message.message
 
         if len(message.pools) > 0:
             message_to_return += "\n"
@@ -21,7 +22,7 @@ def convert_to_agent_msg(
         if len(message.tokens) > 0:
             message_to_return += "\n"
             for token in message.tokens:
-                message_to_return += f"```token:{token.address}```"
+                message_to_return += f"```token:{token.address}```\n"
 
         return ("assistant", message_to_return)
 
