@@ -35,8 +35,8 @@ COINGECKO_HEADERS = {
 COINGECKO_BASE_URL = "https://pro-api.coingecko.com/api/v3"
 
 # Create caches
-symbol_to_id_cache = TTLCache(maxsize=100, ttl=3600)  # 1 hour TTL
-price_data_cache = TTLCache(maxsize=100, ttl=600)     # 10 minutes TTL
+symbol_to_id_cache = TTLCache(maxsize=10000, ttl=3600)  # 1 hour TTL
+price_data_cache = TTLCache(maxsize=1000, ttl=600)     # 10 minutes TTL
 
 def make_coingecko_request(url, params=None, max_retries=3, backoff_factor=0.5):
     """
@@ -45,9 +45,6 @@ def make_coingecko_request(url, params=None, max_retries=3, backoff_factor=0.5):
     retry_count = 0
     while retry_count < max_retries:
         try:
-            # Add a small random delay to avoid rate limits
-            sleep(random.uniform(0.1, 0.5))
-            
             # Make request with timeout
             response = requests.get(url, params=params, headers=COINGECKO_HEADERS, timeout=10)
             
