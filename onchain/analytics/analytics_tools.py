@@ -38,79 +38,96 @@ COINGECKO_BASE_URL = "https://pro-api.coingecko.com/api/v3"
 symbol_to_id_cache = TTLCache(maxsize=10000, ttl=3600)  # 1 hour TTL
 price_data_cache = TTLCache(maxsize=1000, ttl=600)     # 10 minutes TTL
 
+# Load the CSV file at module import time
+SYMBOL_TO_ID_MAP = {}
+csv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
+                       'static', 'coingecko_ids.csv')
+print(f"DEBUG: Looking for CSV at {csv_path}")
+
+if os.path.exists(csv_path):
+    try:
+        print(f"DEBUG: Found CSV file, loading symbols")
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            # Skip first line which is a note about the API
+            next(f)
+            
+            reader = csv.DictReader(f)
+            
+            for row in reader:
+                if not row:
+                    continue
+                
+                # CSV columns are: "Id (API id)", "Symbol", "Name"
+                symbol = row.get('Symbol', '').lower()
+                coingecko_id = row.get('Id (API id)', '')
+                
+                if symbol and coingecko_id:
+                    SYMBOL_TO_ID_MAP[symbol] = coingecko_id
+        
+        print(f"DEBUG: Loaded {len(SYMBOL_TO_ID_MAP)} symbols from CSV")
+    except Exception as e:
+        print(f"DEBUG: Error loading CSV: {str(e)}")
+else:
+    print(f"DEBUG: CSV file not found at {csv_path}")
+
 def make_coingecko_request(url, params=None, max_retries=3, backoff_factor=0.5):
     """
     Makes a request to the CoinGecko API with retries.
     """
+    print(f"DEBUG: make_coingecko_request called for {url}")
+    print(f"DEBUG: API key present: {'x-cg-pro-api-key' in COINGECKO_HEADERS and COINGECKO_HEADERS['x-cg-pro-api-key'] != ''}")
+    
     retry_count = 0
     while retry_count < max_retries:
         try:
             # Make request with timeout
+            print(f"DEBUG: Attempt {retry_count + 1}/{max_retries} for {url}")
             response = requests.get(url, params=params, headers=COINGECKO_HEADERS, timeout=10)
+            print(f"DEBUG: Response status code: {response.status_code}")
             
             # Handle rate limiting
             if response.status_code == 429:
                 retry_after = int(response.headers.get('Retry-After', 60))
+                print(f"DEBUG: Rate limited. Waiting {retry_after} seconds before retry.")
                 sleep(retry_after)
                 retry_count += 1
                 continue
                 
             # Raise for non-200 status codes
             if response.status_code != 200:
+                print(f"DEBUG: Non-200 status code: {response.status_code}")
+                print(f"DEBUG: Response text: {response.text}")
                 response.raise_for_status()
                 
-            return response.json()
+            response_json = response.json()
+            print(f"DEBUG: Successfully got response")
+            return response_json
         
         except requests.exceptions.RequestException as e:
+            print(f"DEBUG: Request exception: {str(e)}")
             retry_count += 1
             wait_time = backoff_factor * (2 ** (retry_count - 1))
+            print(f"DEBUG: Waiting {wait_time} seconds before retry")
             sleep(wait_time)
             
     # All retries failed
+    print(f"DEBUG: All {max_retries} retries failed for {url}")
     raise Exception(f"Failed to make request to {url} after {max_retries} attempts")
 
 @cached(cache=symbol_to_id_cache)
 def get_coingecko_id(token_symbol: str) -> str:
     """Converts a token symbol to CoinGecko ID."""
+    print(f"DEBUG: Converting token symbol: {token_symbol}")
     token_symbol_lower = token_symbol.lower()
     
-    # Use the CSV file for lookup
-    csv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
-                           'static', 'coingecko_ids.csv')
+    # Use the preloaded mapping
+    if token_symbol_lower in SYMBOL_TO_ID_MAP:
+        coingecko_id = SYMBOL_TO_ID_MAP[token_symbol_lower]
+        print(f"DEBUG: Found mapping: {token_symbol_lower} -> {coingecko_id}")
+        return coingecko_id
     
-    if not os.path.exists(csv_path):
-        return token_symbol_lower
-    
-    try:
-        with open(csv_path, 'r', encoding='utf-8') as f:
-            # Skip first line which is a note about the API
-            next(f)
-            
-            reader = csv.DictReader(f)
-            matches = []
-            
-            # Collect all matching symbols
-            for row in reader:
-                if not row:
-                    continue
-                    
-                # CSV columns are: "Id (API id)", "Symbol", "Name"
-                csv_symbol = row.get('Symbol', '').lower()
-                
-                if csv_symbol == token_symbol_lower:
-                    matches.append({
-                        'id': row.get('Id (API id)', ''),
-                        'name': row.get('Name', '')
-                    })
-            
-            if matches:
-                # If we have multiple matches, prioritize by name length (shorter names are usually the main tokens)
-                matches.sort(key=lambda x: len(x['name']))
-                return matches[0]['id']
-    except Exception:
-        pass
-    
-    # Fallback to using the lowercase symbol if all else fails
+    # Fallback to lowercase symbol if no match
+    print(f"DEBUG: No mapping found, using lowercase symbol: {token_symbol_lower}")
     return token_symbol_lower
 
 
@@ -121,11 +138,14 @@ def get_coingecko_price_history(
     """
     Retrieves historical price data for a token using CoinGecko.
     """
+    print(f"DEBUG: get_coingecko_price_history called for {token_symbol}, interval: {candle_interval}, num_candles: {num_candles}")
+    
     # Create a cache key for lookup
     cache_key = f"{token_symbol}_{candle_interval}_{num_candles}"
     
     # Check if we have this in cache
     if cache_key in price_data_cache:
+        print(f"DEBUG: Cache hit for {cache_key}")
         return price_data_cache[cache_key]
     
     # Min value of 2 ensures we have at least two data points for calculating trends
@@ -134,7 +154,9 @@ def get_coingecko_price_history(
     # Get CoinGecko ID for the token
     try:
         token_id = get_coingecko_id(token_symbol)
+        print(f"DEBUG: CoinGecko ID for {token_symbol} is {token_id}")
     except Exception as e:
+        print(f"DEBUG: Error getting CoinGecko ID: {str(e)}")
         return {"error": f"Failed to map {token_symbol} to CoinGecko ID: {str(e)}", "token_symbol": token_symbol}
     
     # Set currency to USD
@@ -176,16 +198,22 @@ def get_coingecko_price_history(
             "interval": interval
         }
         
+        print(f"DEBUG: Making CoinGecko request to {ohlc_url} with params: {params}")
+        print(f"DEBUG: Using headers: {COINGECKO_HEADERS}")
         # Make the request with proper error handling and retries
         ohlc_data = make_coingecko_request(ohlc_url, params=params)
         
         # Check if the API returned an error message
         if isinstance(ohlc_data, dict) and "error" in ohlc_data:
+            print(f"DEBUG: CoinGecko API returned error: {ohlc_data['error']}")
             return {"error": f"CoinGecko API returned an error: {ohlc_data['error']}", "token_symbol": token_symbol}
             
         # Check if we got valid data
         if not isinstance(ohlc_data, list) or len(ohlc_data) == 0:
+            print(f"DEBUG: CoinGecko API returned invalid or empty data: {ohlc_data}")
             return {"error": "CoinGecko API returned invalid or empty data", "token_symbol": token_symbol}
+        
+        print(f"DEBUG: CoinGecko API returned {len(ohlc_data)} data points")
         
         # Format data to match expected structure
         # CoinGecko OHLC format: [timestamp, open, high, low, close]
@@ -219,6 +247,8 @@ def get_coingecko_price_history(
         return result
 
     except Exception as e:
+        print(f"DEBUG: Exception in get_coingecko_price_history: {str(e)}")
+        print(f"DEBUG: Traceback: {traceback.format_exc()}")
         return {
             "error": f"Error fetching CoinGecko data for {token_symbol}: {str(e)}",
             "token_symbol": token_symbol
