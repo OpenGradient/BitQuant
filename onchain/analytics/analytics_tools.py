@@ -10,8 +10,27 @@ import csv
 import requests
 import random
 from time import sleep
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from cachetools import cached, TTLCache
+
+def timestamp_to_date(timestamp):
+    """
+    Convert a Unix timestamp to a human-readable date string.
+    Handles both second and millisecond timestamps.
+    
+    Args:
+        timestamp (int/float): Unix timestamp in seconds or milliseconds
+        
+    Returns:
+        str: Formatted date string in YYYY-MM-DD HH:MM:SS format
+    """
+    # Check if timestamp is in milliseconds (13 digits) or seconds (10 digits)
+    if timestamp > 10000000000:  # Simple check for millisecond timestamps
+        timestamp = timestamp / 1000
+        
+    # Convert to datetime and format
+    dt = datetime.fromtimestamp(timestamp, tz=UTC)
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 class CandleInterval(StrEnum):
     """
@@ -214,7 +233,7 @@ def get_coingecko_price_history(
     vs_currency = "usd"
     
     # Calculate from and to timestamps based on candle_interval and num_candles
-    now = int(datetime.now().timestamp())  # Current time in seconds
+    now = int(datetime.now(UTC).timestamp())  # Current time in seconds
     
     # Determine interval parameter based on candle_interval
     if candle_interval == CandleInterval.HOUR:
@@ -231,12 +250,17 @@ def get_coingecko_price_history(
     
     # Calculate from_timestamp
     time_range_seconds = num_candles * seconds_per_candle
-    from_timestamp = int((datetime.now() - timedelta(seconds=time_range_seconds)).timestamp())  # From time in seconds
+    from_timestamp = int((datetime.now(UTC) - timedelta(seconds=time_range_seconds)).timestamp())  # From time in seconds
+    
+    # Log the actual date range for debugging
+    from_date = datetime.fromtimestamp(from_timestamp, tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
+    to_date = datetime.fromtimestamp(now, tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
     
     # Ensure from_timestamp is not before the minimum timestamp supported by CoinGecko
     min_timestamp = 1514764800  # January 1, 2018 in Unix timestamp (seconds)
     if from_timestamp < min_timestamp:
         from_timestamp = min_timestamp
+        from_date = datetime.fromtimestamp(from_timestamp, tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
     
     try:
         # Construct the OHLC range endpoint URL
@@ -303,6 +327,9 @@ def get_coingecko_price_history(
         for candle in ohlc_data:
             if len(candle) >= 5:  # Ensure we have all required fields
                 timestamp, open_price, high, low, close = candle
+                # CoinGecko returns timestamps in milliseconds, convert to seconds for consistency
+                if timestamp > 10000000000:  # Simple check to detect millisecond timestamps
+                    timestamp = timestamp / 1000
                 formatted_data.append([timestamp, open_price, high, low, close])
         
         # Limit to requested number of candles
@@ -321,6 +348,14 @@ def get_coingecko_price_history(
                 "low",
                 "close",
             ],
+            "readable_dates": {
+                "start": timestamp_to_date(formatted_data[0][0]) if formatted_data else None,
+                "end": timestamp_to_date(formatted_data[-1][0]) if formatted_data else None,
+                "requested_range": {
+                    "from": from_date,
+                    "to": to_date
+                }
+            }
         }
         
         # Add warning if there was one
@@ -575,7 +610,7 @@ def compare_assets(
     Compare performance of multiple crypto assets with simplified insights for average investors.
     """
     # Generate a request ID for this comparison operation
-    comparison_id = f"compare_{datetime.now().strftime('%H%M%S')}"
+    comparison_id = f"compare_{datetime.now(UTC).strftime('%H%M%S')}"
     
     results = {}
     detailed_results = {}
