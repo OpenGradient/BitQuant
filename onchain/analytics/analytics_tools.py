@@ -196,14 +196,6 @@ def get_coingecko_price_history(
 ) -> Dict[str, Any]:
     """
     Retrieves historical price data for a token using CoinGecko.
-    
-    Args:
-        token_symbol: Token symbol, name, or CoinGecko ID
-        candle_interval: CandleInterval.DAY or CandleInterval.HOUR
-        num_candles: Number of candles to retrieve
-        
-    Returns:
-        Dictionary with price history data or error information
     """
     # Create a cache key for lookup
     cache_key = f"{token_symbol}_{candle_interval}_{num_candles}"
