@@ -525,6 +525,10 @@ def convert_to_agent_message_history(messages: List[Message]) -> List[Tuple[str,
             convert_to_agent_msg(recent_messages[-1], truncate=False)
         )
 
+    for _, message in converted_messages:
+        if not message:
+            logger.error(f"Empty message.\nOriginal: {messages}\nConverted: {converted_messages}")
+
     return converted_messages
 
 
