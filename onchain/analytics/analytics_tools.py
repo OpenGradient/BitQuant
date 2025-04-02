@@ -1,4 +1,4 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple, Optional
 from langchain_core.tools import tool
 from langgraph.graph.graph import RunnableConfig
 from sklearn.linear_model import LinearRegression
@@ -8,67 +8,29 @@ from enum import StrEnum
 import os
 import csv
 import requests
-import random
 from time import sleep
 from datetime import datetime, timedelta, UTC
-from cachetools import cached, TTLCache
+from cachetools import TTLCache
 
-def timestamp_to_date(timestamp):
-    """
-    Convert a Unix timestamp to a human-readable date string.
-    
-    Args:
-        timestamp: Unix timestamp in seconds or milliseconds
-        
-    Returns:
-        Human-readable date string in format YYYY-MM-DD HH:MM:SS
-    """
-    # Convert milliseconds to seconds if needed
-    if timestamp > 10000000000:  # Threshold for millisecond timestamps
-        timestamp = timestamp / 1000
-    
-    # Convert to datetime and format
-    dt = datetime.fromtimestamp(timestamp, tz=UTC)
-    return dt.strftime("%Y-%m-%d %H:%M:%S")
-
-def date_to_timestamp(year, month, day):
-    """
-    Convert a specified date to a Unix timestamp in seconds.
-    
-    Args:
-        year: Year (e.g., 2024)
-        month: Month (1-12)
-        day: Day (1-31)
-        
-    Returns:
-        Unix timestamp in seconds
-    """
-    dt = datetime(year, month, day, 0, 0, 0, tzinfo=UTC)
-    return int(dt.timestamp())
 
 class CandleInterval(StrEnum):
-    """
-    One of 1d or 1h
-    """
+    """Candle interval options for price data"""
     DAY = "1d"
     HOUR = "1h"
 
-# Initialize CoinGecko API key
-api_key = os.environ.get("COINGECKO_API_KEY", "")
 
-# Set up headers for API calls
+# Initialize API settings
+COINGECKO_API_KEY = os.environ.get("COINGECKO_API_KEY", "")
+COINGECKO_BASE_URL = "https://pro-api.coingecko.com/api/v3"
 COINGECKO_HEADERS = {
     "accept": "application/json",
-    "x-cg-pro-api-key": api_key
+    "x-cg-pro-api-key": COINGECKO_API_KEY
 }
 
-# Base URL for CoinGecko Pro API
-COINGECKO_BASE_URL = "https://pro-api.coingecko.com/api/v3"
+# Cache for price data (10-minute TTL)
+price_data_cache = TTLCache(maxsize=1000, ttl=600)
 
-# Create caches
-price_data_cache = TTLCache(maxsize=1000, ttl=600)     # 10 minutes TTL
-
-# Define preferred mappings for common tokens
+# Common token mappings for better user experience
 PREFERRED_TOKEN_IDS = {
     'btc': 'bitcoin',
     'eth': 'ethereum',
@@ -88,52 +50,87 @@ PREFERRED_TOKEN_IDS = {
     'dai': 'dai',
 }
 
-# Load the CSV file at module import time
+# Global maps for token resolution
 SYMBOL_TO_ID_MAP = {}
 ID_TO_NAME_MAP = {}
 NAME_TO_ID_MAP = {}
-csv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
-                       'static', 'coingecko_ids.csv')
 
-try:
-    with open(csv_path, 'r', encoding='utf-8') as file:
-        # Skip the first two header rows
-        next(file)  # Skip the note about API
-        next(file)  # Skip the column headers
-        
-        csv_reader = csv.reader(file)
-        for row in csv_reader:
-            if len(row) >= 3:
-                coingecko_id = row[0].strip()
-                symbol = row[1].strip().lower()
-                name = row[2].strip().lower()
-                
-                # Create mappings
-                if symbol:
-                    # If multiple symbols map to the same ID, we keep all of them
-                    if symbol in SYMBOL_TO_ID_MAP:
-                        if not isinstance(SYMBOL_TO_ID_MAP[symbol], list):
-                            SYMBOL_TO_ID_MAP[symbol] = [SYMBOL_TO_ID_MAP[symbol]]
-                        SYMBOL_TO_ID_MAP[symbol].append(coingecko_id)
-                    else:
-                        SYMBOL_TO_ID_MAP[symbol] = coingecko_id
-                
-                # Map ID to name
-                ID_TO_NAME_MAP[coingecko_id] = name
-                
-                # Map name to ID (case-insensitive for better matching)
-                NAME_TO_ID_MAP[name] = coingecko_id
-except Exception:
-    pass
 
-def make_coingecko_request(url, params=None, max_retries=3, backoff_factor=0.5):
+def timestamp_to_date(timestamp: int) -> str:
+    """Convert Unix timestamp to human-readable date string"""
+    # Convert milliseconds to seconds if needed
+    if timestamp > 10000000000:  # Threshold for millisecond timestamps
+        timestamp = timestamp / 1000
+    
+    dt = datetime.fromtimestamp(timestamp, tz=UTC)
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def date_to_timestamp(year: int, month: int, day: int, hour: int = 0, minute: int = 0, second: int = 0) -> int:
+    """Convert date components to Unix timestamp in seconds"""
+    dt = datetime(year, month, day, hour, minute, second, tzinfo=UTC)
+    return int(dt.timestamp())
+
+
+def load_coingecko_id_mappings() -> Tuple[Dict, Dict, Dict, str]:
     """
-    Makes a request to the CoinGecko API with retries.
+    Load CoinGecko ID mappings from CSV file.
+    
+    Returns:
+        Tuple containing symbol_to_id_map, id_to_name_map, name_to_id_map, and any error message
     """
+    symbol_to_id_map = {}
+    id_to_name_map = {}
+    name_to_id_map = {}
+    error_msg = None
+    
+    csv_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
+                           'static', 'coingecko_ids.csv')
+    
+    try:
+        with open(csv_path, 'r', encoding='utf-8') as file:
+            # Skip the first two header rows
+            next(file)  # Skip the note about API
+            next(file)  # Skip the column headers
+            
+            csv_reader = csv.reader(file)
+            for row in csv_reader:
+                if len(row) >= 3:
+                    coingecko_id = row[0].strip()
+                    symbol = row[1].strip().lower()
+                    name = row[2].strip().lower()
+                    
+                    # Create symbol->ID mapping
+                    if symbol:
+                        # Handle multiple symbols that map to the same ID
+                        if symbol in symbol_to_id_map:
+                            if not isinstance(symbol_to_id_map[symbol], list):
+                                symbol_to_id_map[symbol] = [symbol_to_id_map[symbol]]
+                            symbol_to_id_map[symbol].append(coingecko_id)
+                        else:
+                            symbol_to_id_map[symbol] = coingecko_id
+                    
+                    # Create ID->name mapping
+                    id_to_name_map[coingecko_id] = name
+                    
+                    # Create name->ID mapping (case-insensitive)
+                    name_to_id_map[name] = coingecko_id
+    except Exception as e:
+        error_msg = f"Error loading CoinGecko IDs: {str(e)}"
+    
+    return symbol_to_id_map, id_to_name_map, name_to_id_map, error_msg
+
+
+# Load token mappings at module import time
+SYMBOL_TO_ID_MAP, ID_TO_NAME_MAP, NAME_TO_ID_MAP, csv_load_error = load_coingecko_id_mappings()
+
+
+def make_coingecko_request(url: str, params: Optional[Dict] = None, 
+                           max_retries: int = 3, backoff_factor: float = 0.5) -> Any:
+    """Make request to CoinGecko API with retry logic"""
     retry_count = 0
     while retry_count < max_retries:
         try:
-            # Make request with timeout
             response = requests.get(url, params=params, headers=COINGECKO_HEADERS, timeout=10)
             
             # Handle rate limiting
@@ -143,14 +140,10 @@ def make_coingecko_request(url, params=None, max_retries=3, backoff_factor=0.5):
                 retry_count += 1
                 continue
                 
-            # Raise for non-200 status codes
-            if response.status_code != 200:
-                response.raise_for_status()
-                
-            response_json = response.json()
-            return response_json
+            response.raise_for_status()
+            return response.json()
         
-        except requests.exceptions.RequestException as e:
+        except requests.exceptions.RequestException:
             retry_count += 1
             wait_time = backoff_factor * (2 ** (retry_count - 1))
             sleep(wait_time)
@@ -158,50 +151,262 @@ def make_coingecko_request(url, params=None, max_retries=3, backoff_factor=0.5):
     # All retries failed
     raise Exception(f"Failed to make request to {url} after {max_retries} attempts")
 
-def get_coingecko_id(token_input: str) -> tuple:
+
+def get_coingecko_id(token_input: str) -> Tuple[str, Optional[str]]:
     """
-    Resolves a token symbol/name/id to a valid CoinGecko ID.
-    Lookup strategy:
-    1. First check if the input is an exact CoinGecko ID
-    2. Then try to lookup by symbol
-    3. Then try to lookup by name
-    4. Finally return the lowercase input as a fallback
+    Resolve token symbol/name/id to valid CoinGecko ID.
     
-    Returns a tuple of (coingecko_id, error_message)
+    Returns:
+        Tuple of (coingecko_id, error_message)
     """
     if not token_input:
         return "", "Empty token input provided"
         
     token_input_lower = token_input.lower()
     
-    # Check if the input is already a valid CoinGecko ID
+    # Check if input is already a valid CoinGecko ID
     if token_input in ID_TO_NAME_MAP:
         return token_input, None
     
-    # Check if we have a preferred mapping for this symbol
+    # Check for preferred mapping
     if token_input_lower in PREFERRED_TOKEN_IDS:
-        preferred_id = PREFERRED_TOKEN_IDS[token_input_lower]
-        return preferred_id, None
+        return PREFERRED_TOKEN_IDS[token_input_lower], None
     
-    # Try to match by symbol (case-insensitive)
+    # Try symbol match (case-insensitive)
     if token_input_lower in SYMBOL_TO_ID_MAP:
         symbol_match = SYMBOL_TO_ID_MAP[token_input_lower]
         
-        # Handle the case where multiple IDs match a symbol
+        # Handle multiple IDs matching a symbol
         if isinstance(symbol_match, list):
-            # Return the first match by default, with a warning
             return symbol_match[0], f"Multiple CoinGecko IDs found for symbol {token_input_lower}: {symbol_match}. Using {symbol_match[0]}"
         
         return symbol_match, None
     
-    # Try to match by name (case-insensitive)
+    # Try name match (case-insensitive)
     if token_input_lower in NAME_TO_ID_MAP:
-        name_match = NAME_TO_ID_MAP[token_input_lower]
-        return name_match, None
+        return NAME_TO_ID_MAP[token_input_lower], None
     
-    # No exact match found, fallback to lowercase input as a best guess
-    fallback_id = token_input_lower
-    return fallback_id, f"No exact CoinGecko ID match found for '{token_input}'. Using '{fallback_id}' as a fallback"
+    # Fallback to lowercase input
+    return token_input_lower, f"No exact CoinGecko ID match found for '{token_input}'. Using '{token_input_lower}' as a fallback"
+
+
+def format_ohlc_data(ohlc_data: List) -> List:
+    """Format OHLC data from CoinGecko API response"""
+    formatted_data = []
+    for candle in ohlc_data:
+        if len(candle) >= 5:
+            timestamp, open_price, high, low, close = candle
+            # Convert milliseconds to seconds if needed
+            if timestamp > 10000000000:
+                timestamp = timestamp / 1000
+            
+            # Ensure all price values are numeric
+            open_price = float(open_price) if open_price is not None else None
+            high = float(high) if high is not None else None
+            low = float(low) if low is not None else None
+            close = float(close) if close is not None else None
+            
+            formatted_data.append([timestamp, open_price, high, low, close])
+    
+    # Sort by timestamp
+    formatted_data.sort(key=lambda x: x[0])
+    return formatted_data
+
+
+def get_coin_suggestions(token_symbol: str, token_id: str) -> Optional[str]:
+    """Generate suggestions for similar coin IDs when a match fails"""
+    suggestions = []
+    input_lower = token_symbol.lower()
+    
+    for symbol in SYMBOL_TO_ID_MAP:
+        if input_lower in symbol or symbol in input_lower:
+            coin_id = SYMBOL_TO_ID_MAP[symbol]
+            if isinstance(coin_id, list):
+                for cid in coin_id:
+                    coin_name = ID_TO_NAME_MAP.get(cid, symbol)
+                    suggestions.append(f"{symbol} -> {cid} ({coin_name})")
+            else:
+                coin_name = ID_TO_NAME_MAP.get(coin_id, symbol)
+                suggestions.append(f"{symbol} -> {coin_id} ({coin_name})")
+            
+            if len(suggestions) >= 5:
+                break
+    
+    if suggestions:
+        return f"Suggested coins: {', '.join(suggestions[:5])}"
+    return None
+
+
+@tool()
+def get_coingecko_snapshot_price(
+    token_symbol: str,
+    vs_currency: str = "usd",
+    days: int = 1
+) -> Dict[str, Any]:
+    """
+    Retrieve snapshot OHLC price data for a token over the specified number of days.
+    """
+    try:
+        token_id, error_message = get_coingecko_id(token_symbol)
+        if not token_id:
+            return {"error": f"Failed to resolve CoinGecko ID for {token_symbol}"}
+        
+        # Construct request URL
+        url = f"{COINGECKO_BASE_URL}/coins/{token_id}/ohlc"
+        
+        # Valid days values for the API
+        valid_days = [1, 7, 14, 30, 90, 180, 365, "max"]
+        if days not in valid_days:
+            days = 1
+            
+        params = {
+            "vs_currency": vs_currency,
+            "days": days
+        }
+        
+        # Make the request
+        ohlc_data = make_coingecko_request(url, params=params)
+        
+        if not isinstance(ohlc_data, list) or len(ohlc_data) == 0:
+            return {
+                "error": "CoinGecko API returned invalid or empty data",
+                "token_symbol": token_symbol,
+                "token_id": token_id
+            }
+        
+        # Format the response data
+        formatted_data = format_ohlc_data(ohlc_data)
+        
+        result = {
+            "token_symbol": token_symbol,
+            "token_id": token_id,
+            "vs_currency": vs_currency,
+            "days": days,
+            "num_candles": len(formatted_data),
+            "data": formatted_data,
+            "columns": ["timestamp", "open", "high", "low", "close"],
+            "readable_dates": {
+                "start": timestamp_to_date(formatted_data[0][0]) if formatted_data else None,
+                "end": timestamp_to_date(formatted_data[-1][0]) if formatted_data else None
+            }
+        }
+        
+        if error_message:
+            result["warning"] = error_message
+            
+        return result
+        
+    except Exception as e:
+        return {
+            "error": f"Error fetching CoinGecko snapshot data for {token_symbol}: {str(e)}",
+            "token_symbol": token_symbol,
+            "traceback": traceback.format_exc()
+        }
+
+
+@tool()
+def get_coingecko_price_range(
+    token_symbol: str,
+    candle_interval: CandleInterval,
+    from_timestamp: int,
+    to_timestamp: int,
+    vs_currency: str = "usd"
+) -> Dict[str, Any]:
+    """
+    Retrieve historical price data for a token using CoinGecko within a specific date range.
+    """
+    try:
+        token_id, error_message = get_coingecko_id(token_symbol)
+        if not token_id:
+            return {"error": f"Failed to resolve CoinGecko ID for {token_symbol}"}
+        
+        # Construct request URL and parameters
+        url = f"{COINGECKO_BASE_URL}/coins/{token_id}/ohlc/range"
+        interval = "daily" if candle_interval == CandleInterval.DAY else "hourly"
+        
+        # Check timestamp limits
+        min_timestamp = 1518147224  # February 9, 2018 - CoinGecko data availability limit
+        if from_timestamp < min_timestamp:
+            from_timestamp = min_timestamp
+        
+        # For hourly data, limit range to 31 days/744 hourly candles
+        # For daily data, limit range to 180 days/180 daily candles
+        max_range_seconds = 180 * 24 * 60 * 60  # 180 days for daily
+        if interval == "hourly":
+            max_range_seconds = 31 * 24 * 60 * 60  # 31 days for hourly
+            
+        if to_timestamp - from_timestamp > max_range_seconds:
+            to_timestamp = from_timestamp + max_range_seconds
+            
+        params = {
+            "vs_currency": vs_currency,
+            "from": from_timestamp,
+            "to": to_timestamp,
+            "interval": interval
+        }
+        
+        # Make the request
+        ohlc_data = make_coingecko_request(url, params=params)
+        
+        if isinstance(ohlc_data, dict) and "error" in ohlc_data:
+            if "Could not find coin" in ohlc_data['error'] and SYMBOL_TO_ID_MAP:
+                suggestions = get_coin_suggestions(token_symbol, token_id)
+                error_msg = f"CoinGecko API couldn't find coin with ID '{token_id}'."
+                if suggestions:
+                    error_msg += f" {suggestions}"
+                return {
+                    "error": error_msg,
+                    "token_symbol": token_symbol,
+                    "attempted_id": token_id
+                }
+            
+            return {
+                "error": f"CoinGecko API returned an error: {ohlc_data['error']}",
+                "token_symbol": token_symbol,
+                "attempted_id": token_id
+            }
+        
+        if not isinstance(ohlc_data, list) or len(ohlc_data) == 0:
+            return {
+                "error": "CoinGecko API returned invalid or empty data",
+                "token_symbol": token_symbol,
+                "attempted_id": token_id
+            }
+        
+        # Format the response data
+        formatted_data = format_ohlc_data(ohlc_data)
+        
+        from_date = timestamp_to_date(from_timestamp)
+        to_date = timestamp_to_date(to_timestamp)
+        
+        result = {
+            "token_symbol": token_symbol,
+            "token_id": token_id,
+            "candle_interval": candle_interval,
+            "num_candles": len(formatted_data),
+            "data": formatted_data,
+            "columns": ["timestamp", "open", "high", "low", "close"],
+            "readable_dates": {
+                "start": timestamp_to_date(formatted_data[0][0]) if formatted_data else None,
+                "end": timestamp_to_date(formatted_data[-1][0]) if formatted_data else None,
+                "requested_range": {
+                    "from": from_date,
+                    "to": to_date
+                }
+            }
+        }
+        
+        if error_message:
+            result["warning"] = error_message
+            
+        return result
+        
+    except Exception as e:
+        return {
+            "error": f"Error fetching CoinGecko range data for {token_symbol}: {str(e)}",
+            "token_symbol": token_symbol,
+            "traceback": traceback.format_exc()
+        }
 
 
 @tool()
@@ -229,65 +434,58 @@ def get_coingecko_price_history(
     Returns:
         Dictionary with price history data or error information
     """
-    # For specific date queries
+    # Handle specific date queries
     if specific_date and year and month and day:
         try:
-            # Calculate the target date timestamp
+            # Calculate target date timestamp
             target_timestamp = date_to_timestamp(year, month, day)
-            target_date = datetime(year, month, day, 0, 0, 0, tzinfo=UTC)
             
-            # Range to include data surrounding the target date
-            from_timestamp = target_timestamp - (3 * 24 * 60 * 60)  # 3 days before
-            to_timestamp = target_timestamp + (3 * 24 * 60 * 60)    # 3 days after
+            # Range to include data surrounding the target date (3 days before and after)
+            from_timestamp = target_timestamp - (3 * 24 * 60 * 60)
+            to_timestamp = target_timestamp + (3 * 24 * 60 * 60)
             
-            token_id, error_message = get_coingecko_id(token_symbol)
-            if not token_id:
-                return {"error": f"Failed to resolve CoinGecko ID for {token_symbol}"}
+            # Use the price range tool to get the data
+            price_data = get_coingecko_price_range.invoke(
+                {
+                    "token_symbol": token_symbol,
+                    "candle_interval": candle_interval,
+                    "from_timestamp": from_timestamp,
+                    "to_timestamp": to_timestamp
+                }
+            )
+            
+            if "error" in price_data:
+                return price_data
                 
-            # Construct request URL and parameters
-            ohlc_url = f"{COINGECKO_BASE_URL}/coins/{token_id}/ohlc/range"
-            interval = "daily" if candle_interval == CandleInterval.DAY else "hourly"
+            # Find the closest candle to our target date
+            target_date = datetime(year, month, day, 0, 0, 0, tzinfo=UTC)
+            formatted_data = price_data.get("data", [])
             
-            params = {
-                "vs_currency": "usd",
-                "from": from_timestamp,
-                "to": to_timestamp,
-                "interval": interval
-            }
-            
-            # Make the request
-            ohlc_data = make_coingecko_request(ohlc_url, params=params)
-            
-            if not isinstance(ohlc_data, list) or len(ohlc_data) == 0:
+            if not formatted_data:
                 return {
-                    "error": "CoinGecko API returned invalid or empty data",
+                    "error": "No data points found near the target date",
                     "token_symbol": token_symbol,
                     "target_date": target_date.strftime("%Y-%m-%d")
                 }
-            
-            # Find the closest candle to our target date
+                
             closest_candle = None
             smallest_time_diff = float('inf')
             
-            for candle in ohlc_data:
+            for candle in formatted_data:
                 if len(candle) >= 5:
-                    timestamp_ms, open_price, high, low, close = candle
-                    timestamp_sec = timestamp_ms / 1000  # Convert to seconds
-                    
-                    # Find closest candle to our target date
-                    time_diff = abs(timestamp_sec - target_timestamp)
+                    timestamp = candle[0]  # Already converted to seconds in format_ohlc_data
+                    time_diff = abs(timestamp - target_timestamp)
                     if time_diff < smallest_time_diff:
                         smallest_time_diff = time_diff
-                        closest_candle = [timestamp_ms, open_price, high, low, close]
+                        closest_candle = candle
             
             if closest_candle:
-                timestamp_ms, open_price, high, low, close = closest_candle
-                timestamp_sec = timestamp_ms / 1000
-                candle_date = datetime.fromtimestamp(timestamp_sec, tz=UTC)
+                timestamp, open_price, high, low, close = closest_candle
+                candle_date = datetime.fromtimestamp(timestamp, tz=UTC)
                 
                 return {
                     "token_symbol": token_symbol,
-                    "token_id": token_id,
+                    "token_id": price_data.get("token_id"),
                     "target_date": target_date.strftime("%Y-%m-%d"),
                     "closest_date": candle_date.strftime("%Y-%m-%d %H:%M:%S"),
                     "time_difference_hours": round(smallest_time_diff / 3600, 2),
@@ -297,7 +495,7 @@ def get_coingecko_price_history(
                         "low": float(low),
                         "close": float(close)
                     },
-                    "raw_timestamp": int(timestamp_sec)
+                    "raw_timestamp": int(timestamp)
                 }
             else:
                 return {
@@ -313,124 +511,55 @@ def get_coingecko_price_history(
                 "traceback": traceback.format_exc()
             }
     
-    # Standard historical data query (original functionality)
+    # Standard historical data query (recent candles)
     cache_key = f"{token_symbol}_{candle_interval}_{num_candles}"
-    
     if cache_key in price_data_cache:
         return price_data_cache[cache_key]
     
+    # Validate number of candles
     num_candles = min(max(2, int(num_candles)), 1000)
     
     try:
+        # Get CoinGecko ID for the token
         token_id, error_message = get_coingecko_id(token_symbol)
         if not token_id:
             return {"error": f"Failed to resolve CoinGecko ID for {token_symbol}", "token_symbol": token_symbol}
-            
-        warning = None
-        if error_message:
-            warning = error_message
-            
-    except Exception as e:
-        return {"error": f"Failed to map {token_symbol} to CoinGecko ID: {str(e)}", "token_symbol": token_symbol}
-    
-    vs_currency = "usd"
-    now = int(datetime.now(UTC).timestamp())
-    
-    if candle_interval == CandleInterval.HOUR:
-        interval = "hourly"
-        seconds_per_candle = 60 * 60
-        max_candles = 744
-    else:
-        interval = "daily"
-        seconds_per_candle = 60 * 60 * 24
-        max_candles = 180
-    
-    num_candles = min(num_candles, max_candles)
-    
-    time_range_seconds = num_candles * seconds_per_candle
-    from_timestamp = int((datetime.now(UTC) - timedelta(seconds=time_range_seconds)).timestamp())
-    
-    from_date = datetime.fromtimestamp(from_timestamp, tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
-    to_date = datetime.fromtimestamp(now, tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
-    
-    min_timestamp = 1518147224  # February 9, 2018 - CoinGecko data availability limit
-    if from_timestamp < min_timestamp:
-        from_timestamp = min_timestamp
-        from_date = datetime.fromtimestamp(from_timestamp, tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
-    
-    try:
-        ohlc_url = f"{COINGECKO_BASE_URL}/coins/{token_id}/ohlc/range"
         
-        params = {
-            "vs_currency": vs_currency,
-            "from": from_timestamp,
-            "to": now,
-            "interval": interval
-        }
-        
-        ohlc_data = make_coingecko_request(ohlc_url, params=params)
-        
-        if isinstance(ohlc_data, dict) and "error" in ohlc_data:
-            if "Could not find coin" in ohlc_data['error'] and SYMBOL_TO_ID_MAP:
-                suggestions = []
-                input_lower = token_symbol.lower()
-                
-                for symbol in SYMBOL_TO_ID_MAP:
-                    if input_lower in symbol or symbol in input_lower:
-                        coin_id = SYMBOL_TO_ID_MAP[symbol]
-                        if isinstance(coin_id, list):
-                            for cid in coin_id:
-                                coin_name = ID_TO_NAME_MAP.get(cid, symbol)
-                                suggestions.append(f"{symbol} -> {cid} ({coin_name})")
-                        else:
-                            coin_name = ID_TO_NAME_MAP.get(coin_id, symbol)
-                            suggestions.append(f"{symbol} -> {coin_id} ({coin_name})")
-                        
-                        if len(suggestions) >= 5:
-                            break
-                
-                if suggestions:
-                    suggestion_text = "\nSuggested coins: " + ", ".join(suggestions[:5])
-                    return {
-                        "error": f"CoinGecko API couldn't find coin with ID '{token_id}'. {suggestion_text}",
-                        "token_symbol": token_symbol,
-                        "attempted_id": token_id
-                    }
+        warning = error_message  # Save any warning from token resolution
             
-            return {
-                "error": f"CoinGecko API returned an error: {ohlc_data['error']}",
+        # Calculate time range based on candle interval
+        now = int(datetime.now(UTC).timestamp())
+        
+        if candle_interval == CandleInterval.HOUR:
+            interval = "hourly"
+            seconds_per_candle = 60 * 60
+            max_candles = 744  # API limit for hourly data
+        else:
+            interval = "daily"
+            seconds_per_candle = 60 * 60 * 24
+            max_candles = 180  # API limit for daily data
+        
+        num_candles = min(num_candles, max_candles)
+        time_range_seconds = num_candles * seconds_per_candle
+        from_timestamp = int((datetime.now(UTC) - timedelta(seconds=time_range_seconds)).timestamp())
+        
+        # Use the range endpoint
+        price_data = get_coingecko_price_range.invoke(
+            {
                 "token_symbol": token_symbol,
-                "attempted_id": token_id
+                "candle_interval": candle_interval,
+                "from_timestamp": from_timestamp,
+                "to_timestamp": now
             }
-            
-        if not isinstance(ohlc_data, list) or len(ohlc_data) == 0:
-            return {
-                "error": "CoinGecko API returned invalid or empty data",
-                "token_symbol": token_symbol,
-                "attempted_id": token_id
-            }
+        )
         
-        formatted_data = []
-        for candle in ohlc_data:
-            if len(candle) >= 5:
-                timestamp, open_price, high, low, close = candle
-                # Convert milliseconds to seconds if needed
-                if timestamp > 10000000000:  # Check for millisecond timestamp
-                    timestamp = timestamp / 1000
-                
-                # Ensure all price values are numeric
-                open_price = float(open_price) if open_price is not None else None
-                high = float(high) if high is not None else None
-                low = float(low) if low is not None else None
-                close = float(close) if close is not None else None
-                
-                formatted_data.append([timestamp, open_price, high, low, close])
-        
-        # Sort by timestamp to ensure chronological order
-        formatted_data.sort(key=lambda x: x[0])
+        if "error" in price_data:
+            return price_data
         
         # Limit to requested number of candles
-        formatted_data = formatted_data[-num_candles:]
+        formatted_data = price_data.get("data", [])
+        if len(formatted_data) > num_candles:
+            formatted_data = formatted_data[-num_candles:]
         
         result = {
             "token_symbol": token_symbol,
@@ -438,35 +567,22 @@ def get_coingecko_price_history(
             "candle_interval": candle_interval,
             "num_candles": len(formatted_data),
             "data": formatted_data,
-            "columns": [
-                "open_time",
-                "open",
-                "high",
-                "low",
-                "close",
-            ],
-            "readable_dates": {
-                "start": timestamp_to_date(formatted_data[0][0]) if formatted_data else None,
-                "end": timestamp_to_date(formatted_data[-1][0]) if formatted_data else None,
-                "requested_range": {
-                    "from": from_date,
-                    "to": to_date
-                }
-            }
+            "columns": ["timestamp", "open", "high", "low", "close"],
+            "readable_dates": price_data.get("readable_dates", {})
         }
         
         if warning:
             result["warning"] = warning
         
+        # Cache the result
         price_data_cache[cache_key] = result
-        
         return result
 
     except Exception as e:
         return {
             "error": f"Error fetching CoinGecko data for {token_symbol}: {str(e)}",
             "token_symbol": token_symbol,
-            "attempted_id": token_id if 'token_id' in locals() else None
+            "traceback": traceback.format_exc()
         }
 
 
@@ -487,6 +603,10 @@ def analyze_price_trend(
                 "num_candles": num_candles,
             }
         )
+
+        # Check for errors in price data
+        if "error" in price_data:
+            return {"error": price_data["error"]}
 
         # Extract relevant data for analysis
         raw_data = price_data["data"]
@@ -658,40 +778,32 @@ def analyze_price_trend(
 
 
 def get_analysis_summary(sma7, sma20, sma50, sma200, bollinger_bands):
-    """
-    Generate a simple summary of the analysis results.
-    """
+    """Generate a simple summary of the analysis results"""
     summary = []
 
-    # Moving average summary - Enhanced with multiple timeframes
     # Short-term trend
     if sma7 and sma20:
         if sma7[-1] > sma20[-1]:
-            ma_short_desc = "Short-term moving averages indicate bullish momentum."
-            summary.append(ma_short_desc)
+            summary.append("Short-term moving averages indicate bullish momentum.")
         else:
-            ma_short_desc = "Short-term moving averages indicate bearish momentum."
-            summary.append(ma_short_desc)
+            summary.append("Short-term moving averages indicate bearish momentum.")
 
     # Long-term trend and major crossovers
-    if sma50 and sma200:
+    if sma50 and sma200 and len(sma50) > 1 and len(sma200) > 1:
         # Check for golden cross (50-day crosses above 200-day)
-        if len(sma50) > 1 and len(sma200) > 1:
-            if sma50[-1] > sma200[-1] and sma50[-2] <= sma200[-2]:
-                summary.append("Golden Cross detected - a strong bullish signal.")
-            # Check for death cross (50-day crosses below 200-day)
-            elif sma50[-1] < sma200[-1] and sma50[-2] >= sma200[-2]:
-                summary.append("Death Cross detected - a strong bearish signal.")
+        if sma50[-1] > sma200[-1] and sma50[-2] <= sma200[-2]:
+            summary.append("Golden Cross detected - a strong bullish signal.")
+        # Check for death cross (50-day crosses below 200-day)
+        elif sma50[-1] < sma200[-1] and sma50[-2] >= sma200[-2]:
+            summary.append("Death Cross detected - a strong bearish signal.")
 
     # Bollinger Bands summary
     if bollinger_bands["upper"] is not None:
         position = bollinger_bands["position"]
         if position > 0.8:
-            bb_desc = "Price near upper Bollinger Band suggests overbought conditions."
-            summary.append(bb_desc)
+            summary.append("Price near upper Bollinger Band suggests overbought conditions.")
         elif position < 0.2:
-            bb_desc = "Price near lower Bollinger Band suggests oversold conditions."
-            summary.append(bb_desc)
+            summary.append("Price near lower Bollinger Band suggests oversold conditions.")
 
     # Combine into a paragraph
     return " ".join(summary)
@@ -713,9 +825,7 @@ def compare_assets(
     successful_tokens = []
 
     # Step 1: Collect individual asset data
-    for idx, token_symbol in enumerate(token_symbols):
-        token_id = f"{comparison_id}_{token_symbol}"
-        
+    for token_symbol in token_symbols:
         try:
             # Get price data first to check for errors
             price_data = get_coingecko_price_history.invoke(
@@ -728,8 +838,7 @@ def compare_assets(
             
             # Check for errors in price data
             if "error" in price_data:
-                error_msg = price_data["error"]
-                results[token_symbol] = {"error": error_msg}
+                results[token_symbol] = {"error": price_data["error"]}
                 error_count += 1
                 continue
             
@@ -744,8 +853,7 @@ def compare_assets(
 
             # Skip if there was an error
             if "error" in analysis:
-                error_msg = analysis["error"]
-                results[token_symbol] = {"error": error_msg}
+                results[token_symbol] = {"error": analysis["error"]}
                 error_count += 1
                 continue
             
@@ -769,10 +877,8 @@ def compare_assets(
                 "current_price": analysis.get("current_price"),
                 "price_change_pct": round(price_change_pct, 2),
                 "moving_averages": {
-                    "short_term": analysis.get("moving_averages", {}).get(
-                        "short_trend"
-                    ),
-                    "long_term": analysis.get("moving_averages", {}).get("long_term"),
+                    "short_term": analysis.get("moving_averages", {}).get("short_trend"),
+                    "long_term": analysis.get("moving_averages", {}).get("long_trend"),
                 },
                 "volatility": analysis.get("token_metrics", {}).get("volatility"),
                 "key_signals": [],
@@ -781,35 +887,23 @@ def compare_assets(
             # Add key signals for average investors
             moving_averages = analysis.get("moving_averages", {})
             if moving_averages.get("golden_cross") == "Yes":
-                results[token_symbol]["key_signals"].append(
-                    "BULLISH: Golden Cross detected"
-                )
+                results[token_symbol]["key_signals"].append("BULLISH: Golden Cross detected")
             if moving_averages.get("death_cross") == "Yes":
-                results[token_symbol]["key_signals"].append(
-                    "BEARISH: Death Cross detected"
-                )
+                results[token_symbol]["key_signals"].append("BEARISH: Death Cross detected")
 
             # Add Bollinger Band signals
             bb = analysis.get("technical_indicators", {}).get("bollinger_bands", {})
             if bb.get("position") is not None:
                 position = bb.get("position")
                 if position > 0.8:
-                    results[token_symbol]["key_signals"].append(
-                        "CAUTION: Potentially overbought"
-                    )
+                    results[token_symbol]["key_signals"].append("CAUTION: Potentially overbought")
                 elif position < 0.2:
-                    results[token_symbol]["key_signals"].append(
-                        "OPPORTUNITY: Potentially oversold"
-                    )
+                    results[token_symbol]["key_signals"].append("OPPORTUNITY: Potentially oversold")
 
             successful_tokens.append(token_symbol)
 
         except Exception as e:
-            error_traceback = traceback.format_exc()
-            error_msg = f"Error analyzing {token_symbol}: {str(e)}"
-            results[token_symbol] = {
-                "error": error_msg
-            }
+            results[token_symbol] = {"error": f"Error analyzing {token_symbol}: {str(e)}"}
             error_count += 1
 
     # If all tokens had errors, return a general error
@@ -966,9 +1060,9 @@ def compare_assets(
             
         # Format period in user-friendly terms
         period_text = f"{num_candles} "
-        if candle_interval == "1d":
+        if candle_interval == CandleInterval.DAY:
             period_text += "days"
-        elif candle_interval == "1h":
+        elif candle_interval == CandleInterval.HOUR:
             period_text += "hours"
             
         # Return the final results
@@ -977,7 +1071,7 @@ def compare_assets(
             "comparative_analysis": comparative_analysis,
             "investment_insights": investment_insights,
             "period": period_text,
-             "error_count": error_count,
+            "error_count": error_count,
             "total_tokens": len(token_symbols),
             "successful_tokens": len(successful_tokens)
         }
@@ -985,7 +1079,7 @@ def compare_assets(
         return {
             "error": "Could not generate comparative analysis due to insufficient valid data.",
             "individual_tokens": results,
-             "error_count": error_count,
+            "error_count": error_count,
             "total_tokens": len(token_symbols)
         }
 
@@ -1257,9 +1351,9 @@ def analyze_wallet_portfolio(
 
         # Get time periods in user-friendly format
         period_text = ""
-        if candle_interval == "1d":
+        if candle_interval == CandleInterval.DAY:
             period_text = f"{num_candles} days"
-        elif candle_interval == "1h":
+        elif candle_interval == CandleInterval.HOUR:
             period_text = f"{num_candles} hours"
             
         # Check for missing tokens
@@ -1279,7 +1373,7 @@ def analyze_wallet_portfolio(
                     "total_return": f"{total_return_pct:.2f}%",
                     "annualized_return": (
                         f"{((1 + total_return_pct/100) ** (365/(num_candles)) - 1) * 100:.2f}%"
-                        if candle_interval == "1d"
+                        if candle_interval == CandleInterval.DAY
                         else "N/A"
                     ),
                     "max_drawdown": f"{max_dd * 100:.2f}%",
