@@ -45,7 +45,7 @@ class TokenMetadataRepo:
     ##
 
     @cached(cache=TTLCache(maxsize=100_000, ttl=60 * 60))
-    def search_token(self, token: str, chain: Optional[str]) -> Optional[TokenMetadata]:
+    def search_token(self, token: str, chain: Optional[str] = None) -> Optional[TokenMetadata]:
         """Search for a token by name or symbol."""
         # Check if token is a valid address
         token_metadata = self.get_token_metadata(token, chain)
