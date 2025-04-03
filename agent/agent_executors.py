@@ -16,6 +16,7 @@ SUGGESTIONS_MODEL = LOCAL_LLM_MODEL
 ROUTING_MODEL = LOCAL_LLM_MODEL
 REASONING_MODEL = LOCAL_LLM_MODEL
 BASE_URL = LOCAL_LLM_BASE_URL
+API_KEY = "abc123"
 
 
 def create_routing_model() -> ChatOpenAI:
@@ -23,7 +24,7 @@ def create_routing_model() -> ChatOpenAI:
         model=ROUTING_MODEL,
         temperature=0.0,
         openai_api_base=BASE_URL,
-        openai_api_key=os.getenv("OPENROUTER_API_KEY"),
+        openai_api_key=API_KEY,
         request_timeout=60,
         default_headers={"X-Title": "two-ligma"},
     )
@@ -34,7 +35,7 @@ def create_suggestions_model() -> ChatOpenAI:
         model=SUGGESTIONS_MODEL,
         temperature=0.3,
         openai_api_base=BASE_URL,
-        openai_api_key=os.getenv("OPENROUTER_API_KEY"),
+        openai_api_key=API_KEY,
         request_timeout=60,
         max_tokens=500,
         streaming=False,
@@ -47,7 +48,7 @@ def create_investor_executor() -> CompiledGraph:
         model=REASONING_MODEL,
         temperature=0.0,
         openai_api_base=BASE_URL,
-        openai_api_key=os.getenv("OPENROUTER_API_KEY"),
+        openai_api_key=API_KEY,
         request_timeout=60,
         max_tokens=4096,
         streaming=False,
@@ -65,7 +66,7 @@ def create_analytics_executor() -> CompiledGraph:
         model=REASONING_MODEL,
         temperature=0.0,
         openai_api_base="https://openrouter.ai/api/v1",
-        openai_api_key=os.getenv("OPENROUTER_API_KEY"),
+        openai_api_key=API_KEY,
         request_timeout=60,
         max_tokens=4096,
         streaming=False,
