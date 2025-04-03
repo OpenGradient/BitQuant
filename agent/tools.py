@@ -65,10 +65,6 @@ def create_analytics_agent_toolkit() -> List[BaseTool]:
         compare_assets,
         max_drawdown_for_token,
         portfolio_volatility,
-        analyze_volatility_trend,
         analyze_wallet_portfolio,
         get_trending_tokens_on_solana,
-        get_coingecko_price_history,
-        get_coingecko_snapshot_price,
-        get_coingecko_price_range
     ]
