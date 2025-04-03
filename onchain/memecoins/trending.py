@@ -9,7 +9,7 @@ from langgraph.graph.graph import RunnableConfig
 from api.api_types import TokenMetadata
 
 TRENDING_POOLS_URL = (
-    "https://pro-api.coingecko.com/api/v3/onchain/networks/solana/trending_pools"
+    "https://pro-api.coingecko.com/api/v3/onchain/networks/%s/trending_pools"
 )
 
 
@@ -22,14 +22,14 @@ def get_trending_tokens_on_solana(
 
 
 @cached(cache=TTLCache(maxsize=100, ttl=60 * 10))
-def get_trending_tokens_from_coingecko() -> List[TokenMetadata]:
-    """Get trending tokens from CoinGecko's Solana trending pools endpoint."""
+def get_trending_tokens_from_coingecko(chain: str = "solana") -> List[TokenMetadata]:
+    """Get trending tokens from CoinGecko's trending pools endpoint for the chain."""
     headers = {
         "accept": "application/json",
         "x-cg-pro-api-key": os.environ.get("COINGECKO_API_KEY"),
     }
 
-    response = requests.get(TRENDING_POOLS_URL, headers=headers)
+    response = requests.get(TRENDING_POOLS_URL % chain, headers=headers)
     if response.status_code != 200:
         raise Exception(
             f"Failed to fetch trending tokens: {response.status_code} {response.text}"
