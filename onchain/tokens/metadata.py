@@ -53,11 +53,11 @@ class TokenMetadataRepo:
             return token_metadata
 
         # If not, search by name or symbol
-        return self.search_token_on_dexscreener(token, chain)
+        return self._search_token_on_dexscreener(token, chain)
 
     @sleep_and_retry
     @limits(calls=DEXSCREENER_SEARCH_CALLS_PER_MINUTE, period=DEXSCREENER_PERIOD)
-    def search_token_on_dexscreener(
+    def _search_token_on_dexscreener(
         self, token: str, chain: Optional[str]
     ) -> Optional[TokenMetadata]:
         """Search for a token by name or symbol on DexScreener."""
@@ -90,7 +90,7 @@ class TokenMetadataRepo:
     ##
 
     def get_token_metadata(
-        self, token_address: str, chain: str = "solana"
+        self, token_address: str, chain: Optional[str] = None
     ) -> Optional[TokenMetadata]:
         # Check local not found cache first
         if token_address in self._not_found_cache:
@@ -100,7 +100,7 @@ class TokenMetadataRepo:
         if token_address in self._metadata_cache:
             metadata = self._metadata_cache[token_address]
         else:
-            metadata = self._get_from_dynamodb(chain, token_address)
+            metadata = self._get_from_dynamodb(chain or "solana", token_address)
 
         if (
             metadata is not None
@@ -110,7 +110,7 @@ class TokenMetadataRepo:
             return metadata
 
         # If not in DynamoDB or has expired, fetch from DexScreener
-        metadata = self.fetch_metadata_from_dexscreener(chain, token_address)
+        metadata = self.fetch_metadata_from_dexscreener(chain or "solana", token_address)
         if metadata:
             self._store_metadata(metadata)
             self._metadata_cache[token_address] = metadata
@@ -121,7 +121,7 @@ class TokenMetadataRepo:
         return metadata
 
     def _get_from_dynamodb(
-        self, chain: str, token_address: str
+        self, _chain: str, token_address: str
     ) -> Optional[TokenMetadata]:
         """Retrieve token metadata from DynamoDB."""
         try:

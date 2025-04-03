@@ -43,7 +43,7 @@ class PortfolioFetcher:
                 continue
 
             # Get token metadata
-            metadata = self.token_metadata_repo.get_token_metadata(address)
+            metadata = self.token_metadata_repo.get_token_metadata(address, "solana")
             if metadata is None:
                 continue
 
@@ -76,7 +76,7 @@ class PortfolioFetcher:
 
         sol_amount = sol_balance / 1e9  # Convert lamports to SOL
         sol_metadata = self.token_metadata_repo.get_token_metadata(
-            PortfolioFetcher.SOL_MINT
+            PortfolioFetcher.SOL_MINT, "solana"
         )
         if sol_metadata and sol_metadata.price:
             sol_value_usd = float(sol_amount) * float(sol_metadata.price)
