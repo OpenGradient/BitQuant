@@ -8,6 +8,7 @@ from cachetools import TTLCache, LRUCache
 from ratelimit import limits, sleep_and_retry
 from ratelimit.exception import RateLimitException
 import time
+from cachetools import cachedmethod
 
 
 @dataclass
@@ -33,17 +34,19 @@ class TokenMetadataRepo:
     METADATA_CACHE_TTL = 15 * 60  # 15 minutes in seconds
 
     DEXSCREENER_CALLS_PER_MINUTE = 200
+    DEXSCREENER_SEARCH_CALLS_PER_MINUTE = 60
     DEXSCREENER_PERIOD = 60
 
     def __init__(self, tokens_table):
         self._tokens_table = tokens_table
-        self._not_found_cache = TTLCache(maxsize=100_000, ttl=self.NOT_FOUND_CACHE_TTL)
+        self._not_found_cache = TTLCache(maxsize=self.METADATA_CACHE_SIZE, ttl=self.NOT_FOUND_CACHE_TTL)
         self._metadata_cache = LRUCache(maxsize=self.METADATA_CACHE_SIZE)
 
     ##
     ## Search token
     ##
 
+    @cachedmethod(cache=TTLCache(maxsize=100_000, ttl=60 * 60))
     def search_token(self, token: str, chain: Optional[str]) -> Optional[TokenMetadata]:
         """Search for a token by name or symbol."""
         # Check if token is a valid address
@@ -55,7 +58,7 @@ class TokenMetadataRepo:
         return self.search_token_on_dexscreener(token, chain)
 
     @sleep_and_retry
-    @limits(calls=DEXSCREENER_CALLS_PER_MINUTE, period=DEXSCREENER_PERIOD)
+    @limits(calls=DEXSCREENER_SEARCH_CALLS_PER_MINUTE, period=DEXSCREENER_PERIOD)
     def search_token_on_dexscreener(
         self, token: str, chain: Optional[str]
     ) -> Optional[TokenMetadata]:
