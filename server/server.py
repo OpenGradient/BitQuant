@@ -231,6 +231,7 @@ def create_flask_app() -> Flask:
 
         portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
         suggestions = handle_suggestions_request(
+            token_metadata_repo=token_metadata_repo,
             request=agent_request,
             portfolio=portfolio,
             suggestions_model=suggestions_model,
@@ -443,10 +444,11 @@ def handle_investor_chat_request(
 def handle_suggestions_request(
     request: AgentChatRequest,
     portfolio: Portfolio,
+    token_metadata_repo: TokenMetadataRepo,
     suggestions_model: ChatOpenAI,
 ) -> List[str]:
     # Get tools from agent config and format them
-    tools = create_investor_agent_toolkit() + create_analytics_agent_toolkit()
+    tools = create_investor_agent_toolkit() + create_analytics_agent_toolkit(token_metadata_repo)
     tools_list = "\n".join([f"- {tool.name}: {tool.description}" for tool in tools])
 
     # Build suggestions system prompt
