@@ -21,7 +21,7 @@ from onchain.pools.solana.orca_protocol import OrcaProtocol
 from onchain.pools.solana.save_protocol import SaveProtocol
 from onchain.pools.solana.kamino_protocol import KaminoProtocol
 from onchain.tokens.metadata import TokenMetadataRepo
-from onchain.tokens.portfolio import PortfolioFetcher
+from onchain.tokens.solana_portfolio import PortfolioFetcher
 from api.api_types import (
     AgentChatRequest,
     Pool,
