@@ -588,7 +588,7 @@ def run_analytics_agent(
     cleaned_text, token_addresses = extract_patterns(last_message.content, "token")
 
     token_metadata = [
-        token_metadata_repo.get_token_metadata(token_address)
+        token_metadata_repo.search_token(token_address)
         for token_address in token_addresses
     ]
     api_token_metadata = [
