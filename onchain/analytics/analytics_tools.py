@@ -258,7 +258,7 @@ def get_coin_suggestions(token_symbol: str, token_id: str) -> Optional[str]:
 
 
 @tool()
-def get_coingecko_snapshot_price(
+def get_coingecko_current_price(
     token_symbol: str, vs_currency: str = "usd", days: int = 1
 ) -> Dict[str, Any]:
     """
@@ -436,93 +436,10 @@ def get_coingecko_price_history(
     token_symbol: str,
     candle_interval: CandleInterval,
     num_candles: int,
-    specific_date: bool = False,
-    year: int = None,
-    month: int = None,
-    day: int = None,
 ) -> Dict[str, Any]:
     """
     Retrieves historical price data for a token using CoinGecko.
     """
-    # Handle specific date queries
-    if specific_date and year and month and day:
-        try:
-            # Calculate target date timestamp
-            target_timestamp = date_to_timestamp(year, month, day)
-
-            # Range to include data surrounding the target date (3 days before and after)
-            from_timestamp = target_timestamp - (3 * 24 * 60 * 60)
-            to_timestamp = target_timestamp + (3 * 24 * 60 * 60)
-
-            # Use the price range tool to get the data
-            price_data = get_coingecko_price_range.invoke(
-                {
-                    "token_symbol": token_symbol,
-                    "candle_interval": candle_interval,
-                    "from_timestamp": from_timestamp,
-                    "to_timestamp": to_timestamp,
-                }
-            )
-
-            if "error" in price_data:
-                return price_data
-
-            # Find the closest candle to our target date
-            target_date = datetime(year, month, day, 0, 0, 0, tzinfo=UTC)
-            formatted_data = price_data.get("data", [])
-
-            if not formatted_data:
-                return {
-                    "error": "No data points found near the target date",
-                    "token_symbol": token_symbol,
-                    "target_date": target_date.strftime("%Y-%m-%d"),
-                }
-
-            closest_candle = None
-            smallest_time_diff = float("inf")
-
-            for candle in formatted_data:
-                if len(candle) >= 5:
-                    timestamp = candle[
-                        0
-                    ]  # Already converted to seconds in format_ohlc_data
-                    time_diff = abs(timestamp - target_timestamp)
-                    if time_diff < smallest_time_diff:
-                        smallest_time_diff = time_diff
-                        closest_candle = candle
-
-            if closest_candle:
-                timestamp, open_price, high, low, close = closest_candle
-                candle_date = datetime.fromtimestamp(timestamp, tz=UTC)
-
-                return {
-                    "token_symbol": token_symbol,
-                    "token_id": price_data.get("token_id"),
-                    "target_date": target_date.strftime("%Y-%m-%d"),
-                    "closest_date": candle_date.strftime("%Y-%m-%d %H:%M:%S"),
-                    "time_difference_hours": round(smallest_time_diff / 3600, 2),
-                    "price_data": {
-                        "open": float(open_price),
-                        "high": float(high),
-                        "low": float(low),
-                        "close": float(close),
-                    },
-                    "raw_timestamp": int(timestamp),
-                }
-            else:
-                return {
-                    "error": "Could not find any data points near the target date",
-                    "token_symbol": token_symbol,
-                    "target_date": target_date.strftime("%Y-%m-%d"),
-                }
-
-        except Exception as e:
-            return {
-                "error": f"Error retrieving price data for specific date: {str(e)}",
-                "token_symbol": token_symbol,
-                "traceback": traceback.format_exc(),
-            }
-
     # Standard historical data query (recent candles)
     cache_key = f"{token_symbol}_{candle_interval}_{num_candles}"
     if cache_key in price_data_cache:
