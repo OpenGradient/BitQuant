@@ -2,8 +2,8 @@ import unittest
 import os
 import boto3
 
-from tokens.portfolio import PortfolioFetcher
-from tokens.metadata import TokenMetadataRepo
+from onchain.tokens.portfolio import PortfolioFetcher
+from onchain.tokens.metadata import TokenMetadataRepo
 import dotenv
 
 dotenv.load_dotenv()

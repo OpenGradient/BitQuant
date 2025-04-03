@@ -24,15 +24,14 @@ class InviteCodeManager:
                 KeyConditionExpression="creator_address = :addr",
                 FilterExpression="#used = :used",
                 ExpressionAttributeNames={"#used": "used"},
-                ExpressionAttributeValues={
-                    ":addr": creator_address,
-                    ":used": False
-                }
+                ExpressionAttributeValues={":addr": creator_address, ":used": False},
             )
-            
+
             unused_codes = response.get("Items", [])
             if len(unused_codes) >= self.MAX_UNUSED_CODES:
-                logger.warning(f"User {creator_address} has reached the limit of {self.MAX_UNUSED_CODES} unused invite codes")
+                logger.warning(
+                    f"User {creator_address} has reached the limit of {self.MAX_UNUSED_CODES} unused invite codes"
+                )
                 return None
 
             # Generate a random 14-character code (10 bytes ≈ 14 characters in base64url)

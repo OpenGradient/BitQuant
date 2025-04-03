@@ -3,7 +3,7 @@ import os
 import boto3
 import dotenv
 
-from tokens.metadata import TokenMetadataRepo
+from onchain.tokens.metadata import TokenMetadataRepo
 
 dotenv.load_dotenv()
 

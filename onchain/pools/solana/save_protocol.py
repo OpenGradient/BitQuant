@@ -4,7 +4,7 @@ import requests
 
 from api.api_types import Pool, Token, Chain, PoolType
 from onchain.pools.protocol import Protocol
-from tokens.metadata import TokenMetadataRepo
+from onchain.tokens.metadata import TokenMetadataRepo
 
 
 class SaveProtocol(Protocol):

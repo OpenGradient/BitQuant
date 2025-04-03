@@ -5,7 +5,7 @@ import time
 import threading
 
 from api.api_types import Pool, PoolQuery, PoolType
-from tokens.metadata import TokenMetadataRepo
+from onchain.tokens.metadata import TokenMetadataRepo
 
 
 class Protocol(ABC):

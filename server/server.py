@@ -20,8 +20,8 @@ from onchain.pools.protocol import ProtocolRegistry
 from onchain.pools.solana.orca_protocol import OrcaProtocol
 from onchain.pools.solana.save_protocol import SaveProtocol
 from onchain.pools.solana.kamino_protocol import KaminoProtocol
-from tokens.metadata import TokenMetadataRepo
-from tokens.portfolio import PortfolioFetcher
+from onchain.tokens.metadata import TokenMetadataRepo
+from onchain.tokens.portfolio import PortfolioFetcher
 from api.api_types import (
     AgentChatRequest,
     Pool,
@@ -527,7 +527,9 @@ def convert_to_agent_message_history(messages: List[Message]) -> List[Tuple[str,
 
     for _, message in converted_messages:
         if not message:
-            logger.error(f"Empty message.\nOriginal: {messages}\nConverted: {converted_messages}")
+            logger.error(
+                f"Empty message.\nOriginal: {messages}\nConverted: {converted_messages}"
+            )
 
     return converted_messages
 
@@ -564,7 +566,9 @@ def handle_analytics_chat_request(
         }
     )
 
-    return run_analytics_agent(agent, token_metadata_repo, analytics_messages, agent_config)
+    return run_analytics_agent(
+        agent, token_metadata_repo, analytics_messages, agent_config
+    )
 
 
 def run_analytics_agent(

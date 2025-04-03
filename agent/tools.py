@@ -21,7 +21,7 @@ from onchain.analytics.analytics_tools import (
     analyze_wallet_portfolio,
     get_coingecko_price_history,
     get_coingecko_snapshot_price,
-    get_coingecko_price_range
+    get_coingecko_price_range,
 )
 from onchain.memecoins.trending import get_trending_tokens_on_solana
 from onchain.pools.protocol import ProtocolRegistry
@@ -62,7 +62,6 @@ def create_analytics_agent_toolkit() -> List[BaseTool]:
         show_defi_llama_historical_chain_tvl,
         show_defi_llama_top_pools,
         analyze_price_trend,
-        compare_assets,
         max_drawdown_for_token,
         portfolio_volatility,
         analyze_wallet_portfolio,

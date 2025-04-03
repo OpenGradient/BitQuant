@@ -6,7 +6,7 @@ from solana.rpc.api import Client
 from solana.rpc.types import TokenAccountOpts, Pubkey
 from solders.rpc.responses import RpcKeyedAccountJsonParsed
 
-from tokens.metadata import TokenMetadataRepo
+from onchain.tokens.metadata import TokenMetadataRepo
 from api.api_types import WalletTokenHolding, Portfolio
 
 

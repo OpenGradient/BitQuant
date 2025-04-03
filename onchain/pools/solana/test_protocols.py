@@ -7,7 +7,7 @@ from onchain.pools.solana.orca_protocol import OrcaProtocol
 from onchain.pools.solana.save_protocol import SaveProtocol
 from onchain.pools.solana.kamino_protocol import KaminoProtocol
 from api.api_types import Chain, Pool, PoolQuery
-from tokens.metadata import TokenMetadataRepo
+from onchain.tokens.metadata import TokenMetadataRepo
 
 
 class TestProtocols(unittest.TestCase):
