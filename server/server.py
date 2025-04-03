@@ -593,7 +593,7 @@ def run_analytics_agent(
             address=token.address,
             name=token.name,
             symbol=token.symbol,
-            price_usd=token.price,
+            price_usd=str(token.price),
             market_cap_usd=str(token.market_cap_usd) if token.market_cap_usd else None,
             dex_pool_address=token.dex_pool_address,
             image_url=token.image_url,
