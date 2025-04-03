@@ -18,7 +18,7 @@ class TestProtocols(unittest.TestCase):
             aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
             aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
         )
-        tokens_table = dynamodb.Table("sol_token_metadata")
+        tokens_table = dynamodb.Table("token_metadata_v2")
         self.token_metadata_repo = TokenMetadataRepo(tokens_table)
 
     def test_save(self):

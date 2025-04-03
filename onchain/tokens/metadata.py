@@ -12,7 +12,7 @@ import time
 @dataclass
 class TokenMetadata:
     timestamp: int
-    chain: Optional[str]
+    chain: str
     address: str
     name: str
     symbol: str
@@ -90,43 +90,42 @@ class TokenMetadataRepo:
     ##
 
     def get_token_metadata(
-        self, token_address: str, chain: Optional[str] = None
+        self, token_address: str, chain: str
     ) -> Optional[TokenMetadata]:
         # Check local not found cache first
-        if token_address in self._not_found_cache:
+        if (chain, token_address) in self._not_found_cache:
             return None
 
         # Check metadata cache
-        if token_address in self._metadata_cache:
-            metadata = self._metadata_cache[token_address]
+        if (chain, token_address) in self._metadata_cache:
+            metadata = self._metadata_cache[(chain, token_address)]
         else:
-            metadata = self._get_from_dynamodb(chain or "solana", token_address)
+            metadata = self._get_from_dynamodb(chain, token_address)
 
         if (
             metadata is not None
             and metadata.timestamp >= time.time() - self.METADATA_CACHE_TTL
         ):
-            self._metadata_cache[token_address] = metadata
+            self._metadata_cache[(chain, token_address)] = metadata
             return metadata
 
         # If not in DynamoDB or has expired, fetch from DexScreener
-        metadata = self.fetch_metadata_from_dexscreener(chain or "solana", token_address)
+        metadata = self.fetch_metadata_from_dexscreener(chain, token_address)
         if metadata:
             self._store_metadata(metadata)
-            self._metadata_cache[token_address] = metadata
+            self._metadata_cache[(chain, token_address)] = metadata
         else:
-            self._store_not_found(token_address)
-            self._not_found_cache[token_address] = True
+            self._store_not_found(chain, token_address)
+            self._not_found_cache[(chain, token_address)] = True
 
         return metadata
 
     def _get_from_dynamodb(
-        self, _chain: str, token_address: str
+        self, chain: str, token_address: str
     ) -> Optional[TokenMetadata]:
         """Retrieve token metadata from DynamoDB."""
         try:
-            # TODO: Add chain to the key
-            response = self._tokens_table.get_item(Key={"address": token_address})
+            response = self._tokens_table.get_item(Key={"id": f"{chain}:{token_address}"})
 
             if "Item" not in response:
                 return None
@@ -135,12 +134,12 @@ class TokenMetadataRepo:
 
             # Check if this is a "not found" marker
             if item.get("not_found", False):
-                self._not_found_cache[token_address] = True
+                self._not_found_cache[(chain, token_address)] = True
                 return None
 
             metadata = TokenMetadata(
                 address=item["address"],
-                chain=item.get("chain"),
+                chain=item["chain"],
                 name=item["name"],
                 symbol=item["symbol"],
                 timestamp=item["timestamp"],
@@ -160,15 +159,15 @@ class TokenMetadataRepo:
     def _store_metadata(self, metadata: TokenMetadata) -> None:
         """Store token metadata in DynamoDB."""
         item = {
+            "id": f"{metadata.chain}:{metadata.address}",
             "address": metadata.address,
+            "chain": metadata.chain,
             "name": metadata.name,
             "symbol": metadata.symbol,
             "timestamp": metadata.timestamp,
             "not_found": False,
         }
 
-        if metadata.chain:
-            item["chain"] = metadata.chain
         if metadata.price:
             item["price"] = metadata.price
         if metadata.image_url:
@@ -179,13 +178,14 @@ class TokenMetadataRepo:
             item["market_cap_usd"] = metadata.market_cap_usd
 
         self._tokens_table.put_item(Item=item)
-        logging.info(f"Stored metadata for token: {metadata.address}")
+        logging.info(f"Stored metadata for token: {metadata.address} on chain: {metadata.chain}")
 
-    def _store_not_found(self, token_address: str) -> None:
+    def _store_not_found(self, chain: str, token_address: str) -> None:
         """Store a marker indicating that token metadata was not found."""
         item = {
-            "chain": "solana",
+            "id": f"{chain}:{token_address}",
             "address": token_address,
+            "chain": chain,
             "not_found": True,
             "timestamp": int(time.time()),
         }

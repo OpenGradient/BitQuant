@@ -17,7 +17,7 @@ class TestMetadata(unittest.TestCase):
             aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
             aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
         )
-        tokens_table = dynamodb.Table("sol_token_metadata")
+        tokens_table = dynamodb.Table("token_metadata_v2")
 
         repo = TokenMetadataRepo(tokens_table)
         tokens = repo.search_token("fartcoin", None)
@@ -30,7 +30,7 @@ class TestMetadata(unittest.TestCase):
             aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
             aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
         )
-        tokens_table = dynamodb.Table("sol_token_metadata")
+        tokens_table = dynamodb.Table("token_metadata_v2")
 
         repo = TokenMetadataRepo(tokens_table)
         metadata = repo.get_token_metadata(

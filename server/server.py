@@ -95,7 +95,7 @@ def create_flask_app() -> Flask:
         aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
     )
 
-    tokens_table = dynamodb.Table("sol_token_metadata")
+    tokens_table = dynamodb.Table("token_metadata_v2")
     feedback_table = dynamodb.Table("twoligma_feedback")
     whitelist_table = dynamodb.Table("twoligma_whitelist")
     invite_codes_table = dynamodb.Table("twoligma_invite_codes")

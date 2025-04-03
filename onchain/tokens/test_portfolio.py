@@ -18,7 +18,7 @@ class TestPortfolio(unittest.TestCase):
             aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
         )
 
-        tokens_table = dynamodb.Table("sol_token_metadata")
+        tokens_table = dynamodb.Table("token_metadata_v2")
         token_metadata_repo = TokenMetadataRepo(tokens_table)
         portfolio = PortfolioFetcher(token_metadata_repo)
 
