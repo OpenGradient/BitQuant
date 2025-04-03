@@ -54,7 +54,7 @@ def create_investor_agent_toolkit() -> List[BaseTool]:
 def create_analytics_agent_toolkit(token_metadata_repo: TokenMetadataRepo) -> List[BaseTool]:
 
     @tool
-    def search_token(token: str, chain: Optional[str] = None) -> TokenMetadata:
+    def search_token(token: str, chain: Optional[str] = None) -> Optional[TokenMetadata]:
         """Search for a token by name or symbol. Returns metadata for the first token found."""
         return token_metadata_repo.search_token(token, chain)
 

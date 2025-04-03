@@ -110,7 +110,7 @@ class TokenMetadataRepo:
             return metadata
 
         # If not in DynamoDB or has expired, fetch from DexScreener
-        metadata = self.fetch_metadata_from_dexscreener(chain, token_address)
+        metadata = self._fetch_metadata_from_dexscreener(chain, token_address)
         if metadata:
             self._store_metadata(metadata)
             self._metadata_cache[(chain, token_address)] = metadata
@@ -193,7 +193,7 @@ class TokenMetadataRepo:
 
     @sleep_and_retry
     @limits(calls=DEXSCREENER_CALLS_PER_MINUTE, period=DEXSCREENER_PERIOD)
-    def fetch_metadata_from_dexscreener(
+    def _fetch_metadata_from_dexscreener(
         self, chain: str, token_address: str
     ) -> Optional[TokenMetadata]:
         """Fetch token metadata from DexScreener API with rate limiting."""
