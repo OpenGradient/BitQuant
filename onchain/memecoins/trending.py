@@ -48,13 +48,14 @@ def get_trending_tokens_from_coingecko(chain: str) -> List[TokenMetadata]:
         relationships = pool["relationships"]
 
         # eg solana_BQQzEvYT4knThhkSPBvSKBLg1LEczisWLhx5ydJipump
-        token_id = relationships["base_token"]["data"]["id"].split("_")[1]
+        token_address = relationships["base_token"]["data"]["id"].split("_")[1]
 
         # eg "Ghibli / SOL"
         token_name = attributes["name"].split("/")[0].strip()
 
         token = TokenMetadata(
-            address=token_id,
+            address=token_address,
+            chain=chain,
             name=token_name,
             symbol=token_name,
             dex_pool_address=attributes["address"],
