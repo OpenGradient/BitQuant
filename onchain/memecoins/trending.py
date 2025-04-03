@@ -14,15 +14,19 @@ TRENDING_POOLS_URL = (
 
 
 @tool
-def get_trending_tokens_on_solana(
+def get_trending_tokens(
+    chain: str = "solana",
     config: RunnableConfig = None,
 ) -> List[TokenMetadata]:
-    """Retrieve the latest trending tokens on Solana from DEX data."""
-    return f"""Latest trending tokens: {get_trending_tokens_from_coingecko()[:8]}. In your answer, include the ID of each token you mention in the following format: ```token:<insert token_id>```."""
+    """Retrieve the latest trending tokens on the given chain from DEX data."""
+    chain = chain.lower()
+    trending_tokens = get_trending_tokens_from_coingecko(chain)[:8]
+
+    return f"""Latest trending tokens: {trending_tokens}. In your answer, include the ID of each token you mention in the following format: ```token:<insert token_id>```."""
 
 
 @cached(cache=TTLCache(maxsize=100, ttl=60 * 10))
-def get_trending_tokens_from_coingecko(chain: str = "solana") -> List[TokenMetadata]:
+def get_trending_tokens_from_coingecko(chain: str) -> List[TokenMetadata]:
     """Get trending tokens from CoinGecko's trending pools endpoint for the chain."""
     headers = {
         "accept": "application/json",
@@ -44,7 +48,7 @@ def get_trending_tokens_from_coingecko(chain: str = "solana") -> List[TokenMetad
         relationships = pool["relationships"]
 
         # eg solana_BQQzEvYT4knThhkSPBvSKBLg1LEczisWLhx5ydJipump
-        token_id = relationships["base_token"]["data"]["id"].replace("solana_", "")
+        token_id = relationships["base_token"]["data"]["id"].split("_")[1]
 
         # eg "Ghibli / SOL"
         token_name = attributes["name"].split("/")[0].strip()

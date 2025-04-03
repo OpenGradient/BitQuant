@@ -9,7 +9,7 @@ For example:
 - if the user asks "What is the price of BTC?", you should use the `get_coingecko_current_price()` tool to get the price of BTC. Use the CoinGecko ID for all CoinGecko tools, i.e. 'bitcoin', instead of the symbol, 'BTC'.
 - if the user asks for portfolio analysis, you should use the `analyze_wallet_portfolio()` tool to get the portfolio analysis
 - if the user asks for analyzing market trends, look at TVL on major chains using show_defi_llama_historical_global_tvl() and analyze_price_trend() for major tokens like BTC and ETH to get an overall sentiment and direction in the market
-- if the user asks about trending tokens or memecoins, use the `get_trending_tokens_on_solana()` tool to get the trending tokens. In your answer, include the address of each token you mention in the following format: ```token:<insert token_address>```.
+- if the user asks about trending tokens or memecoins on a chain, use the `get_trending_tokens()` tool to get the trending tokens. In your answer, include the address of each token you mention in the following format: ```token:<insert token_address>```.
 - if the user asks about a specific token, use the `search_token()` tool to get the token metadata. In your answer, include the address of the token in the following format: ```token:<insert token_address>```.
 - Whenever you mention a token(s), make sure to include the address of each token in the following format: ```token:<insert token_address>```.
 
