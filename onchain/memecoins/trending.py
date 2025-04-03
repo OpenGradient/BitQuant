@@ -12,10 +12,9 @@ TRENDING_POOLS_URL = (
     "https://pro-api.coingecko.com/api/v3/onchain/networks/%s/trending_pools"
 )
 
-CHAIN_REMAPPING = {
-    "sui": "sui-network"
+CHAIN_REMAPPINGS = {
+    "sui": "sui-network",
 }
-
 
 @tool
 def get_trending_tokens(
@@ -24,9 +23,6 @@ def get_trending_tokens(
 ) -> List[TokenMetadata]:
     """Retrieve the latest trending tokens on the given chain from DEX data."""
     chain = chain.lower()
-    if chain in CHAIN_REMAPPING:
-        chain = CHAIN_REMAPPING[chain]
-
     trending_tokens = get_trending_tokens_from_coingecko(chain)[:8]
 
     return f"""Latest trending tokens: {trending_tokens}. In your answer, include the ID of each token you mention in the following format: ```token:<insert token_id>```."""
@@ -40,7 +36,12 @@ def get_trending_tokens_from_coingecko(chain: str) -> List[TokenMetadata]:
         "x-cg-pro-api-key": os.environ.get("COINGECKO_API_KEY"),
     }
 
-    response = requests.get(TRENDING_POOLS_URL % chain, headers=headers)
+    if chain in CHAIN_REMAPPINGS:
+        coingecko_chain = CHAIN_REMAPPINGS[chain]
+    else:
+        coingecko_chain = chain
+
+    response = requests.get(TRENDING_POOLS_URL % coingecko_chain, headers=headers)
     if response.status_code != 200:
         raise Exception(
             f"Failed to fetch trending tokens: {response.status_code} {response.text}"
