@@ -1,7 +1,9 @@
-from typing import List
+from typing import List, Optional
 
 from langgraph.graph.graph import RunnableConfig
 from langchain_core.tools import BaseTool, tool
+
+from onchain.tokens.metadata import TokenMetadataRepo, TokenMetadata
 
 from onchain.analytics.defillama_tools import (
     show_defi_llama_global_tvl,
@@ -49,7 +51,13 @@ def create_investor_agent_toolkit() -> List[BaseTool]:
     ]
 
 
-def create_analytics_agent_toolkit() -> List[BaseTool]:
+def create_analytics_agent_toolkit(token_metadata_repo: TokenMetadataRepo) -> List[BaseTool]:
+
+    @tool
+    def search_token(token: str, chain: Optional[str] = None) -> TokenMetadata:
+        """Search for a token by name or symbol. Returns metadata for the first token found."""
+        return token_metadata_repo.search_token(token, chain)
+
     return [
         show_defi_llama_global_tvl,
         show_defi_llama_historical_global_tvl,
@@ -61,4 +69,5 @@ def create_analytics_agent_toolkit() -> List[BaseTool]:
         analyze_wallet_portfolio,
         get_trending_tokens_on_solana,
         get_coingecko_current_price,
+        search_token
     ]

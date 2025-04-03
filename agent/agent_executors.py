@@ -6,6 +6,7 @@ from langgraph.graph.graph import CompiledGraph
 from langchain_openai import ChatOpenAI
 
 from agent.tools import create_investor_agent_toolkit, create_analytics_agent_toolkit
+from onchain.tokens.metadata import TokenMetadataRepo
 
 GOOGLE_GEMINI_25_MODEL = "google/gemini-2.5-pro-exp-03-25:free"  # Free
 GOOGLE_GEMINI_20_FLASH_MODEL = (
@@ -66,7 +67,7 @@ def create_investor_executor() -> CompiledGraph:
     return agent_executor
 
 
-def create_analytics_executor() -> CompiledGraph:
+def create_analytics_executor(token_metadata_repo: TokenMetadataRepo) -> CompiledGraph:
     openai_model = ChatOpenAI(
         model=REASONING_MODEL,
         temperature=0.0,
@@ -79,7 +80,7 @@ def create_analytics_executor() -> CompiledGraph:
     )
     analytics_executor = create_react_agent(
         model=openai_model,
-        tools=create_analytics_agent_toolkit(),
+        tools=create_analytics_agent_toolkit(token_metadata_repo),
     )
 
     return analytics_executor

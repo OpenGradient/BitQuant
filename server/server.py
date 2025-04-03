@@ -103,14 +103,15 @@ def create_flask_app() -> Flask:
     whitelist = TwoLigmaWhitelist(whitelist_table)
     invite_manager = InviteCodeManager(invite_codes_table)
 
+    # Token data
+    token_metadata_repo = TokenMetadataRepo(tokens_table)
+    portfolio_fetcher = PortfolioFetcher(token_metadata_repo)
+
     # Initialize agents
     router_model = create_routing_model()
     suggestions_model = create_suggestions_model()
-    analytics_agent = create_analytics_executor()
+    analytics_agent = create_analytics_executor(token_metadata_repo)
     investor_agent = create_investor_executor()
-
-    token_metadata_repo = TokenMetadataRepo(tokens_table)
-    portfolio_fetcher = PortfolioFetcher(token_metadata_repo)
 
     # Initialize protocol registry
     protocol_registry = ProtocolRegistry(token_metadata_repo)
