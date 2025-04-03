@@ -12,11 +12,17 @@ class Token(BaseModel):
 
 # Full token metadata
 class TokenMetadata(BaseModel):
+    # Add ID field method, which is the chain:address
+    @computed_field
+    def id(self) -> str:
+        return f"{self.chain}:{self.address}"
+
     address: str
     name: str
     symbol: str
     price_usd: str
-    chain: Optional[str] = None
+    chain: str
+
     dex_pool_address: Optional[str] = None
     market_cap_usd: Optional[str] = None
     image_url: Optional[str] = None

@@ -9,6 +9,7 @@ from ratelimit import limits, sleep_and_retry
 from ratelimit.exception import RateLimitException
 import time
 
+
 @dataclass
 class TokenMetadata:
     timestamp: int
@@ -37,7 +38,9 @@ class TokenMetadataRepo:
 
     def __init__(self, tokens_table):
         self._tokens_table = tokens_table
-        self._not_found_cache = TTLCache(maxsize=self.METADATA_CACHE_SIZE, ttl=self.NOT_FOUND_CACHE_TTL)
+        self._not_found_cache = TTLCache(
+            maxsize=self.METADATA_CACHE_SIZE, ttl=self.NOT_FOUND_CACHE_TTL
+        )
         self._metadata_cache = LRUCache(maxsize=self.METADATA_CACHE_SIZE)
 
     ##
@@ -45,12 +48,15 @@ class TokenMetadataRepo:
     ##
 
     @cached(cache=TTLCache(maxsize=100_000, ttl=60 * 60))
-    def search_token(self, token: str, chain: Optional[str] = None) -> Optional[TokenMetadata]:
+    def search_token(
+        self, token: str, chain: Optional[str] = None
+    ) -> Optional[TokenMetadata]:
         """Search for a token by name or symbol."""
-        # Check if token is a valid address
-        token_metadata = self.get_token_metadata(token, chain)
-        if token_metadata:
-            return token_metadata
+        if chain is not None:
+            # Check if token is a valid address
+            token_metadata = self.get_token_metadata(token, chain)
+            if token_metadata:
+                return token_metadata
 
         # If not, search by name or symbol
         return self._search_token_on_dexscreener(token, chain)
@@ -124,8 +130,13 @@ class TokenMetadataRepo:
         self, chain: str, token_address: str
     ) -> Optional[TokenMetadata]:
         """Retrieve token metadata from DynamoDB."""
+        if chain is None:
+            raise ValueError("Chain cannot be null")
+
         try:
-            response = self._tokens_table.get_item(Key={"id": f"{chain}:{token_address}"})
+            response = self._tokens_table.get_item(
+                Key={"id": f"{chain}:{token_address}"}
+            )
 
             if "Item" not in response:
                 return None
@@ -178,7 +189,9 @@ class TokenMetadataRepo:
             item["market_cap_usd"] = metadata.market_cap_usd
 
         self._tokens_table.put_item(Item=item)
-        logging.info(f"Stored metadata for token: {metadata.address} on chain: {metadata.chain}")
+        logging.info(
+            f"Stored metadata for token: {metadata.address} on chain: {metadata.chain}"
+        )
 
     def _store_not_found(self, chain: str, token_address: str) -> None:
         """Store a marker indicating that token metadata was not found."""

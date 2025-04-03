@@ -448,7 +448,9 @@ def handle_suggestions_request(
     suggestions_model: ChatOpenAI,
 ) -> List[str]:
     # Get tools from agent config and format them
-    tools = create_investor_agent_toolkit() + create_analytics_agent_toolkit(token_metadata_repo)
+    tools = create_investor_agent_toolkit() + create_analytics_agent_toolkit(
+        token_metadata_repo
+    )
     tools_list = "\n".join([f"- {tool.name}: {tool.description}" for tool in tools])
 
     # Build suggestions system prompt
@@ -585,11 +587,17 @@ def run_analytics_agent(
 
     # Extract final state and last message
     last_message = result["messages"][-1]
-    cleaned_text, token_addresses = extract_patterns(last_message.content, "token")
+    cleaned_text, token_ids = extract_patterns(last_message.content, "token")
 
     token_metadata = [
-        token_metadata_repo.search_token(token_address, chain=None)
-        for token_address in token_addresses
+        (
+            token_metadata_repo.search_token(
+                token_id.split(":")[1], token_id.split(":")[0]
+            )
+            if len(token_id.split(":")) == 2
+            else token_metadata_repo.search_token(token_id)
+        )
+        for token_id in token_ids
     ]
     api_token_metadata = [
         TokenMetadata(
