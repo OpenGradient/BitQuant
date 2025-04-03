@@ -9,6 +9,20 @@ dotenv.load_dotenv()
 
 
 class TestMetadata(unittest.TestCase):
+
+    def test_search_token(self):
+        dynamodb = boto3.resource(
+            "dynamodb",
+            region_name=os.environ.get("AWS_REGION"),
+            aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
+        )
+        tokens_table = dynamodb.Table("sol_token_metadata")
+
+        repo = TokenMetadataRepo(tokens_table)
+        tokens = repo.search_token("fartcoin", None)
+        print(f"Search results: {tokens}")
+
     def test_get_token_metadata(self):
         dynamodb = boto3.resource(
             "dynamodb",
@@ -23,4 +37,4 @@ class TestMetadata(unittest.TestCase):
             "9Rhbn9G5poLvgnFzuYBtJgbzmiipNra35QpnUek9virt"
         )
 
-        print(metadata)
+        print(f"Token metadata: {metadata}")

@@ -15,7 +15,7 @@ from onchain.analytics.analytics_tools import (
     portfolio_volatility,
     analyze_price_trend,
     analyze_wallet_portfolio,
-    get_coingecko_current_price
+    get_coingecko_current_price,
 )
 from onchain.memecoins.trending import get_trending_tokens_on_solana
 from onchain.pools.protocol import ProtocolRegistry
@@ -60,5 +60,5 @@ def create_analytics_agent_toolkit() -> List[BaseTool]:
         portfolio_volatility,
         analyze_wallet_portfolio,
         get_trending_tokens_on_solana,
-        get_coingecko_current_price
+        get_coingecko_current_price,
     ]

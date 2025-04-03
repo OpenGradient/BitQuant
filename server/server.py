@@ -582,11 +582,11 @@ def run_analytics_agent(
 
     # Extract final state and last message
     last_message = result["messages"][-1]
-
-    cleaned_text, token_ids = extract_patterns(last_message.content, "token")
+    cleaned_text, token_addresses = extract_patterns(last_message.content, "token")
 
     token_metadata = [
-        token_metadata_repo.get_token_metadata(token_id) for token_id in token_ids
+        token_metadata_repo.get_token_metadata(token_address)
+        for token_address in token_addresses
     ]
     api_token_metadata = [
         TokenMetadata(
