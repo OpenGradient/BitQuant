@@ -16,6 +16,7 @@ CHAIN_REMAPPINGS = {
     "sui": "sui-network",
 }
 
+
 @tool
 def get_trending_tokens(
     chain: str = "solana",

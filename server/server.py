@@ -590,14 +590,12 @@ def run_analytics_agent(
     cleaned_text, token_ids = extract_patterns(last_message.content, "token")
 
     token_metadata = [
-        (
-            token_metadata_repo.search_token(
-                token_id.split(":")[1], token_id.split(":")[0]
-            )
-            if len(token_id.split(":")) == 2
-            else token_metadata_repo.search_token(token_id)
+        token_metadata_repo.search_token(
+            parts[1] if len(parts) > 1 else parts[0],  # token part
+            parts[0] if len(parts) > 1 else None,  # chain part, None if no colon
         )
         for token_id in token_ids
+        for parts in [token_id.split(":", 1)]
     ]
     api_token_metadata = [
         TokenMetadata(
