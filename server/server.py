@@ -599,6 +599,7 @@ def run_analytics_agent(
             image_url=token.image_url,
         )
         for token in token_metadata
+        if token is not None
     ]
 
     return AgentMessage(
