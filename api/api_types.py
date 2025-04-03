@@ -16,6 +16,7 @@ class TokenMetadata(BaseModel):
     name: str
     symbol: str
     price_usd: str
+    chain: Optional[str] = None
     dex_pool_address: Optional[str] = None
     market_cap_usd: Optional[str] = None
     image_url: Optional[str] = None
