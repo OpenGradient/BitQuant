@@ -294,7 +294,6 @@ def get_coingecko_current_price(
 
         result = {
             "token_symbol": token_symbol,
-            "token_id": token_id,
             "vs_currency": vs_currency,
             "days": days,
             "num_candles": len(formatted_data),
@@ -402,7 +401,6 @@ def get_coingecko_price_range(
 
         result = {
             "token_symbol": token_symbol,
-            "token_id": token_id,
             "candle_interval": candle_interval,
             "num_candles": len(formatted_data),
             "data": formatted_data,
@@ -497,7 +495,6 @@ def get_coingecko_price_history(
 
         result = {
             "token_symbol": token_symbol,
-            "token_id": token_id,
             "candle_interval": candle_interval,
             "num_candles": len(formatted_data),
             "data": formatted_data,
