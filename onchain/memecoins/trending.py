@@ -12,6 +12,10 @@ TRENDING_POOLS_URL = (
     "https://pro-api.coingecko.com/api/v3/onchain/networks/%s/trending_pools"
 )
 
+CHAIN_REMAPPING = {
+    "sui": "sui-network"
+}
+
 
 @tool
 def get_trending_tokens(
@@ -20,6 +24,9 @@ def get_trending_tokens(
 ) -> List[TokenMetadata]:
     """Retrieve the latest trending tokens on the given chain from DEX data."""
     chain = chain.lower()
+    if chain in CHAIN_REMAPPING:
+        chain = CHAIN_REMAPPING[chain]
+
     trending_tokens = get_trending_tokens_from_coingecko(chain)[:8]
 
     return f"""Latest trending tokens: {trending_tokens}. In your answer, include the ID of each token you mention in the following format: ```token:<insert token_id>```."""

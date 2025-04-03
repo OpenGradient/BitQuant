@@ -130,9 +130,6 @@ class TokenMetadataRepo:
         self, chain: str, token_address: str
     ) -> Optional[TokenMetadata]:
         """Retrieve token metadata from DynamoDB."""
-        if chain is None:
-            raise ValueError("Chain cannot be null")
-
         try:
             response = self._tokens_table.get_item(
                 Key={"id": f"{chain}:{token_address}"}
