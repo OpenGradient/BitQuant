@@ -7,25 +7,26 @@ CRITICAL RULES:
 4. NO explanations, preambles, or additional text
 5. ONLY suggest actions supported by the available tools listed below
 6. DON'T suggest an action that has already been taken
-7. Don't recommend analyze_price_trend() or compare_assets() on stablecoins like USDC, USDT, etc
+7. Don't recommend analyze_price_trend() or get_coingecko_current_price() on stablecoins like USDC, USDT, etc
 
 AVAILABLE TOOLS:
 {{ tools }}
 
 CONTEXT AWARENESS:
 - If discussing yield → Suggest yield on tokens (that the user owns)
-- If analyzing market → Suggest analyze_price_trend(), compare_assets(), show_defi_llama_historical_chain_tvl(), etc
+- If analyzing market → Suggest analyze_price_trend(), show_defi_llama_historical_chain_tvl(), etc
 - If analyzing portfolio → Suggest analyze_wallet_portfolio(), portfolio_volatility(), max_drawdown_for_token(), analyze_price_trend() on the user's tokens, etc
+- If discussing a token → Suggest analyze_price_trend(), get_coingecko_current_price(), max_drawdown_for_token(), etc
 
 Always consider:
 - User's wallet tokens (prioritize tokens they own)
 - Recent conversation topics and questions, always recommend tools that are relevant to the conversation and tokens/pools/chains mentioned
 
 EXAMPLE RESPONSES:
-- After yield discussion: ["Yield on USDC", "Yield on SOL", "Yield on BONK", "Get price history for SOL"]
-- After token mention: ["Find SOL pools", "SOL price history", "Portfolio summary"]
-- After market question: ["Analyze ETH trend", "Compare SOL and ETH", "Get Ethereum TVL", "Portfolio volatility", "TVL trends on Ethereum"]
-- After risk concern: ["Check max drawdown", "Portfolio volatility", "Compare Ethereum top pools", "Global TVL data"]
+- After yield discussion: ["Yield on USDC", "Yield on SOL", "Yield on BONK", "Get price history for SOL", etc]
+- After token mention: ["Analyze SOL price trend", "Analyze BONK price trend", etc]
+- After market question: ["Analyze ETH trend", "Get Ethereum TVL", "Portfolio volatility", "TVL trends on Ethereum", "Portfolio summary", etc]
+- After risk concern: ["Check max drawdown", "Portfolio volatility", "Compare Ethereum top pools", "Global TVL data", etc]
 
 User's Solana wallet tokens: {{ tokens }}
 

@@ -20,8 +20,8 @@ from onchain.pools.protocol import ProtocolRegistry
 from onchain.pools.solana.orca_protocol import OrcaProtocol
 from onchain.pools.solana.save_protocol import SaveProtocol
 from onchain.pools.solana.kamino_protocol import KaminoProtocol
-from tokens.metadata import TokenMetadataRepo
-from tokens.portfolio import PortfolioFetcher
+from onchain.tokens.metadata import TokenMetadataRepo
+from onchain.tokens.solana_portfolio import PortfolioFetcher
 from api.api_types import (
     AgentChatRequest,
     Pool,
@@ -95,7 +95,7 @@ def create_flask_app() -> Flask:
         aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
     )
 
-    tokens_table = dynamodb.Table("sol_token_metadata")
+    tokens_table = dynamodb.Table("token_metadata_v2")
     feedback_table = dynamodb.Table("twoligma_feedback")
     whitelist_table = dynamodb.Table("twoligma_whitelist")
     invite_codes_table = dynamodb.Table("twoligma_invite_codes")
@@ -103,14 +103,15 @@ def create_flask_app() -> Flask:
     whitelist = TwoLigmaWhitelist(whitelist_table)
     invite_manager = InviteCodeManager(invite_codes_table)
 
+    # Token data
+    token_metadata_repo = TokenMetadataRepo(tokens_table)
+    portfolio_fetcher = PortfolioFetcher(token_metadata_repo)
+
     # Initialize agents
     router_model = create_routing_model()
     suggestions_model = create_suggestions_model()
-    analytics_agent = create_analytics_executor()
+    analytics_agent = create_analytics_executor(token_metadata_repo)
     investor_agent = create_investor_executor()
-
-    token_metadata_repo = TokenMetadataRepo(tokens_table)
-    portfolio_fetcher = PortfolioFetcher(token_metadata_repo)
 
     # Initialize protocol registry
     protocol_registry = ProtocolRegistry(token_metadata_repo)
@@ -230,6 +231,7 @@ def create_flask_app() -> Flask:
 
         portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
         suggestions = handle_suggestions_request(
+            token_metadata_repo=token_metadata_repo,
             request=agent_request,
             portfolio=portfolio,
             suggestions_model=suggestions_model,
@@ -442,10 +444,13 @@ def handle_investor_chat_request(
 def handle_suggestions_request(
     request: AgentChatRequest,
     portfolio: Portfolio,
+    token_metadata_repo: TokenMetadataRepo,
     suggestions_model: ChatOpenAI,
 ) -> List[str]:
     # Get tools from agent config and format them
-    tools = create_investor_agent_toolkit() + create_analytics_agent_toolkit()
+    tools = create_investor_agent_toolkit() + create_analytics_agent_toolkit(
+        token_metadata_repo
+    )
     tools_list = "\n".join([f"- {tool.name}: {tool.description}" for tool in tools])
 
     # Build suggestions system prompt
@@ -527,7 +532,9 @@ def convert_to_agent_message_history(messages: List[Message]) -> List[Tuple[str,
 
     for _, message in converted_messages:
         if not message:
-            logger.error(f"Empty message.\nOriginal: {messages}\nConverted: {converted_messages}")
+            logger.error(
+                f"Empty message.\nOriginal: {messages}\nConverted: {converted_messages}"
+            )
 
     return converted_messages
 
@@ -564,7 +571,9 @@ def handle_analytics_chat_request(
         }
     )
 
-    return run_analytics_agent(agent, token_metadata_repo, analytics_messages, agent_config)
+    return run_analytics_agent(
+        agent, token_metadata_repo, analytics_messages, agent_config
+    )
 
 
 def run_analytics_agent(
@@ -578,23 +587,29 @@ def run_analytics_agent(
 
     # Extract final state and last message
     last_message = result["messages"][-1]
-
     cleaned_text, token_ids = extract_patterns(last_message.content, "token")
 
     token_metadata = [
-        token_metadata_repo.get_token_metadata(token_id) for token_id in token_ids
+        token_metadata_repo.search_token(
+            parts[1] if len(parts) > 1 else parts[0],  # token part
+            parts[0] if len(parts) > 1 else None,  # chain part, None if no colon
+        )
+        for token_id in token_ids
+        for parts in [token_id.split(":", 1)]
     ]
     api_token_metadata = [
         TokenMetadata(
             address=token.address,
             name=token.name,
             symbol=token.symbol,
-            price_usd=token.price,
+            chain=token.chain,
+            price_usd=str(token.price),
             market_cap_usd=str(token.market_cap_usd) if token.market_cap_usd else None,
             dex_pool_address=token.dex_pool_address,
             image_url=token.image_url,
         )
         for token in token_metadata
+        if token is not None
     ]
 
     return AgentMessage(

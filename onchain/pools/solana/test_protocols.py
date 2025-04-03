@@ -7,7 +7,7 @@ from onchain.pools.solana.orca_protocol import OrcaProtocol
 from onchain.pools.solana.save_protocol import SaveProtocol
 from onchain.pools.solana.kamino_protocol import KaminoProtocol
 from api.api_types import Chain, Pool, PoolQuery
-from tokens.metadata import TokenMetadataRepo
+from onchain.tokens.metadata import TokenMetadataRepo
 
 
 class TestProtocols(unittest.TestCase):
@@ -18,7 +18,7 @@ class TestProtocols(unittest.TestCase):
             aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
             aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
         )
-        tokens_table = dynamodb.Table("sol_token_metadata")
+        tokens_table = dynamodb.Table("token_metadata_v2")
         self.token_metadata_repo = TokenMetadataRepo(tokens_table)
 
     def test_save(self):

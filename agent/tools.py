@@ -1,12 +1,12 @@
-from typing import List
+from typing import List, Optional
 
 from langgraph.graph.graph import RunnableConfig
 from langchain_core.tools import BaseTool, tool
 
+from onchain.tokens.metadata import TokenMetadataRepo, TokenMetadata
+
 from onchain.analytics.defillama_tools import (
-    show_defi_llama_protocol,
     show_defi_llama_global_tvl,
-    show_defi_llama_chain_tvl,
     show_defi_llama_top_pools,
     show_defi_llama_historical_global_tvl,
     show_defi_llama_historical_chain_tvl,
@@ -15,12 +15,11 @@ from api.api_types import Pool, WalletTokenHolding, Chain, PoolQuery
 from onchain.analytics.analytics_tools import (
     max_drawdown_for_token,
     portfolio_volatility,
-    analyze_volatility_trend,
     analyze_price_trend,
-    compare_assets,
     analyze_wallet_portfolio,
+    get_coingecko_current_price,
 )
-from onchain.memecoins.trending import get_trending_tokens_on_solana
+from onchain.memecoins.trending import get_trending_tokens
 from onchain.pools.protocol import ProtocolRegistry
 
 
@@ -52,17 +51,27 @@ def create_investor_agent_toolkit() -> List[BaseTool]:
     ]
 
 
-def create_analytics_agent_toolkit() -> List[BaseTool]:
+def create_analytics_agent_toolkit(
+    token_metadata_repo: TokenMetadataRepo,
+) -> List[BaseTool]:
+
+    @tool
+    def search_token(
+        token: str, chain: Optional[str] = None
+    ) -> Optional[TokenMetadata]:
+        """Search for a token by name or symbol. Returns metadata for the first token found."""
+        return token_metadata_repo.search_token(token, chain)
+
     return [
         show_defi_llama_global_tvl,
         show_defi_llama_historical_global_tvl,
         show_defi_llama_historical_chain_tvl,
         show_defi_llama_top_pools,
         analyze_price_trend,
-        compare_assets,
         max_drawdown_for_token,
         portfolio_volatility,
-        analyze_volatility_trend,
         analyze_wallet_portfolio,
-        get_trending_tokens_on_solana,
+        get_trending_tokens,
+        get_coingecko_current_price,
+        search_token,
     ]
