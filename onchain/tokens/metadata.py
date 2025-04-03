@@ -4,12 +4,10 @@ import requests
 from typing import Optional, List
 import logging
 import botocore
-from cachetools import TTLCache, LRUCache
+from cachetools import TTLCache, LRUCache, cached
 from ratelimit import limits, sleep_and_retry
 from ratelimit.exception import RateLimitException
 import time
-from cachetools import cachedmethod
-
 
 @dataclass
 class TokenMetadata:
@@ -46,7 +44,7 @@ class TokenMetadataRepo:
     ## Search token
     ##
 
-    @cachedmethod(cache=TTLCache(maxsize=100_000, ttl=60 * 60))
+    @cached(cache=TTLCache(maxsize=100_000, ttl=60 * 60))
     def search_token(self, token: str, chain: Optional[str]) -> Optional[TokenMetadata]:
         """Search for a token by name or symbol."""
         # Check if token is a valid address
