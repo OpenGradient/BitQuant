@@ -15,6 +15,8 @@ GOOGLE_GEMINI_20_FLASH_MODEL = (
 GOOGLE_GEMINI_FLASH_15_8B_MODEL = (
     "google/gemini-flash-1.5-8b"  # $0.0375/M input tokens; $0.15/M output tokens
 )
+
+LLAMA_3_1_405B_MODEL = "meta-llama/llama-3.1-405b-instruct" # $0.8/M input tokens; $0.8/M output tokens
 DEEPSEEK_CHAT_V3_MODEL = (
     "deepseek/deepseek-chat-v3-0324"  # $0.27/M input tokens; $1.1/M output tokens
 )
@@ -22,7 +24,7 @@ GROK_MODEL = "x-ai/grok-2-1212"  # $2/M input tokens; $10/M output tokens
 
 SUGGESTIONS_MODEL = GOOGLE_GEMINI_20_FLASH_MODEL
 ROUTING_MODEL = GOOGLE_GEMINI_FLASH_15_8B_MODEL
-REASONING_MODEL = GROK_MODEL
+REASONING_MODEL = LLAMA_3_1_405B_MODEL
 
 
 def create_routing_model() -> ChatOpenAI:
