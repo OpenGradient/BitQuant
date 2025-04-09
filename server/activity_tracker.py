@@ -3,14 +3,14 @@ from dataclasses import dataclass
 
 
 @dataclass
-class Points:
+class ActivityStats:
     """
-    A class for tracking points for users.
+    A class for tracking activity stats for users.
     """
     message_count: int
     successful_invites: int
 
-class PointsTracker:
+class ActivityTracker:
 
     """
     A class for tracking points for users.
@@ -41,10 +41,10 @@ class PointsTracker:
             ExpressionAttributeValues={':inc': 1}
         )
 
-    def get_points(self, user_address: str) -> Points:
+    def get_activity_stats(self, user_address: str) -> ActivityStats:
         """
         Get the message count and successful invites count for a user.
-        Returns Points with 0 for both counts if the user doesn't exist.
+        Returns ActivityStats with 0 for both counts if the user doesn't exist.
         """
         try:
             response = self.table.get_item(
@@ -52,9 +52,9 @@ class PointsTracker:
                 ProjectionExpression='message_count, successful_invites'
             )
             item = response.get('Item', {})
-            return Points(
+            return ActivityStats(
                 message_count=item.get('message_count', 0),
                 successful_invites=item.get('successful_invites', 0)
             )
         except Exception:
-            return Points(message_count=0, successful_invites=0)
+            return ActivityStats(message_count=0, successful_invites=0)

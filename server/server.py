@@ -24,8 +24,6 @@ from onchain.tokens.metadata import TokenMetadataRepo
 from onchain.tokens.solana_portfolio import PortfolioFetcher
 from api.api_types import (
     AgentChatRequest,
-    Pool,
-    UserMessage,
     AgentMessage,
     Message,
     AgentType,
@@ -52,7 +50,9 @@ from agent.tools import (
 from langchain_openai import ChatOpenAI
 from server.whitelist import TwoLigmaWhitelist
 from server.invitecode import InviteCodeManager
+from server.activity_tracker import ActivityTracker
 from server.utils import extract_patterns, convert_to_agent_msg
+
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
@@ -99,9 +99,12 @@ def create_flask_app() -> Flask:
     feedback_table = dynamodb.Table("twoligma_feedback")
     whitelist_table = dynamodb.Table("twoligma_whitelist")
     invite_codes_table = dynamodb.Table("twoligma_invite_codes")
+    activity_table = dynamodb.Table("twoligma_activity")
 
+    # Services
     whitelist = TwoLigmaWhitelist(whitelist_table)
     invite_manager = InviteCodeManager(invite_codes_table)
+    activity_tracker = ActivityTracker(activity_table)
 
     # Token data
     token_metadata_repo = TokenMetadataRepo(tokens_table)
