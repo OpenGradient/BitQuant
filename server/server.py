@@ -103,8 +103,8 @@ def create_flask_app() -> Flask:
 
     # Services
     whitelist = TwoLigmaWhitelist(whitelist_table)
-    invite_manager = InviteCodeManager(invite_codes_table)
     activity_tracker = ActivityTracker(activity_table)
+    invite_manager = InviteCodeManager(invite_codes_table, activity_tracker)
 
     # Token data
     token_metadata_repo = TokenMetadataRepo(tokens_table)
@@ -220,6 +220,10 @@ def create_flask_app() -> Flask:
             analytics_agent=analytics_agent,
             router_model=router_model,
         )
+
+        # Increment message count
+        activity_tracker.increment_message_count(agent_request.context.address)
+
         return jsonify(
             response.model_dump() if hasattr(response, "model_dump") else response
         )
@@ -333,8 +337,8 @@ def create_flask_app() -> Flask:
             logger.error(f"Error using invite code: {e}")
             return jsonify({"error": "Internal server error"}), 500
 
-    @app.route("/api/invite/stats", methods=["GET"])
-    def get_invite_stats():
+    @app.route("/api/activity/stats", methods=["GET"])
+    def get_activity_stats():
         try:
             address = request.args.get("address")
             if not address:
@@ -347,10 +351,10 @@ def create_flask_app() -> Flask:
                     403,
                 )
 
-            stats = invite_manager.get_invite_stats(address)
+            stats = activity_tracker.get_activity_stats(address)
             return jsonify(stats)
         except Exception as e:
-            logger.error(f"Error getting invite stats: {e}")
+            logger.error(f"Error getting activity stats: {e}")
             return jsonify({"error": "Internal server error"}), 500
 
     return app
