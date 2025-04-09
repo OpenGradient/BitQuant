@@ -13,6 +13,7 @@ RUN apt-get update && \
 COPY requirements.txt .
 
 # Install Python dependencies
+RUN pip install --no-cache-dir wheel
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
