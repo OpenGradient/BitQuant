@@ -322,7 +322,6 @@ def get_coingecko_current_price(
         }
 
 
-@tool()
 def get_coingecko_price_range(
     token_symbol: str,
     candle_interval: CandleInterval,
@@ -460,11 +459,9 @@ def get_coingecko_price_history(
         now = int(datetime.now(UTC).timestamp())
 
         if candle_interval == CandleInterval.HOUR:
-            interval = "hourly"
             seconds_per_candle = 60 * 60
             max_candles = 744  # API limit for hourly data
         else:
-            interval = "daily"
             seconds_per_candle = 60 * 60 * 24
             max_candles = 180  # API limit for daily data
 
