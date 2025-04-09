@@ -5,10 +5,9 @@ OpenQuant is an open-source AI agent framework for building AI Quant agents for 
 ## Structure
 
 - `agent`: contains the agent logic and tool definitions
-- `defi`: DeFi protocol metrics and toolkit
+- `api`: Server API input/output types
+- `onchain`: Contains all classes that pull data about tokens, pools, etc
 - `server`: contains Flask server that exposes API to interact with agent
-- `strategies`: contains different strategies for portfolio allocation and optimization to be used by the agent
-- `static`: contains the list of Solana tokens the agent currently supports
 - `templates`: LLM prompt templates for agent
 
 ## Setup
