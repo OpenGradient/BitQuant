@@ -1,7 +1,6 @@
 from typing import Dict, Any, List, Tuple, Optional
 from langchain_core.tools import tool
 from langgraph.graph.graph import RunnableConfig
-from sklearn.linear_model import LinearRegression
 import traceback
 import numpy as np
 from enum import StrEnum
