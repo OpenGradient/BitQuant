@@ -429,7 +429,6 @@ def get_coingecko_price_range(
         }
 
 
-@tool()
 def get_coingecko_price_history(
     token_symbol: str,
     candle_interval: CandleInterval,
@@ -476,13 +475,11 @@ def get_coingecko_price_history(
         )
 
         # Use the range endpoint
-        price_data = get_coingecko_price_range.invoke(
-            {
-                "token_symbol": token_symbol,
-                "candle_interval": candle_interval,
-                "from_timestamp": from_timestamp,
-                "to_timestamp": now,
-            }
+        price_data = get_coingecko_price_range(
+            token_symbol=token_symbol,
+            candle_interval=candle_interval,
+            from_timestamp=from_timestamp,
+            to_timestamp=now,
         )
 
         if "error" in price_data:
@@ -527,13 +524,12 @@ def analyze_price_trend(
     """
     try:
         # Get the price history first
-        price_data = get_coingecko_price_history.invoke(
-            {
-                "token_symbol": token_symbol,
-                "candle_interval": candle_interval,
-                "num_candles": num_candles,
-            }
+        price_data = get_coingecko_price_history(
+            token_symbol=token_symbol,
+            candle_interval=candle_interval,
+            num_candles=num_candles,
         )
+        print(price_data)
 
         # Check for errors in price data
         if "error" in price_data:
@@ -761,12 +757,10 @@ def compare_assets(
     for token_symbol in token_symbols:
         try:
             # Get price data first to check for errors
-            price_data = get_coingecko_price_history.invoke(
-                {
-                    "token_symbol": token_symbol,
-                    "candle_interval": candle_interval,
-                    "num_candles": num_candles,
-                }
+            price_data = get_coingecko_price_history(
+                token_symbol=token_symbol,
+                candle_interval=candle_interval,
+                num_candles=num_candles,
             )
 
             # Check for errors in price data
@@ -776,12 +770,10 @@ def compare_assets(
                 continue
 
             # Now get the analysis
-            analysis = analyze_price_trend.invoke(
-                {
-                    "token_symbol": token_symbol,
-                    "candle_interval": candle_interval,
-                    "num_candles": num_candles,
-                }
+            analysis = analyze_price_trend(
+                token_symbol=token_symbol,
+                candle_interval=candle_interval,
+                num_candles=num_candles,
             )
 
             # Skip if there was an error
@@ -1048,12 +1040,10 @@ def max_drawdown_for_token(
     """
     try:
         # Get price data from CoinGecko
-        price_data = get_coingecko_price_history.invoke(
-            {
-                "token_symbol": token_symbol,
-                "candle_interval": candle_interval,
-                "num_candles": num_candles,
-            }
+        price_data = get_coingecko_price_history(
+            token_symbol=token_symbol,
+            candle_interval=candle_interval,
+            num_candles=num_candles,
         )
 
         if "error" in price_data:
@@ -1112,12 +1102,10 @@ def analyze_wallet_portfolio(
                 symbol = token.get("symbol")
                 amount = token.get("amount")
 
-            price_data = get_coingecko_price_history.invoke(
-                {
-                    "token_symbol": symbol,
-                    "candle_interval": candle_interval,
-                    "num_candles": num_candles,
-                }
+            price_data = get_coingecko_price_history(
+                token_symbol=symbol,
+                candle_interval=candle_interval,
+                num_candles=num_candles,
             )
 
             if "error" in price_data:
@@ -1378,12 +1366,10 @@ def portfolio_value(
         all_price_data = []
 
         for token_symbol in token_symbols:
-            price_data = get_coingecko_price_history.invoke(
-                {
-                    "token_symbol": token_symbol,
-                    "candle_interval": candle_interval,
-                    "num_candles": num_candles,
-                }
+            price_data = get_coingecko_price_history(
+                token_symbol=token_symbol,
+                candle_interval=candle_interval,
+                num_candles=num_candles,
             )
 
             if "error" in price_data:
@@ -1436,12 +1422,10 @@ def portfolio_volatility(
         all_price_data = []
 
         for token_symbol in token_symbols:
-            price_data = get_coingecko_price_history.invoke(
-                {
-                    "token_symbol": token_symbol,
-                    "candle_interval": candle_interval,
-                    "num_candles": num_candles,
-                }
+            price_data = get_coingecko_price_history(
+                token_symbol=token_symbol,
+                candle_interval=candle_interval,
+                num_candles=num_candles,
             )
 
             if "error" in price_data:
@@ -1520,12 +1504,10 @@ def analyze_volatility_trend(
     """
     try:
         # Get price data from CoinGecko
-        price_data = get_coingecko_price_history.invoke(
-            {
-                "token_symbol": token_symbol,
-                "candle_interval": candle_interval,
-                "num_candles": num_candles,
-            }
+        price_data = get_coingecko_price_history(
+            token_symbol=token_symbol,
+            candle_interval=candle_interval,
+            num_candles=num_candles,
         )
 
         if "error" in price_data:
