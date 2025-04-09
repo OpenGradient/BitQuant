@@ -12,11 +12,6 @@ import requests
 from time import sleep
 from datetime import datetime, timedelta, UTC
 from cachetools import TTLCache
-import logging
-
-# Configure logging
-logger = logging.getLogger(__name__)
-
 
 class CandleInterval(StrEnum):
     """Candle interval options for price data"""
@@ -212,8 +207,8 @@ token_service = TokenMappingService()
 class CoingeckoAPIClient:
     """Client for interacting with the CoinGecko API"""
     
-    # Cache for price data (10-minute TTL)
-    price_data_cache = TTLCache(maxsize=1000, ttl=600)
+    # Cache for price data (1-minute TTL)
+    price_data_cache = TTLCache(maxsize=1000, ttl=60)
     
     def __init__(self, token_service: TokenMappingService):
         self.token_service = token_service
@@ -599,14 +594,6 @@ def get_coingecko_current_price(
 ) -> Dict[str, Any]:
     """
     Retrieve the current price data for a token.
-    
-    Args:
-        token_symbol: The token symbol or name to get data for
-        vs_currency: The currency to get price in (default: usd)
-        days: Number of days of data to retrieve (default: 1)
-        
-    Returns:
-        Dictionary with price data including current price
     """
     return coingecko_client.get_current_price(token_symbol, vs_currency, days)
 
@@ -621,16 +608,6 @@ def get_coingecko_price_range(
 ) -> Dict[str, Any]:
     """
     Retrieve historical price data for a token within a specific date range.
-    
-    Args:
-        token_symbol: The token symbol or name to get data for
-        candle_interval: Interval for candles (DAY or HOUR)
-        from_timestamp: Start timestamp in seconds
-        to_timestamp: End timestamp in seconds
-        vs_currency: The currency to get price in (default: usd)
-        
-    Returns:
-        Dictionary with historical price data
     """
     return coingecko_client.get_price_range(
         token_symbol, candle_interval, from_timestamp, to_timestamp, vs_currency
@@ -645,14 +622,6 @@ def get_coingecko_price_history(
 ) -> Dict[str, Any]:
     """
     Retrieve recent historical price data for a token.
-    
-    Args:
-        token_symbol: The token symbol or name to get data for
-        candle_interval: Interval for candles (DAY or HOUR)
-        num_candles: Number of candles to fetch
-        
-    Returns:
-        Dictionary with recent historical price data
     """
     return coingecko_client.get_price_history(token_symbol, candle_interval, num_candles)
 
@@ -861,14 +830,6 @@ def analyze_price_trend(
     """
     Analyzes price trend for a token including moving averages, volatility metrics,
     and enhanced technical indicators over the specified time period.
-    
-    Args:
-        token_symbol: The token symbol or name to analyze
-        candle_interval: Interval for candles (DAY or HOUR)
-        num_candles: Number of candles to analyze
-        
-    Returns:
-        Dictionary with technical analysis results
     """
     try:
         # Get the price history first
@@ -986,14 +947,6 @@ def compare_assets(
 ) -> Dict[str, Any]:
     """
     Compare performance of multiple crypto assets with simplified insights for average investors.
-    
-    Args:
-        token_symbols: List of token symbols or names to compare
-        candle_interval: Interval for candles (DAY or HOUR)
-        num_candles: Number of candles to analyze
-        
-    Returns:
-        Dictionary with comparative analysis results
     """
     results = {}
     detailed_results = {}
