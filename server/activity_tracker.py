@@ -1,5 +1,7 @@
 from boto3.resources.base import ServiceResource
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Optional
 
 
 @dataclass
@@ -11,6 +13,9 @@ class ActivityStats:
     message_count: int
     successful_invites: int
     points: int
+    daily_message_count: int
+    daily_message_limit: int
+    last_message_date: Optional[str]
 
 
 class ActivityTracker:
@@ -18,21 +23,55 @@ class ActivityTracker:
     A class for tracking points for users.
     """
 
+    DAILY_MESSAGE_LIMIT = 40
+
     def __init__(self, table: ServiceResource):
         """
         Initialize the PointsTracker with a DynamoDB table.
         """
         self.table = table
 
-    def increment_message_count(self, user_address: str):
+    def increment_message_count(self, user_address: str) -> bool:
         """
         Increment the message count for a user.
+        Returns True if the message was counted, False if the daily limit was reached.
         """
-        self.table.update_item(
-            Key={"user_address": user_address},
-            UpdateExpression="ADD message_count :inc",
-            ExpressionAttributeValues={":inc": 1},
-        )
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+        try:
+            response = self.table.get_item(
+                Key={"user_address": user_address},
+                ProjectionExpression="message_count, last_message_date, daily_message_count",
+            )
+            item = response.get("Item", {})
+
+            last_message_date = item.get("last_message_date")
+            daily_message_count = item.get("daily_message_count", 0)
+
+            # Reset daily count if it's a new day
+            if last_message_date != today:
+                daily_message_count = 0
+
+            # Check if daily limit reached
+            if daily_message_count >= self.DAILY_MESSAGE_LIMIT:
+                return False
+
+            # Update both total and daily message counts
+            self.table.update_item(
+                Key={"user_address": user_address},
+                UpdateExpression="SET message_count = if_not_exists(message_count, :zero) + :inc, "
+                "daily_message_count = :daily_count, "
+                "last_message_date = :today",
+                ExpressionAttributeValues={
+                    ":inc": 1,
+                    ":zero": 0,
+                    ":daily_count": daily_message_count + 1,
+                    ":today": today,
+                },
+            )
+            return True
+        except Exception:
+            return False
 
     def increment_successful_invites(self, user_address: str):
         """
@@ -52,18 +91,30 @@ class ActivityTracker:
         try:
             response = self.table.get_item(
                 Key={"user_address": user_address},
-                ProjectionExpression="message_count, successful_invites",
+                ProjectionExpression="message_count, successful_invites, daily_message_count, last_message_date",
             )
             item = response.get("Item", {})
 
             message_count = item.get("message_count", 0)
             successful_invites = item.get("successful_invites", 0)
+            daily_message_count = item.get("daily_message_count", 0)
+            last_message_date = item.get("last_message_date")
             points = message_count + (successful_invites * 30)
 
             return ActivityStats(
                 message_count=message_count,
                 successful_invites=successful_invites,
                 points=points,
+                daily_message_count=daily_message_count,
+                daily_message_limit=self.DAILY_MESSAGE_LIMIT,
+                last_message_date=last_message_date,
             )
         except Exception:
-            return ActivityStats(message_count=0, successful_invites=0, points=0)
+            return ActivityStats(
+                message_count=0,
+                successful_invites=0,
+                points=0,
+                daily_message_count=0,
+                daily_message_limit=self.DAILY_MESSAGE_LIMIT,
+                last_message_date=None,
+            )
