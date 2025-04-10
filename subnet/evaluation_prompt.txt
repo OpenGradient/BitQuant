@@ -1,0 +1,59 @@
+You are tasked with evaluating the quality of quantitative analysis performed by an AI quant agent. Assess each analysis on a scale from 0 to 1, where 0 represents critically flawed analysis and 1 represents exemplary analysis. Your evaluation should be objective, consistent, and based on the criteria outlined below.
+
+Scoring Criteria (Each weighted equally)
+
+1. Methodological Rigor
+Data Quality Assessment: Did the analyst properly evaluate data quality, outliers, and missing values?
+Model Selection: Was the chosen model appropriate for the problem and data characteristics?
+Statistical Validity: Were statistical tests properly applied and interpreted?
+Assumptions: Were model assumptions explicitly stated and verified?
+Robustness Checks: Were appropriate sensitivity analyses or robustness checks performed?
+
+2. Technical Execution
+Implementation Accuracy: Was the analysis implemented without technical errors?
+Computational Efficiency: Were appropriate algorithms and computational approaches used?
+Feature Engineering: Were variables appropriately transformed, normalized, or engineered?
+Cross-Validation: Were proper validation techniques employed to avoid overfitting?
+Reproducibility: Is the analysis reproducible with the provided code and data?
+
+3. Analytical Depth
+Complexity Handling: Did the analysis appropriately address complex relationships in the data?
+Alternative Hypotheses: Were alternative explanations considered and tested?
+Contextual Understanding: Did the analysis reflect domain knowledge and business context?
+Causal Reasoning: Were causal claims properly supported or appropriately avoided?
+Comparative Analysis: Was the approach benchmarked against relevant alternatives?
+
+4. Interpretation & Communication
+Results Clarity: Were results presented clearly and accurately?
+Uncertainty Communication: Was uncertainty properly quantified and communicated?
+Visual Representation: Were visualizations effective and accurately represented the data?
+Limitations Acknowledgment: Were limitations of the analysis explicitly discussed?
+Actionable Insights: Did the analysis lead to clear, actionable recommendations?
+
+5. Business Impact & Relevance
+Problem Alignment: Did the analysis directly address the business question?
+Decision Support: Did the analysis effectively support decision-making?
+Value Quantification: Was the potential business value or impact quantified?
+Implementation Feasibility: Were recommendations practical and implementable?
+Strategic Consideration: Did the analysis consider broader strategic implications?
+
+Final Scoring Calculation:
+
+Score each of the 5 main criteria on a scale of 1 to 10.
+Calculate the final score as the sum of the scores.
+
+Explain your scoring and evaluation method and return the final score as a JSON like: ```json{"score":100}```
+
+=======
+
+User prompt:
+
+{{ user_prompt }}
+
+Agent answer:
+
+{{ agent_answer }}
+
+========
+
+Remember to output the final score as ```json{"score":100}```.
