@@ -15,8 +15,6 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-import typing
-import bittensor as bt
 from pydantic import BaseModel
 
 class QuantQuery(BaseModel):
@@ -50,55 +48,3 @@ class QuantResponse(BaseModel):
         # TODO(developer): Implement validation logic for the proofs
         return True
 
-
-class QuantSynapse(bt.Synapse):
-    """
-    A simple protocol representation which uses bt.Synapse as its base.
-    This protocol helps in handling request and response communication between
-    the miner and the validator.
-
-    Attributes:
-    - query: A QuantQuery object representing the input request sent by the validator.
-    - response: An optional QuantResponse object which, when filled, represents the response from the miner.
-    """
-    
-    # Add model configuration to allow arbitrary types
-    model_config = {"arbitrary_types_allowed": True}
-    
-    # Required request input, filled by sending dendrite caller.
-    query: typing.Optional[QuantQuery] = None
-
-    # Optional request output, filled by receiving axon.
-    response: typing.Optional[QuantResponse] = None
-
-    def __init__(self, query: typing.Optional[QuantQuery] = None, **kwargs):
-        """
-        Initializes the QuantSynapse with the given parameters.
-        This handles either direct instantiation with query or through unpacking attributes.
-        """
-        # Call the parent class constructor with all kwargs except query
-        new_kwargs = {k: v for k, v in kwargs.items() if k != 'query'}
-        super().__init__(**new_kwargs)
-        
-        # Set the query if provided
-        if query is not None:
-            self.query = query
-
-
-    def deserialize(self) -> QuantResponse:
-        """
-        Deserialize the response. This method retrieves the response from
-        the miner in the form of response, deserializes it and returns it
-        as the output of the dendrite.query() call.
-
-        Returns:
-        - QuantResponse: The deserialized response, which in this case is the value of response.
-
-        Example:
-        Assuming a QuantSynapse instance has a response value filled:
-        >>> synapse_instance = QuantSynapse(query=QuantQuery("example", "0x123", {}))
-        >>> synapse_instance.response = QuantResponse("response_data", b'signature', [b'proof1'], {})
-        >>> synapse_instance.deserialize()
-        QuantResponse("response_data", b'signature', [b'proof1'], {})
-        """
-        return self.response
