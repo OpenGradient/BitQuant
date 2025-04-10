@@ -48,7 +48,9 @@ def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) ->
     Returns:
         float: A score representing the evaluation of the query and response.
     """
-    evaluation_model = create_evaluation_model()
+    global evaluation_model
+    if evaluation_model is None:
+        evaluation_model = create_evaluation_model()
 
     # Use jinja2 to render the prompt
     template = env.get_template("evaluation_prompt.txt")
