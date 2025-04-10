@@ -15,7 +15,6 @@ class ActivityStats:
     points: int
     daily_message_count: int
     daily_message_limit: int
-    last_message_date: Optional[str]
 
 
 class ActivityTracker:
@@ -101,13 +100,17 @@ class ActivityTracker:
             last_message_date = item.get("last_message_date")
             points = message_count + (successful_invites * 30)
 
+            # Reset daily count if it's a new day
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            if last_message_date != today:
+                daily_message_count = 0
+
             return ActivityStats(
                 message_count=message_count,
                 successful_invites=successful_invites,
                 points=points,
                 daily_message_count=daily_message_count,
                 daily_message_limit=self.DAILY_MESSAGE_LIMIT,
-                last_message_date=last_message_date,
             )
         except Exception:
             return ActivityStats(
@@ -116,5 +119,4 @@ class ActivityTracker:
                 points=0,
                 daily_message_count=0,
                 daily_message_limit=self.DAILY_MESSAGE_LIMIT,
-                last_message_date=None,
             )
