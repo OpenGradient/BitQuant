@@ -2,8 +2,14 @@ from typing import List
 import jinja2
 
 from api.api_types import WalletTokenHolding, WalletPoolPosition, Message
+import os
 
-env = jinja2.Environment(loader=jinja2.FileSystemLoader("templates/"))
+# Get absolute path of the templates directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+templates_dir = os.path.join(parent_dir, "templates")
+
+env = jinja2.Environment(loader=jinja2.FileSystemLoader(templates_dir))
 
 investor_agent_template = env.get_template("investor_agent.jinja2")
 analytics_agent_template = env.get_template("analytics_agent.jinja2")
