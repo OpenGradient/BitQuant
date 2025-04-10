@@ -1,8 +1,32 @@
 import requests
 from typing import Dict, Any, List
 import logging
+import os
+import json
+import re
+
+import jinja2
+from openai import OpenAI
 
 from subnet.api_types import QuantQuery, QuantResponse
+
+
+env = jinja2.Environment(loader=jinja2.FileSystemLoader("./subnet"))
+
+GROK_MODEL = "x-ai/grok-2-1212"  # $2/M input tokens; $10/M output tokens
+BASE_URL = "https://openrouter.ai/api/v1"
+API_KEY = os.getenv("OPENROUTER_API_KEY")
+
+
+def create_evaluation_model() -> OpenAI:
+    return OpenAI(
+        model=GROK_MODEL,
+        temperature=0.0,
+        openai_api_base=BASE_URL,
+        openai_api_key=API_KEY,
+        request_timeout=120,
+        default_headers={"X-Title": "bitquant-evaluation"},
+    )
 
 
 def make_request(input_data: Dict[str, Any], endpoint: str) -> requests.Response:
@@ -24,8 +48,30 @@ def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) ->
     Returns:
         float: A score representing the evaluation of the query and response.
     """
-    # TODO: Evaluation logic based on quant_query and quant_response
-    return 1.0  
+    evaluation_model = create_evaluation_model()
+
+    # Use jinja2 to render the prompt
+    template = env.get_template("evaluation_prompt.txt")
+    prompt = template.render(
+        user_prompt=quant_query.query, 
+        agent_answer=quant_response.response)
+
+    response = evaluation_model.chat.completions.create(
+        model=GROK_MODEL,
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=5_000,
+        temperature=0.0,
+    )
+
+    # Parse the response
+    answer = response.choices[0].message.content
+
+    # Find ```json{...}``` in the answer
+    json_str = re.search(r"```json{(.*)}```", answer).group(1)
+    score = json.loads(json_str)["score"]
+
+    # Normalize the score to be between 0 and 1
+    return float(score) / 50
 
 def subnet_query(quant_query: QuantQuery) -> QuantResponse:
     """

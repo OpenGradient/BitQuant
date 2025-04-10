@@ -43,3 +43,13 @@ Score each of the 5 main criteria on a scale of 1 to 10.
 Calculate the final score as the sum of the scores.
 
 Explain your scoring and evaluation method and return the final score as a JSON like: ```json{"score":100}```
+
+=======
+
+User prompt:
+
+{{ user_prompt }}
+
+Agent answer:
+
+{{ agent_answer }}
