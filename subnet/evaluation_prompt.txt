@@ -53,3 +53,7 @@ User prompt:
 Agent answer:
 
 {{ agent_answer }}
+
+========
+
+Remember to output the final score as ```json{"score":100}```.
