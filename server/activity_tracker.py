@@ -10,6 +10,7 @@ class ActivityStats:
 
     message_count: int
     successful_invites: int
+    points: int
 
 
 class ActivityTracker:
@@ -54,9 +55,15 @@ class ActivityTracker:
                 ProjectionExpression="message_count, successful_invites",
             )
             item = response.get("Item", {})
+
+            message_count = item.get("message_count", 0)
+            successful_invites = item.get("successful_invites", 0)
+            points = message_count + (successful_invites * 10)
+
             return ActivityStats(
-                message_count=item.get("message_count", 0),
-                successful_invites=item.get("successful_invites", 0),
+                message_count=message_count,
+                successful_invites=successful_invites,
+                points=points,
             )
         except Exception:
-            return ActivityStats(message_count=0, successful_invites=0)
+            return ActivityStats(message_count=0, successful_invites=0, points=0)
