@@ -210,6 +210,10 @@ def create_flask_app() -> Flask:
         if not whitelist.is_allowed(agent_request.context.address):
             return jsonify({"error": "Address is not whitelisted"}), 400
 
+        # Increment message count, return 403 if limit reached
+        if not activity_tracker.increment_message_count(agent_request.context.address):
+            return jsonify({"error": "Daily message limit reached"}), 403
+
         portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
         response = handle_agent_chat_request(
             token_metadata_repo=token_metadata_repo,
@@ -220,9 +224,6 @@ def create_flask_app() -> Flask:
             analytics_agent=analytics_agent,
             router_model=router_model,
         )
-
-        # Increment message count
-        activity_tracker.increment_message_count(agent_request.context.address)
 
         return jsonify(
             response.model_dump() if hasattr(response, "model_dump") else response
