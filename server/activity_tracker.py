@@ -58,7 +58,7 @@ class ActivityTracker:
 
             message_count = item.get("message_count", 0)
             successful_invites = item.get("successful_invites", 0)
-            points = message_count + (successful_invites * 10)
+            points = message_count + (successful_invites * 30)
 
             return ActivityStats(
                 message_count=message_count,
