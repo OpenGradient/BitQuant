@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>X Tweet Monitor</title>
+  <style>
+    body {
+      width: 400px;
+      max-height: 600px;
+      padding: 10px;
+      font-family: Arial, sans-serif;
+      overflow-y: auto;
+    }
+    .tweet {
+      border: 1px solid #e1e8ed;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+      background-color: white;
+    }
+    .tweet-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .author-name {
+      font-weight: bold;
+      margin-right: 5px;
+    }
+    .author-handle {
+      color: #657786;
+    }
+    .tweet-text {
+      margin-bottom: 8px;
+      white-space: pre-wrap;
+    }
+    .tweet-metrics {
+      display: flex;
+      gap: 15px;
+      color: #657786;
+      font-size: 14px;
+    }
+    .timestamp {
+      color: #657786;
+      font-size: 12px;
+      margin-top: 5px;
+    }
+    .no-tweets {
+      text-align: center;
+      color: #657786;
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div id="tweets-container">
+    <div class="no-tweets">No tweets detected yet. Browse X.com to see tweets here.</div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html> 
