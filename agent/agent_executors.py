@@ -37,7 +37,7 @@ GROK_MODEL = "x-ai/grok-2-1212"  # $2/M input tokens; $10/M output tokens
 
 
 # Select model based on configuration
-if config.SUBNET_MODE:
+if not config.SUBNET_MODE:
     SUGGESTIONS_MODEL = GOOGLE_GEMINI_20_FLASH_MODEL
     ROUTING_MODEL = GOOGLE_GEMINI_FLASH_15_8B_MODEL
     REASONING_MODEL = GROK_MODEL
