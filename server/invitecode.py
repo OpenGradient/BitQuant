@@ -4,6 +4,8 @@ import logging
 from datetime import datetime
 from boto3.resources.base import ServiceResource
 
+from server.activity_tracker import ActivityTracker
+
 logger = logging.getLogger(__name__)
 
 
@@ -12,8 +14,9 @@ class InviteCodeManager:
 
     MAX_UNUSED_CODES = 1000
 
-    def __init__(self, table: ServiceResource):
+    def __init__(self, table: ServiceResource, activity_tracker: ActivityTracker):
         self.table = table
+        self.activity_tracker = activity_tracker
 
     def generate_invite_code(self, creator_address: str) -> Optional[str]:
         """Generate a new invite code for a whitelisted user."""
@@ -78,6 +81,11 @@ class InviteCodeManager:
                     ":used_by": user_address,
                     ":used_at": int(datetime.now().timestamp()),
                 },
+            )
+
+            # Increment creator's successful invites count
+            self.activity_tracker.increment_successful_invites(
+                invite["creator_address"]
             )
 
             return True

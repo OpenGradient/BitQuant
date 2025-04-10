@@ -24,8 +24,6 @@ from onchain.tokens.metadata import TokenMetadataRepo
 from onchain.tokens.solana_portfolio import PortfolioFetcher
 from api.api_types import (
     AgentChatRequest,
-    Pool,
-    UserMessage,
     AgentMessage,
     Message,
     AgentType,
@@ -52,7 +50,9 @@ from agent.tools import (
 from langchain_openai import ChatOpenAI
 from server.whitelist import TwoLigmaWhitelist
 from server.invitecode import InviteCodeManager
+from server.activity_tracker import ActivityTracker
 from server.utils import extract_patterns, convert_to_agent_msg
+
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
@@ -99,9 +99,12 @@ def create_flask_app() -> Flask:
     feedback_table = dynamodb.Table("twoligma_feedback")
     whitelist_table = dynamodb.Table("twoligma_whitelist")
     invite_codes_table = dynamodb.Table("twoligma_invite_codes")
+    activity_table = dynamodb.Table("twoligma_activity")
 
+    # Services
     whitelist = TwoLigmaWhitelist(whitelist_table)
-    invite_manager = InviteCodeManager(invite_codes_table)
+    activity_tracker = ActivityTracker(activity_table)
+    invite_manager = InviteCodeManager(invite_codes_table, activity_tracker)
 
     # Token data
     token_metadata_repo = TokenMetadataRepo(tokens_table)
@@ -217,6 +220,10 @@ def create_flask_app() -> Flask:
             analytics_agent=analytics_agent,
             router_model=router_model,
         )
+
+        # Increment message count
+        activity_tracker.increment_message_count(agent_request.context.address)
+
         return jsonify(
             response.model_dump() if hasattr(response, "model_dump") else response
         )
@@ -330,8 +337,8 @@ def create_flask_app() -> Flask:
             logger.error(f"Error using invite code: {e}")
             return jsonify({"error": "Internal server error"}), 500
 
-    @app.route("/api/invite/stats", methods=["GET"])
-    def get_invite_stats():
+    @app.route("/api/activity/stats", methods=["GET"])
+    def get_activity_stats():
         try:
             address = request.args.get("address")
             if not address:
@@ -344,10 +351,10 @@ def create_flask_app() -> Flask:
                     403,
                 )
 
-            stats = invite_manager.get_invite_stats(address)
+            stats = activity_tracker.get_activity_stats(address)
             return jsonify(stats)
         except Exception as e:
-            logger.error(f"Error getting invite stats: {e}")
+            logger.error(f"Error getting activity stats: {e}")
             return jsonify({"error": "Internal server error"}), 500
 
     return app

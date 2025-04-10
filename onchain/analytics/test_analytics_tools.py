@@ -2,10 +2,8 @@ import unittest
 from langgraph.graph.graph import RunnableConfig
 
 from onchain.analytics.analytics_tools import (
-    get_coingecko_price_history,
-    portfolio_value,
+    get_coingecko_price_data,
     portfolio_volatility,
-    analyze_volatility_trend,
     analyze_wallet_portfolio,
     max_drawdown_for_token,
     compare_assets,
@@ -17,61 +15,30 @@ from onchain.analytics.analytics_tools import (
 class TestFinancialAnalyticsTools(unittest.TestCase):
 
     def test_get_coingecko_price_history(self):
-        response = get_coingecko_price_history.invoke(
-            {
-                "token_symbol": "BTC",
-                "candle_interval": CandleInterval.DAY,
-                "num_candles": 30,
-            }
+        response = get_coingecko_price_data(
+            token_symbol="BTC",
+            candle_interval=CandleInterval.DAY,
+            num_candles=30,
         )
 
         self.assertNotIn("error", response)
 
     def test_analyze_price_trend(self):
-        response = analyze_price_trend.invoke(
-            {
-                "token_symbol": "BTC",
-                "candle_interval": CandleInterval.DAY,
-                "num_candles": 90,
-            }
-        )
-
-        self.assertNotIn("error", response)
-        print(response)
-
-    def test_portfolio_value(self):
-        response = portfolio_value.invoke(
-            {
-                "token_symbols": ["BTC", "ETH"],
-                "token_quantities": [1, 2],
-                "candle_interval": CandleInterval.DAY,
-                "num_candles": 30,
-            }
+        response = analyze_price_trend(
+            token_symbol="BTC",
+            candle_interval=CandleInterval.DAY,
+            num_candles=90,
         )
 
         self.assertNotIn("error", response)
         print(response)
 
     def test_portfolio_volatility(self):
-        response = portfolio_volatility.invoke(
-            {
-                "token_symbols": ["BTC", "ETH"],
-                "token_quantities": [1, 2],
-                "candle_interval": CandleInterval.DAY,
-                "num_candles": 30,
-            }
-        )
-
-        self.assertNotIn("error", response)
-        print(response)
-
-    def test_analyze_volatility_trend(self):
-        response = analyze_volatility_trend.invoke(
-            {
-                "token_symbol": "BTC",
-                "candle_interval": CandleInterval.DAY,
-                "num_candles": 30,
-            }
+        response = portfolio_volatility(
+            token_symbols=["BTC", "ETH"],
+            token_quantities=[1, 2],
+            candle_interval=CandleInterval.DAY,
+            num_candles=30,
         )
 
         self.assertNotIn("error", response)
@@ -115,12 +82,10 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
 
     def test_btc_price_history_basic(self):
         """Test fetching Bitcoin price history with default parameters"""
-        btc_history = get_coingecko_price_history.invoke(
-            {
-                "token_symbol": "BTC",
-                "candle_interval": CandleInterval.DAY,
-                "num_candles": 30,
-            }
+        btc_history = get_coingecko_price_data(
+            token_symbol="BTC",
+            candle_interval=CandleInterval.DAY,
+            num_candles=30,
         )
 
         # Verify response structure
@@ -138,12 +103,10 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
 
     def test_eth_custom_interval(self):
         """Test fetching Ethereum price history with custom time interval"""
-        eth_history = get_coingecko_price_history.invoke(
-            {
-                "token_symbol": "ETH",
-                "candle_interval": CandleInterval.HOUR,
-                "num_candles": 30,
-            }
+        eth_history = get_coingecko_price_data(
+            token_symbol="ETH",
+            candle_interval=CandleInterval.HOUR,
+            num_candles=30,
         )
 
         self.assertIsNotNone(eth_history)
@@ -154,24 +117,20 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
 
     def test_invalid_token_symbol(self):
         """Test error handling for invalid token symbol"""
-        response = get_coingecko_price_history.invoke(
-            {
-                "token_symbol": "INVALIDTOKEN",
-                "candle_interval": CandleInterval.DAY,
-                "num_candles": 30,
-            }
+        response = get_coingecko_price_data(
+            token_symbol="INVALIDTOKEN",
+            candle_interval=CandleInterval.DAY,
+            num_candles=30,
         )
         self.assertIn("error", response)
 
     def test_small_data_limit(self):
         """Test fetching price history with a small number of candles"""
         small_limit = 5
-        small_history = get_coingecko_price_history.invoke(
-            {
-                "token_symbol": "BTC",
-                "num_candles": small_limit,
-                "candle_interval": CandleInterval.DAY,
-            }
+        small_history = get_coingecko_price_data(
+            token_symbol="BTC",
+            num_candles=small_limit,
+            candle_interval=CandleInterval.DAY,
         )
 
         self.assertIn("data", small_history)
@@ -185,12 +144,10 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
 
     def test_candlestick_data_structure(self):
         """Test the structure and content of individual candlesticks"""
-        btc_history = get_coingecko_price_history.invoke(
-            {
-                "token_symbol": "BTC",
-                "candle_interval": CandleInterval.DAY,
-                "num_candles": 1,
-            }
+        btc_history = get_coingecko_price_data(
+            token_symbol="BTC",
+            candle_interval=CandleInterval.DAY,
+            num_candles=1,
         )
 
         data = btc_history.get("data", [])

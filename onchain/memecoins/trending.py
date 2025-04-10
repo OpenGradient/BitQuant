@@ -14,6 +14,8 @@ TRENDING_POOLS_URL = (
 
 CHAIN_REMAPPINGS = {
     "sui": "sui-network",
+    "ethereum": "eth",
+    "ethereum-network": "eth",
 }
 
 
