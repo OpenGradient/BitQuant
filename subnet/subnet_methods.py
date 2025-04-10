@@ -1,15 +1,9 @@
 import requests
 from typing import Dict, Any, List
 import logging
-import sys
-import os
 
-# Add parent directory to path to import protocol
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-from protocol import QuantQuery, QuantResponse
+from subnet.api_types import QuantQuery, QuantResponse
 
-# Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def make_request(input_data: Dict[str, Any], endpoint: str) -> requests.Response:
     """Make a POST request to the specified endpoint"""
