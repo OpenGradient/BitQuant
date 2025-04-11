@@ -8,10 +8,10 @@ import re
 import jinja2
 from openai import OpenAI
 
-from subnet.api_types import QuantQuery, QuantResponse
+from .api_types import QuantQuery, QuantResponse
 
-
-env = jinja2.Environment(loader=jinja2.FileSystemLoader("./subnet"))
+evaluation_model = None
+env = jinja2.Environment(loader=jinja2.FileSystemLoader(os.path.dirname(os.path.abspath(__file__))))
 
 GROK_MODEL = "x-ai/grok-2-1212"  # $2/M input tokens; $10/M output tokens
 BASE_URL = "https://openrouter.ai/api/v1"
