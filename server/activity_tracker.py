@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
+from config import MINER_WALLET_ADDRESS
+
 
 @dataclass
 class ActivityStats:
@@ -51,8 +53,8 @@ class ActivityTracker:
             if last_message_date != today:
                 daily_message_count = 0
 
-            # Check if daily limit reached
-            if daily_message_count >= self.DAILY_MESSAGE_LIMIT:
+            # Check if daily limit reached, except for Subnet miner wallet
+            if daily_message_count >= self.DAILY_MESSAGE_LIMIT and user_address != MINER_WALLET_ADDRESS:
                 return False
 
             # Update both total and daily message counts

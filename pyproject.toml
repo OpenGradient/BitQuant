@@ -1,7 +1,7 @@
 [project]
-name = "two-ligma"
+name = "bitquant"
 version = "0.1.0"
-description = "OpenGradient TwoLigma"
+description = "OpenGradient BitQuant"
 requires-python = ">=3.8"
 
 [tool.black]
