@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
-from config import MINER_WALLET_ADDRESS
+from server.config import MINER_WALLET_ADDRESS
 
 
 @dataclass
