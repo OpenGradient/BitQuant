@@ -20,12 +20,10 @@ API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 def create_evaluation_model() -> OpenAI:
     return OpenAI(
-        model=GROK_MODEL,
-        temperature=0.0,
-        openai_api_base=BASE_URL,
-        openai_api_key=API_KEY,
-        request_timeout=120,
-        default_headers={"X-Title": "bitquant-evaluation"},
+        base_url=BASE_URL,
+        api_key=API_KEY,
+        timeout=120.0,
+        default_headers={"X-Title": "bitquant-evaluation"}
     )
 
 
