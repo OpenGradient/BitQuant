@@ -42,7 +42,11 @@ def retrieve_solana_pools(
         user_tokens=user_tokens,
     )
 
-    return protocol_registry.get_pools(query)
+    pools = protocol_registry.get_pools(query)
+    if len(pools) == 0:
+        return "No pools found."
+
+    return pools
 
 
 def create_investor_agent_toolkit() -> List[BaseTool]:
