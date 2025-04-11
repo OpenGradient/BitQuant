@@ -115,7 +115,7 @@ Message = Union[UserMessage, AgentMessage]
 class Context(BaseModel):
     address: str  # wallet address
     conversationHistory: List[Message]
-    miner_token: str = ""
+    miner_token: Optional[str] = None
 
 
 class AgentChatRequest(BaseModel):
