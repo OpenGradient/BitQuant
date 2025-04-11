@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
-from config import MINER_WALLET_ADDRESS
+from config import MINER_TOKEN
 
 
 @dataclass
@@ -32,7 +32,7 @@ class ActivityTracker:
         """
         self.table = table
 
-    def increment_message_count(self, user_address: str) -> bool:
+    def increment_message_count(self, user_address: str, miner_token: str) -> bool:
         """
         Increment the message count for a user.
         Returns True if the message was counted, False if the daily limit was reached.
@@ -54,7 +54,7 @@ class ActivityTracker:
                 daily_message_count = 0
 
             # Check if daily limit reached, except for Subnet miner wallet
-            if daily_message_count >= self.DAILY_MESSAGE_LIMIT and user_address != MINER_WALLET_ADDRESS:
+            if daily_message_count >= self.DAILY_MESSAGE_LIMIT and miner_token != MINER_TOKEN :
                 return False
 
             # Update both total and daily message counts
