@@ -10,6 +10,7 @@ import requests
 from time import sleep
 from datetime import datetime, timedelta, UTC
 from cachetools import TTLCache
+from server.metrics import track_tool_usage
 
 
 class CandleInterval(StrEnum):
@@ -469,6 +470,7 @@ def get_coingecko_price_data(
 
 
 @tool()
+@track_tool_usage("analyze_price_trend")
 def analyze_price_trend(
     token_symbol: str, candle_interval: str, num_candles: int
 ) -> Dict[str, Any]:

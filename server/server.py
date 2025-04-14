@@ -14,6 +14,7 @@ import boto3
 import re
 from datetime import datetime
 from functools import wraps
+from datadog import initialize, statsd
 
 import boto3.data
 from onchain.pools.protocol import ProtocolRegistry
@@ -57,11 +58,17 @@ from server.utils import extract_patterns, convert_to_agent_msg
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
 
+# Initialize Datadog
+initialize(
+    api_key=os.environ.get("DD_API_KEY"),
+    app_key=os.environ.get("DD_APP_KEY"),
+    host_name=os.environ.get("DD_HOSTNAME", "localhost"),
+)
+
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
-
 
 # number of messages to send to agents
 NUM_MESSAGES_TO_KEEP = 6
@@ -505,22 +512,27 @@ def run_main_agent(
     config: RunnableConfig,
     protocol_registry: ProtocolRegistry,
 ) -> Dict[str, Any]:
-    # Run agent directly
-    result = agent.invoke({"messages": messages}, config=config, debug=False)
-    # Extract final state and last message
-    last_message = result["messages"][-1]
+    try:
+        # Run agent directly
+        result = agent.invoke({"messages": messages}, config=config, debug=False)
+        # Extract final state and last message
+        last_message = result["messages"][-1]
 
-    # Extract pool IDs and clean text
-    cleaned_text, pool_ids = extract_patterns(last_message.content, "pool")
+        # Extract pool IDs and clean text
+        cleaned_text, pool_ids = extract_patterns(last_message.content, "pool")
 
-    # Get full pool objects for the extracted pool IDs
-    pool_objects = protocol_registry.get_pools_by_ids(pool_ids)
+        # Get full pool objects for the extracted pool IDs
+        pool_objects = protocol_registry.get_pools_by_ids(pool_ids)
 
-    return {
-        "content": cleaned_text,
-        "pools": pool_objects,
-        "messages": result["messages"],
-    }
+        return {
+            "content": cleaned_text,
+            "pools": pool_objects,
+            "messages": result["messages"],
+        }
+    except Exception as e:
+        logger.error(f"Error running main agent: {e}")
+        statsd.increment('agent.failure', tags=['agent_type:main'])
+        raise
 
 
 def convert_to_agent_message_history(messages: List[Message]) -> List[Tuple[str, str]]:
@@ -590,38 +602,43 @@ def run_analytics_agent(
     messages: List,
     config: RunnableConfig,
 ) -> AgentMessage:
-    # Run agent directly
-    result = agent.invoke({"messages": messages}, config=config, debug=False)
+    try:
+        # Run agent directly
+        result = agent.invoke({"messages": messages}, config=config, debug=False)
 
-    # Extract final state and last message
-    last_message = result["messages"][-1]
-    cleaned_text, token_ids = extract_patterns(last_message.content, "token")
+        # Extract final state and last message
+        last_message = result["messages"][-1]
+        cleaned_text, token_ids = extract_patterns(last_message.content, "token")
 
-    token_metadata = [
-        token_metadata_repo.search_token(
-            parts[1] if len(parts) > 1 else parts[0],  # token part
-            parts[0] if len(parts) > 1 else None,  # chain part, None if no colon
+        token_metadata = [
+            token_metadata_repo.search_token(
+                parts[1] if len(parts) > 1 else parts[0],  # token part
+                parts[0] if len(parts) > 1 else None,  # chain part, None if no colon
+            )
+            for token_id in token_ids
+            for parts in [token_id.split(":", 1)]
+        ]
+        api_token_metadata = [
+            TokenMetadata(
+                address=token.address,
+                name=token.name,
+                symbol=token.symbol,
+                chain=token.chain,
+                price_usd=str(token.price),
+                market_cap_usd=str(token.market_cap_usd) if token.market_cap_usd else None,
+                dex_pool_address=token.dex_pool_address,
+                image_url=token.image_url,
+            )
+            for token in token_metadata
+            if token is not None
+        ]
+
+        return AgentMessage(
+            message=cleaned_text,
+            tokens=api_token_metadata,
+            pools=[],
         )
-        for token_id in token_ids
-        for parts in [token_id.split(":", 1)]
-    ]
-    api_token_metadata = [
-        TokenMetadata(
-            address=token.address,
-            name=token.name,
-            symbol=token.symbol,
-            chain=token.chain,
-            price_usd=str(token.price),
-            market_cap_usd=str(token.market_cap_usd) if token.market_cap_usd else None,
-            dex_pool_address=token.dex_pool_address,
-            image_url=token.image_url,
-        )
-        for token in token_metadata
-        if token is not None
-    ]
-
-    return AgentMessage(
-        message=cleaned_text,
-        tokens=api_token_metadata,
-        pools=[],
-    )
+    except Exception as e:
+        logger.error(f"Error running analytics agent: {e}")
+        statsd.increment('agent.failure', tags=['agent_type:analytics'])
+        raise

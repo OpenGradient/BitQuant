@@ -2,6 +2,7 @@ from typing import List, Optional
 
 from langgraph.graph.graph import RunnableConfig
 from langchain_core.tools import BaseTool, tool
+from server.metrics import track_tool_usage
 
 from onchain.tokens.metadata import TokenMetadataRepo, TokenMetadata
 
@@ -24,6 +25,7 @@ from onchain.pools.protocol import ProtocolRegistry
 
 
 @tool
+@track_tool_usage("retrieve_solana_pools")
 def retrieve_solana_pools(
     tokens: List[str] = None,
     config: RunnableConfig = None,
@@ -60,6 +62,7 @@ def create_analytics_agent_toolkit(
 ) -> List[BaseTool]:
 
     @tool
+    @track_tool_usage("search_token")
     def search_token(
         token: str, chain: Optional[str] = None
     ) -> Optional[TokenMetadata]:

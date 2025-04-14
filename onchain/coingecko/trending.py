@@ -5,6 +5,7 @@ from cachetools import cached, TTLCache
 
 from langchain_core.tools import BaseTool, tool
 from langgraph.graph.graph import RunnableConfig
+from server.metrics import track_tool_usage
 
 from api.api_types import TokenMetadata
 
@@ -23,6 +24,7 @@ CHAIN_REMAPPINGS = {
 
 
 @tool
+@track_tool_usage("get_trending_tokens")
 def get_trending_tokens(
     chain: str = "solana",
     config: RunnableConfig = None,
@@ -35,6 +37,7 @@ def get_trending_tokens(
 
 
 @tool
+@track_tool_usage("evaluate_token_risk")
 def evaluate_token_risk(
     token_address: str,
     chain: str = "solana",
