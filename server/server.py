@@ -418,6 +418,9 @@ def handle_investor_chat_request(
     protocol_registry: ProtocolRegistry,
 ) -> AgentMessage:
     """Handle requests for the investor agent."""
+    # Emit metric for investor agent usage
+    statsd.increment('agent.usage', tags=['agent_type:investor'])
+
     # Build investor agent system prompt
     investor_system_prompt = get_investor_agent_prompt(
         tokens=portfolio.holdings,
@@ -565,6 +568,8 @@ def handle_analytics_chat_request(
     portfolio: Portfolio,
     agent: CompiledGraph,
 ) -> AgentMessage:
+    # Emit metric for analytics agent usage
+    statsd.increment('agent.usage', tags=['agent_type:analytics'])
 
     # Build analytics agent system prompt
     analytics_system_prompt = get_analytics_prompt(
