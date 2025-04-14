@@ -50,21 +50,21 @@ def evaluate_token_risk(
 
     risk_analysis = {
         "trust_score": {
-            "overall": attributes.get("gt_score", 0),
+            "overall_score": attributes.get("gt_score", 0),
             "category_scores (out of 100)": {
-                "pool_quality (honeypot risk, buy/sell tax, proxy contract, liquidity amount)": attributes.get(
+                "pool_quality_score (honeypot risk, buy/sell tax, proxy contract, liquidity amount)": attributes.get(
                     "gt_score_details", {}
                 ).get(
                     "pool", 0
                 ),
-                "token_age": attributes.get("gt_score_details", {}).get("creation", 0),
-                "info_completeness": attributes.get("gt_score_details", {}).get(
+                "token_age_score": attributes.get("gt_score_details", {}).get("creation", 0),
+                "info_completeness_score": attributes.get("gt_score_details", {}).get(
                     "info", 0
                 ),
-                "transaction_volume": attributes.get("gt_score_details", {}).get(
+                "transaction_volume_score": attributes.get("gt_score_details", {}).get(
                     "transaction", 0
                 ),
-                "holders_distribution": attributes.get("gt_score_details", {}).get(
+                "holders_distribution_score": attributes.get("gt_score_details", {}).get(
                     "holders", 0
                 ),
             },
