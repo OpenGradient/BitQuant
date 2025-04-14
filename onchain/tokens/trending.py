@@ -51,7 +51,7 @@ def evaluate_token_risk(
     risk_analysis = {
         "trust_score": {
             "overall": attributes.get("gt_score", 0),
-            "breakdown": {
+            "category_scores (out of 100)": {
                 "pool_quality (honeypot risk, buy/sell tax, proxy contract, liquidity amount)": attributes.get(
                     "gt_score_details", {}
                 ).get(
