@@ -92,7 +92,11 @@ def create_flask_app() -> Flask:
     """Create and configure the Flask application with routes."""
     app = Flask(__name__)
     app.config["PROPAGATE_EXCEPTIONS"] = True
-    CORS(app)
+    CORS(app, origins=[
+        "https://bitquant.io",
+        "https://www.bitquant.io",
+        r"^http://localhost:(3000|3001|3002|4000|4200|5000|5173|8000|8080|8081|9000)$"
+    ])
 
     # Initialize DynamoDB
     dynamodb = boto3.resource(
