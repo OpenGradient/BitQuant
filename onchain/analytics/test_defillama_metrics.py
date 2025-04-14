@@ -2,7 +2,6 @@ import unittest
 from typing import List, Dict, Any
 from api.api_types import Chain, Pool, PoolQuery
 from onchain.analytics.defillama_tools import (
-    show_defi_llama_protocols,
     show_defi_llama_protocol,
     show_defi_llama_global_tvl,
     show_defi_llama_chain_tvl,

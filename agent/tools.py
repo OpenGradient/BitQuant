@@ -70,7 +70,6 @@ def create_analytics_agent_toolkit(
         return token_metadata_repo.search_token(token, chain)
 
     return [
-        show_defi_llama_global_tvl,
         show_defi_llama_historical_global_tvl,
         show_defi_llama_historical_chain_tvl,
         show_defi_llama_top_pools,
