@@ -143,7 +143,7 @@ def create_flask_app() -> Flask:
             logger.error(f"Request Body: {request.get_data(as_text=True)}")
             return jsonify({"error": str(e)}), 500
 
-    @app.route("/api/siwx/verify", methods=["POST"])
+    @app.route("/api/verify/solana", methods=["POST"])
     def verify_solana_signature():
         try:
             request_data = request.get_json()
