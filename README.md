@@ -8,7 +8,11 @@ OpenQuant is an open-source AI agent framework for building AI Quant agents for 
 - `api`: Server API input/output types
 - `onchain`: Contains all classes that pull data about tokens, pools, etc
 - `server`: contains Flask server that exposes API to interact with agent
+- `static`: Static assets for the web interface
+- `subnet`: Bittensor Subnet-related functionality
 - `templates`: LLM prompt templates for agent
+- `testclient`: Client for testing the API
+- `testutils`: Utility functions for testing
 
 ## Agents
 
