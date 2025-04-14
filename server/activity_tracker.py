@@ -24,7 +24,7 @@ class ActivityTracker:
     A class for tracking points for users.
     """
 
-    DAILY_MESSAGE_LIMIT = 20
+    DAILY_MESSAGE_LIMIT = 25
 
     def __init__(self, table: ServiceResource):
         """
