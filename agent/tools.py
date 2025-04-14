@@ -7,7 +7,6 @@ from server.metrics import track_tool_usage
 from onchain.tokens.metadata import TokenMetadataRepo, TokenMetadata
 
 from onchain.analytics.defillama_tools import (
-    show_defi_llama_global_tvl,
     show_defi_llama_top_pools,
     show_defi_llama_historical_global_tvl,
     show_defi_llama_historical_chain_tvl,
@@ -20,7 +19,7 @@ from onchain.analytics.analytics_tools import (
     analyze_wallet_portfolio,
     get_coingecko_current_price,
 )
-from onchain.coingecko.trending import get_trending_tokens, evaluate_token_risk
+from onchain.tokens.trending import get_trending_tokens, evaluate_token_risk
 from onchain.pools.protocol import ProtocolRegistry
 
 
