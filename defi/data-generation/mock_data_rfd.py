@@ -18,8 +18,70 @@ BTC_TIMESERIES_RFD = {
     }
 }
 
+SF_WEATHER_RFD = {
+    "rfd_id": "sf_weather_may_aug_001",
+    "name": "Synthetic Weather Data for San Francisco (May to August)",
+    "description": "A synthetic dataset containing daily weather information for San Francisco from May to August, including temperature, humidity, and precipitation.",
+    "schema": {
+        "type": "object",
+        "properties": {
+            "date": {"type": "string", "format": "date"},
+            "temperature": {"type": "number", "description": "Average daily temperature in degrees Fahrenheit"},
+            "humidity": {"type": "number", "description": "Average daily humidity percentage"},
+            "precipitation": {"type": "number", "description": "Daily precipitation in inches"}
+        },
+        "required": ["date", "temperature", "humidity", "precipitation"]
+    }
+}
+
+HEALTHCARE_PRESCRIPTIONS_RFD = {
+    "rfd_id": "healthcare_prescriptions_001",
+    "name": "Synthetic Healthcare Prescription Dataset",
+    "description": "A synthetic dataset detailing patient prescriptions, including patient demographics, medication details, dosage, and prescribing physician information.",
+    "schema": {
+        "type": "object",
+        "properties": {
+            "patient_id": {"type": "string"},
+            "age": {"type": "integer"},
+            "gender": {"type": "string", "enum": ["Male", "Female", "Other"]},
+            "medication": {"type": "string"},
+            "dosage": {"type": "string"},
+            "prescribing_physician": {"type": "string"},
+            "prescription_date": {"type": "string", "format": "date"}
+        },
+        "required": ["patient_id", "age", "gender", "medication", "dosage", "prescribing_physician", "prescription_date"]
+    }
+}
+
+GENERIC_RFD = {
+    "rfd_id": "UID",
+    "name": "name",
+    "description": "A request for a dataset with a specified schema.",
+    "schema": {
+        "type": "object",
+        "properties": {
+            "field1": {"type": "string", "description": "Example field representing textual data."},
+            "field2": {"type": "number", "description": "Example field representing numerical data."},
+            "field3": {"type": "boolean", "description": "Example field representing a boolean value."}
+        },
+        "required": ["field1", "field2"]
+    }
+}
+
 if __name__ == "__main__":
     print("Test: generate_synthetic_data_from_rfd (BTC timeseries)")
-    data = generate_synthetic_data_from_rfd.invoke({"rfd": BTC_TIMESERIES_RFD, "size": 10})
+    data = generate_synthetic_data_from_rfd.invoke({"rfd": BTC_TIMESERIES_RFD, "size": 3})
+    for row in data:
+        print(row)
+    print("\nTest: generate_synthetic_data_from_rfd (SF Weather)")
+    data = generate_synthetic_data_from_rfd.invoke({"rfd": SF_WEATHER_RFD, "size": 3})
+    for row in data:
+        print(row)
+    print("\nTest: generate_synthetic_data_from_rfd (Healthcare Prescriptions)")
+    data = generate_synthetic_data_from_rfd.invoke({"rfd": HEALTHCARE_PRESCRIPTIONS_RFD, "size": 3})
+    for row in data:
+        print(row)
+    print("\nTest: generate_synthetic_data_from_rfd (Generic RFD)")
+    data = generate_synthetic_data_from_rfd.invoke({"rfd": GENERIC_RFD, "size": 3})
     for row in data:
         print(row)
