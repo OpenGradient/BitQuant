@@ -30,7 +30,7 @@ from api.api_types import (
     Portfolio,
     FeedbackRequest,
     TokenMetadata,
-    SIWXVerifyRequest,
+    SolanaVerifyRequest,
 )
 from agent.agent_executors import (
     create_investor_executor,
@@ -144,12 +144,12 @@ def create_flask_app() -> Flask:
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/siwx/verify", methods=["POST"])
-    def verify_siwx_signature():
+    def verify_solana_signature():
         try:
             request_data = request.get_json()
-            verify_request = SIWXVerifyRequest(**request_data)
+            verify_request = SolanaVerifyRequest(**request_data)
 
-            token = service.verify_siwx_signature(verify_request)
+            token = service.verify_solana_signature(verify_request)
             return jsonify({"token": token})
 
         except ValidationError as e:
