@@ -19,6 +19,11 @@ class ActivityStats:
     daily_message_limit: int
 
 
+class PointsConfig:
+    POINTS_PER_MESSAGE = 1
+    POINTS_PER_SUCCESSFUL_INVITE = 150
+
+
 class ActivityTracker:
     """
     A class for tracking points for users.
@@ -103,7 +108,10 @@ class ActivityTracker:
             successful_invites = item.get("successful_invites", 0)
             daily_message_count = item.get("daily_message_count", 0)
             last_message_date = item.get("last_message_date")
-            points = message_count + (successful_invites * 30)
+            points = (
+                message_count * PointsConfig.POINTS_PER_MESSAGE
+                + successful_invites * PointsConfig.POINTS_PER_SUCCESSFUL_INVITE
+            )
 
             # Reset daily count if it's a new day
             today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
