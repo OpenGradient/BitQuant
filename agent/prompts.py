@@ -2,8 +2,14 @@ from typing import List
 import jinja2
 
 from api.api_types import WalletTokenHolding, WalletPoolPosition, Message
+import os
 
-env = jinja2.Environment(loader=jinja2.FileSystemLoader("templates/"))
+# Get absolute path of the templates directory
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+templates_dir = os.path.join(parent_dir, "templates")
+
+env = jinja2.Environment(loader=jinja2.FileSystemLoader(templates_dir))
 
 investor_agent_template = env.get_template("investor_agent.jinja2")
 analytics_agent_template = env.get_template("analytics_agent.jinja2")
@@ -47,6 +53,7 @@ def get_investor_agent_prompt(
 
 
 def get_suggestions_prompt(
+    conversation_history: List[Message],
     tokens: List[WalletTokenHolding],
     tools: str,
 ) -> str:
@@ -68,6 +75,7 @@ def get_suggestions_prompt(
 
     agent_prompt = suggestions_template.render(
         tokens=token_metadata,
+        conversation_history=conversation_history,
         tools=tools,
     )
 
@@ -102,6 +110,23 @@ def get_analytics_prompt(
 
 def get_router_prompt(message_history: List[Message], current_message: str) -> str:
     """Get the router prompt to determine which agent should handle the request."""
+
+    MAX_AGENT_MESSAGE_LENGTH = 400
+
+    # Truncate assistant response to 400 characters, also include the message type
+    message_history = [
+        {
+            "type": message.type,
+            "message": (
+                message.message[:MAX_AGENT_MESSAGE_LENGTH] + "..."
+                if message.type == "assistant"
+                and len(message.message) > MAX_AGENT_MESSAGE_LENGTH
+                else message.message
+            ),
+        }
+        for message in message_history
+    ]
+
     router_prompt = router_template.render(
         message_history=message_history,
         current_message=current_message,

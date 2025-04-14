@@ -6,7 +6,7 @@ from solana.rpc.api import Client
 from solana.rpc.types import TokenAccountOpts, Pubkey
 from solders.rpc.responses import RpcKeyedAccountJsonParsed
 
-from tokens.metadata import TokenMetadataRepo
+from onchain.tokens.metadata import TokenMetadataRepo
 from api.api_types import WalletTokenHolding, Portfolio
 
 
@@ -20,7 +20,7 @@ class PortfolioFetcher:
         self.token_metadata_repo = token_metadata_repo
         self.http_client = Client(self.RPC_URL)
 
-    @cachetools.func.ttl_cache(maxsize=1000, ttl=300)
+    @cachetools.func.ttl_cache(maxsize=10_000, ttl=300)
     def get_portfolio(self, wallet_address: str) -> Portfolio:
         """Get the complete portfolio of token holdings for a wallet address."""
         token_accounts = self.get_token_accounts(wallet_address)
@@ -43,7 +43,7 @@ class PortfolioFetcher:
                 continue
 
             # Get token metadata
-            metadata = self.token_metadata_repo.get_token_metadata(address)
+            metadata = self.token_metadata_repo.get_token_metadata(address, "solana")
             if metadata is None:
                 continue
 
@@ -76,7 +76,7 @@ class PortfolioFetcher:
 
         sol_amount = sol_balance / 1e9  # Convert lamports to SOL
         sol_metadata = self.token_metadata_repo.get_token_metadata(
-            PortfolioFetcher.SOL_MINT
+            PortfolioFetcher.SOL_MINT, "solana"
         )
         if sol_metadata and sol_metadata.price:
             sol_value_usd = float(sol_amount) * float(sol_metadata.price)

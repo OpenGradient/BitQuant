@@ -1,15 +1,22 @@
-# Two Ligma by OpenGradient
+# OpenQuant by OpenGradient
 
-Two Ligma is an open-source AI agent framework for building AI Quant agents for quantitative DeFi including ML-powered analytics, trading, portfolio management, and more all through a natural language interface. It exposes a REST API that turns user inputs like "deposit 20k" or "optimize my portfolio" into concrete DeFi actions.
+OpenQuant is an open-source AI agent framework for building AI Quant agents for quantitative DeFi including ML-powered analytics, trading, portfolio management, and more all through a natural language interface. It exposes a REST API that turns user inputs like "deposit 20k" or "optimize my portfolio" into concrete DeFi actions.
 
 ## Structure
 
 - `agent`: contains the agent logic and tool definitions
-- `defi`: DeFi protocol metrics and toolkit
+- `api`: Server API input/output types
+- `onchain`: Contains all classes that pull data about tokens, pools, etc
 - `server`: contains Flask server that exposes API to interact with agent
-- `strategies`: contains different strategies for portfolio allocation and optimization to be used by the agent
-- `static`: contains the list of Solana tokens the agent currently supports
 - `templates`: LLM prompt templates for agent
+
+## Agents
+
+Behind the scenes there are 2 agents with distinct responsibilities:
+- `analytics agent`: responsible for crypto analytics, such as price trends, risks, trending tokens etc
+- `investment agent`: currently responsible for helping users select a lenging/amm pool to maximize returns on their tokens on Solana
+
+Inside `server.py` there is a router prompt that decides which agent the user's query should go to.
 
 ## Setup
 

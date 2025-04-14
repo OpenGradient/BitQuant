@@ -11,30 +11,32 @@ import json
 import logging
 import traceback
 import boto3
+import re
 from datetime import datetime
 from functools import wraps
+from datadog import initialize, statsd
 
 import boto3.data
-from defi.pools.protocol import ProtocolRegistry
-from defi.pools.solana.orca_protocol import OrcaProtocol
-from defi.pools.solana.save_protocol import SaveProtocol
-from defi.pools.solana.kamino_protocol import KaminoProtocol
-from tokens.metadata import TokenMetadataRepo
-from tokens.portfolio import PortfolioFetcher
+from onchain.pools.protocol import ProtocolRegistry
+from onchain.pools.solana.orca_protocol import OrcaProtocol
+from onchain.pools.solana.save_protocol import SaveProtocol
+from onchain.pools.solana.kamino_protocol import KaminoProtocol
+from onchain.tokens.metadata import TokenMetadataRepo
+from onchain.tokens.solana_portfolio import PortfolioFetcher
 from api.api_types import (
     AgentChatRequest,
-    Pool,
-    UserMessage,
     AgentMessage,
     Message,
     AgentType,
     Portfolio,
     FeedbackRequest,
+    TokenMetadata,
 )
 from agent.agent_executors import (
     create_investor_executor,
-    create_suggestions_executor,
+    create_suggestions_model,
     create_analytics_executor,
+    create_routing_model,
 )
 from agent.prompts import (
     get_investor_agent_prompt,
@@ -49,15 +51,24 @@ from agent.tools import (
 from langchain_openai import ChatOpenAI
 from server.whitelist import TwoLigmaWhitelist
 from server.invitecode import InviteCodeManager
+from server.activity_tracker import ActivityTracker
+from server.utils import extract_patterns, convert_to_agent_msg
+
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
+
+# Initialize Datadog
+initialize(
+    api_key=os.environ.get("DD_API_KEY"),
+    app_key=os.environ.get("DD_APP_KEY"),
+    host_name=os.environ.get("DD_HOSTNAME", "localhost"),
+)
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
-
 
 # number of messages to send to agents
 NUM_MESSAGES_TO_KEEP = 6
@@ -91,23 +102,26 @@ def create_flask_app() -> Flask:
         aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
     )
 
-    tokens_table = dynamodb.Table("sol_token_metadata")
+    tokens_table = dynamodb.Table("token_metadata_v2")
     feedback_table = dynamodb.Table("twoligma_feedback")
     whitelist_table = dynamodb.Table("twoligma_whitelist")
     invite_codes_table = dynamodb.Table("twoligma_invite_codes")
+    activity_table = dynamodb.Table("twoligma_activity")
 
+    # Services
     whitelist = TwoLigmaWhitelist(whitelist_table)
-    invite_manager = InviteCodeManager(invite_codes_table)
+    activity_tracker = ActivityTracker(activity_table)
+    invite_manager = InviteCodeManager(invite_codes_table, activity_tracker)
 
-    # Initialize agents
-    suggestions_agent = create_suggestions_executor()
-    analytics_agent = create_analytics_executor()
-    investor_agent = create_investor_executor()
-
-    router_model = ChatOpenAI(model="gpt-3.5-turbo", temperature=0.0)
-
+    # Token data
     token_metadata_repo = TokenMetadataRepo(tokens_table)
     portfolio_fetcher = PortfolioFetcher(token_metadata_repo)
+
+    # Initialize agents
+    router_model = create_routing_model()
+    suggestions_model = create_suggestions_model()
+    analytics_agent = create_analytics_executor(token_metadata_repo)
+    investor_agent = create_investor_executor()
 
     # Initialize protocol registry
     protocol_registry = ProtocolRegistry(token_metadata_repo)
@@ -203,8 +217,13 @@ def create_flask_app() -> Flask:
         if not whitelist.is_allowed(agent_request.context.address):
             return jsonify({"error": "Address is not whitelisted"}), 400
 
+        # Increment message count, return 403 if limit reached
+        if not activity_tracker.increment_message_count(agent_request.context.address):
+            return jsonify({"error": "Daily message limit reached"}), 403
+
         portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
         response = handle_agent_chat_request(
+            token_metadata_repo=token_metadata_repo,
             protocol_registry=protocol_registry,
             request=agent_request,
             portfolio=portfolio,
@@ -212,6 +231,7 @@ def create_flask_app() -> Flask:
             analytics_agent=analytics_agent,
             router_model=router_model,
         )
+
         return jsonify(
             response.model_dump() if hasattr(response, "model_dump") else response
         )
@@ -226,9 +246,10 @@ def create_flask_app() -> Flask:
 
         portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
         suggestions = handle_suggestions_request(
+            token_metadata_repo=token_metadata_repo,
             request=agent_request,
             portfolio=portfolio,
-            suggestions_agent=suggestions_agent,
+            suggestions_model=suggestions_model,
         )
         return jsonify({"suggestions": suggestions})
 
@@ -324,8 +345,8 @@ def create_flask_app() -> Flask:
             logger.error(f"Error using invite code: {e}")
             return jsonify({"error": "Internal server error"}), 500
 
-    @app.route("/api/invite/stats", methods=["GET"])
-    def get_invite_stats():
+    @app.route("/api/activity/stats", methods=["GET"])
+    def get_activity_stats():
         try:
             address = request.args.get("address")
             if not address:
@@ -338,10 +359,10 @@ def create_flask_app() -> Flask:
                     403,
                 )
 
-            stats = invite_manager.get_invite_stats(address)
+            stats = activity_tracker.get_activity_stats(address)
             return jsonify(stats)
         except Exception as e:
-            logger.error(f"Error getting invite stats: {e}")
+            logger.error(f"Error getting activity stats: {e}")
             return jsonify({"error": "Internal server error"}), 500
 
     return app
@@ -351,6 +372,7 @@ def handle_agent_chat_request(
     protocol_registry: ProtocolRegistry,
     request: AgentChatRequest,
     portfolio: Portfolio,
+    token_metadata_repo: TokenMetadataRepo,
     investor_agent: CompiledGraph,
     analytics_agent: CompiledGraph,
     router_model: ChatOpenAI,
@@ -358,7 +380,9 @@ def handle_agent_chat_request(
     # If agent is explicitly specified, bypass router
     if request.agent is not None:
         if request.agent == AgentType.ANALYTICS:
-            return handle_analytics_chat_request(request, portfolio, analytics_agent)
+            return handle_analytics_chat_request(
+                request, token_metadata_repo, portfolio, analytics_agent
+            )
         elif request.agent == AgentType.INVESTOR:
             return handle_investor_chat_request(
                 request, portfolio, investor_agent, protocol_registry
@@ -376,7 +400,9 @@ def handle_agent_chat_request(
     selected_agent = router_response.content.strip().lower()
 
     if selected_agent == AgentType.ANALYTICS:
-        return handle_analytics_chat_request(request, portfolio, analytics_agent)
+        return handle_analytics_chat_request(
+            request, token_metadata_repo, portfolio, analytics_agent
+        )
     elif selected_agent == AgentType.INVESTOR:
         return handle_investor_chat_request(
             request, portfolio, investor_agent, protocol_registry
@@ -399,10 +425,9 @@ def handle_investor_chat_request(
     )
 
     # Prepare message history
-    message_history = [
-        convert_to_agent_msg(m)
-        for m in request.context.conversationHistory[-NUM_MESSAGES_TO_KEEP:]
-    ]
+    message_history = convert_to_agent_message_history(
+        request.context.conversationHistory
+    )
 
     # Create messages for investor agent
     investor_messages = [
@@ -434,43 +459,51 @@ def handle_investor_chat_request(
 def handle_suggestions_request(
     request: AgentChatRequest,
     portfolio: Portfolio,
-    suggestions_agent: CompiledGraph,
+    token_metadata_repo: TokenMetadataRepo,
+    suggestions_model: ChatOpenAI,
 ) -> List[str]:
     # Get tools from agent config and format them
-    tools = create_investor_agent_toolkit() + create_analytics_agent_toolkit()
+    tools = create_investor_agent_toolkit() + create_analytics_agent_toolkit(
+        token_metadata_repo
+    )
     tools_list = "\n".join([f"- {tool.name}: {tool.description}" for tool in tools])
 
-    # Build suggestions agent system prompt
+    # Build suggestions system prompt
     suggestions_system_prompt = get_suggestions_prompt(
+        conversation_history=request.context.conversationHistory,
         tokens=portfolio.holdings,
         tools=tools_list,
     )
 
-    # Prepare message history (last 10 messages)
-    message_history = [
-        convert_to_agent_msg(m)
-        for m in request.context.conversationHistory[-NUM_MESSAGES_TO_KEEP:]
-    ]
+    # Run suggestions model directly
+    response = suggestions_model.invoke(suggestions_system_prompt)
+    content = response.content
 
-    # Create messages for suggestions agent
-    suggestions_messages = [
-        ("system", suggestions_system_prompt),
-        *message_history,
-    ]
+    # Clean the content by removing markdown code block syntax if present
+    if content.startswith("```json"):
+        content = content[7:]  # Remove ```json
+    if content.endswith("```"):
+        content = content[:-3]  # Remove ```
+    content = content.strip()
 
-    # Create config for the agent
-    agent_config = RunnableConfig(
-        configurable={
-            "tokens": portfolio.holdings,
-        }
-    )
+    try:
+        # First try parsing as JSON
+        suggestions = json.loads(content)
+        if isinstance(suggestions, list):
+            return suggestions
+    except json.JSONDecodeError:
+        # If JSON parsing fails, try parsing as string array
+        try:
+            # Remove any JSON-like syntax and split by comma
+            cleaned = content.strip("[]")
+            # Split by comma and remove quotes
+            suggestions = [item.strip().strip("'\"") for item in cleaned.split(",")]
+            return suggestions
+        except Exception as e:
+            logger.error(f"Error parsing suggestions string: {e}")
+            return []
 
-    # Run suggestions agent
-    suggestions = run_suggestions_agent(
-        suggestions_agent, suggestions_messages, agent_config
-    )
-
-    return suggestions
+    return []
 
 
 def run_main_agent(
@@ -479,86 +512,56 @@ def run_main_agent(
     config: RunnableConfig,
     protocol_registry: ProtocolRegistry,
 ) -> Dict[str, Any]:
-    # Run agent directly
-    result = agent.invoke({"messages": messages}, config=config, debug=False)
-
-    # Extract final state and last message
-    last_message = result["messages"][-1]
-
     try:
-        # Parse the JSON response from the agent's content
-        response_data = json.loads(last_message.content)
+        # Run agent directly
+        result = agent.invoke({"messages": messages}, config=config, debug=False)
+        # Extract final state and last message
+        last_message = result["messages"][-1]
 
-        # Get full pool objects for the returned pool IDs
-        pool_objects = protocol_registry.get_pools_by_ids(response_data["pools"])
+        # Extract pool IDs and clean text
+        cleaned_text, pool_ids = extract_patterns(last_message.content, "pool")
+
+        # Get full pool objects for the extracted pool IDs
+        pool_objects = protocol_registry.get_pools_by_ids(pool_ids)
 
         return {
-            "content": response_data["text"],
+            "content": cleaned_text,
             "pools": pool_objects,
             "messages": result["messages"],
         }
-    except json.JSONDecodeError as e:
-        logger.error(
-            f"Failed to parse agent response ({last_message.content}) as JSON: {e}"
-        )
-        # Fallback to treating the entire response as text if JSON parsing fails
-        return {
-            "content": last_message.content,
-            "pools": [],
-            "messages": result["messages"],
-        }
+    except Exception as e:
+        logger.error(f"Error running main agent: {e}")
+        statsd.increment('agent.failure', tags=['agent_type:main'])
+        raise
 
 
-def run_suggestions_agent(
-    agent: CompiledGraph, messages: List, config: RunnableConfig
-) -> List[str]:
-    # Run agent directly
-    result = agent.invoke({"messages": messages}, config=config)
+def convert_to_agent_message_history(messages: List[Message]) -> List[Tuple[str, str]]:
+    # Get the last NUM_MESSAGES_TO_KEEP messages
+    recent_messages = messages[-NUM_MESSAGES_TO_KEEP:]
 
-    # Extract final message
-    last_message = result["messages"][-1]
-
-    try:
-        string_list = last_message.content
-        # Remove brackets and split by comma
-        cleaned = string_list.strip("[]")
-        # Split by comma and remove quotes
-        python_list = [item.strip().strip("'\"") for item in cleaned.split(",")]
-
-        return python_list
-    except json.JSONDecodeError as e:
-        print(f"Error parsing suggestions JSON: {e}")
-        return []
-
-
-def convert_to_agent_msg(message: Message) -> Tuple[str, str]:
-    if isinstance(message, UserMessage):
-        return ("user", message.message)
-    elif isinstance(message, AgentMessage):
-        return (
-            "assistant",
-            json.dumps(
-                {
-                    "text": message.message,
-                    "pools": [pool.id for pool in message.pools],
-                }
-            ),
-        )
-    else:
-        raise TypeError(f"Unexpected message type: {type(message)}")
-
-
-def extract_pools(messages: List[Any]) -> List[Pool]:
-    return [
-        a
-        for msg in messages
-        if hasattr(msg, "artifact") and msg.artifact
-        for a in msg.artifact
+    # Convert all messages except the last one with truncation
+    converted_messages = [
+        convert_to_agent_msg(m, truncate=True) for m in recent_messages[:-1]
     ]
+
+    # Convert the last message without truncation
+    if recent_messages:
+        converted_messages.append(
+            convert_to_agent_msg(recent_messages[-1], truncate=False)
+        )
+
+    for _, message in converted_messages:
+        if not message:
+            logger.error(
+                f"Empty message.\nOriginal: {messages}\nConverted: {converted_messages}"
+            )
+
+    return converted_messages
 
 
 def handle_analytics_chat_request(
     request: AgentChatRequest,
+    token_metadata_repo: TokenMetadataRepo,
     portfolio: Portfolio,
     agent: CompiledGraph,
 ) -> AgentMessage:
@@ -568,11 +571,9 @@ def handle_analytics_chat_request(
         tokens=portfolio.holdings,
     )
 
-    # Prepare message history (last 10 messages)
-    message_history = [
-        convert_to_agent_msg(m)
-        for m in request.context.conversationHistory[-NUM_MESSAGES_TO_KEEP:]
-    ]
+    message_history = convert_to_agent_message_history(
+        request.context.conversationHistory
+    )
 
     # Create messages for analytics agent
     analytics_messages = [
@@ -590,19 +591,54 @@ def handle_analytics_chat_request(
         }
     )
 
-    # Run analytics agent
-    analytics_result = run_analytics_agent(agent, analytics_messages, agent_config)
-
-    return AgentMessage(message=analytics_result["content"], pools=[])
+    return run_analytics_agent(
+        agent, token_metadata_repo, analytics_messages, agent_config
+    )
 
 
 def run_analytics_agent(
-    agent: CompiledGraph, messages: List, config: RunnableConfig
-) -> Dict[str, Any]:
-    # Run agent directly
-    result = agent.invoke({"messages": messages}, config=config, debug=False)
+    agent: CompiledGraph,
+    token_metadata_repo: TokenMetadataRepo,
+    messages: List,
+    config: RunnableConfig,
+) -> AgentMessage:
+    try:
+        # Run agent directly
+        result = agent.invoke({"messages": messages}, config=config, debug=False)
 
-    # Extract final state and last message
-    last_message = result["messages"][-1]
+        # Extract final state and last message
+        last_message = result["messages"][-1]
+        cleaned_text, token_ids = extract_patterns(last_message.content, "token")
 
-    return {"content": last_message.content, "messages": result["messages"]}
+        token_metadata = [
+            token_metadata_repo.search_token(
+                parts[1] if len(parts) > 1 else parts[0],  # token part
+                parts[0] if len(parts) > 1 else None,  # chain part, None if no colon
+            )
+            for token_id in token_ids
+            for parts in [token_id.split(":", 1)]
+        ]
+        api_token_metadata = [
+            TokenMetadata(
+                address=token.address,
+                name=token.name,
+                symbol=token.symbol,
+                chain=token.chain,
+                price_usd=str(token.price),
+                market_cap_usd=str(token.market_cap_usd) if token.market_cap_usd else None,
+                dex_pool_address=token.dex_pool_address,
+                image_url=token.image_url,
+            )
+            for token in token_metadata
+            if token is not None
+        ]
+
+        return AgentMessage(
+            message=cleaned_text,
+            tokens=api_token_metadata,
+            pools=[],
+        )
+    except Exception as e:
+        logger.error(f"Error running analytics agent: {e}")
+        statsd.increment('agent.failure', tags=['agent_type:analytics'])
+        raise

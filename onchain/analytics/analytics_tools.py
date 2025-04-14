@@ -1,69 +1,476 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple, Optional
 from langchain_core.tools import tool
 from langgraph.graph.graph import RunnableConfig
-from sklearn.linear_model import LinearRegression
 import traceback
 import numpy as np
-import time
 from enum import StrEnum
-
-from api.api_types import WalletTokenHolding
-
-from langchain_core.tools import tool
-from binance.spot import Spot  # type: ignore
+import os
+import csv
+import requests
+from time import sleep
+from datetime import datetime, timedelta, UTC
+from cachetools import TTLCache
+from server.metrics import track_tool_usage
 
 
 class CandleInterval(StrEnum):
-    """
-    One of 1d, 1h, 1w
-    """
+    """Candle interval options for price data"""
 
     DAY = "1d"
     HOUR = "1h"
-    WEEK = "1w"
 
 
-@tool()
-def get_binance_price_history(
-    token_symbol: str, candle_interval: CandleInterval, num_candles: int
-) -> Dict[str, Any]:
+# Initialize API settings
+COINGECKO_API_KEY = os.environ.get("COINGECKO_API_KEY", "")
+COINGECKO_BASE_URL = "https://pro-api.coingecko.com/api/v3"
+COINGECKO_HEADERS = {
+    "accept": "application/json",
+    "x-cg-pro-api-key": COINGECKO_API_KEY,
+}
+
+# Cache for price data (10-minute TTL)
+price_data_cache = TTLCache(maxsize=1000, ttl=600)
+
+# Common token mappings for better user experience
+PREFERRED_TOKEN_IDS = {
+    "btc": "bitcoin",
+    "eth": "ethereum",
+    "link": "chainlink",
+    "uni": "uniswap",
+    "aave": "aave",
+    "matic": "polygon",
+    "sol": "solana",
+    "doge": "dogecoin",
+    "shib": "shiba-inu",
+    "ada": "cardano",
+    "dot": "polkadot",
+    "avax": "avalanche-2",
+    "bnb": "binancecoin",
+    "usdt": "tether",
+    "usdc": "usd-coin",
+    "dai": "dai",
+}
+
+# Global maps for token resolution
+SYMBOL_TO_ID_MAP = {}
+ID_TO_NAME_MAP = {}
+NAME_TO_ID_MAP = {}
+
+
+def timestamp_to_date(timestamp: int) -> str:
+    """Convert Unix timestamp to human-readable date string"""
+    # Convert milliseconds to seconds if needed
+    if timestamp > 10000000000:  # Threshold for millisecond timestamps
+        timestamp = timestamp / 1000
+
+    dt = datetime.fromtimestamp(timestamp, tz=UTC)
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def date_to_timestamp(
+    year: int, month: int, day: int, hour: int = 0, minute: int = 0, second: int = 0
+) -> int:
+    """Convert date components to Unix timestamp in seconds"""
+    dt = datetime(year, month, day, hour, minute, second, tzinfo=UTC)
+    return int(dt.timestamp())
+
+
+def load_coingecko_id_mappings() -> Tuple[Dict, Dict, Dict, str]:
     """
-    Retrieves historical price data for a token.
-    """
-    # Min value of 2 ensures we have at least two data points for calculating trends
-    num_candles = min(max(2, int(num_candles)), 1000)
+    Load CoinGecko ID mappings from CSV file.
 
-    trading_pair = f"{token_symbol.upper()}USDT"
+    Returns:
+        Tuple containing symbol_to_id_map, id_to_name_map, name_to_id_map, and any error message
+    """
+    symbol_to_id_map = {}
+    id_to_name_map = {}
+    name_to_id_map = {}
+    error_msg = None
+
+    csv_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        "static",
+        "coingecko_ids.csv",
+    )
 
     try:
-        client = Spot(base_url="https://api.binance.us")
-        klines = client.klines(
-            symbol=trading_pair, interval=candle_interval, limit=num_candles
-        )
+        with open(csv_path, "r", encoding="utf-8") as file:
+            # Skip the first two header rows
+            next(file)  # Skip the note about API
+            next(file)  # Skip the column headers
 
-        # keep only the columns we need
-        klines = [candle[:6] for candle in klines]
+            csv_reader = csv.reader(file)
+            for row in csv_reader:
+                if len(row) >= 3:
+                    coingecko_id = row[0].strip()
+                    symbol = row[1].strip().lower()
+                    name = row[2].strip().lower()
 
-        return {
-            "token_symbol": token_symbol,
-            "candle_interval": candle_interval,
-            "num_candles": num_candles,
-            "data": klines,
-            "columns": [
-                "open_time",
-                "open",
-                "high",
-                "low",
-                "close",
-                "volume",
-            ],
-        }
+                    # Create symbol->ID mapping
+                    if symbol:
+                        # Handle multiple symbols that map to the same ID
+                        if symbol in symbol_to_id_map:
+                            if not isinstance(symbol_to_id_map[symbol], list):
+                                symbol_to_id_map[symbol] = [symbol_to_id_map[symbol]]
+                            symbol_to_id_map[symbol].append(coingecko_id)
+                        else:
+                            symbol_to_id_map[symbol] = coingecko_id
 
+                    # Create ID->name mapping
+                    id_to_name_map[coingecko_id] = name
+
+                    # Create name->ID mapping (case-insensitive)
+                    name_to_id_map[name] = coingecko_id
     except Exception as e:
-        return {"error": f"Error fetching Binance data for {token_symbol}: {e}"}
+        error_msg = f"Error loading CoinGecko IDs: {str(e)}"
+
+    return symbol_to_id_map, id_to_name_map, name_to_id_map, error_msg
+
+
+# Load token mappings at module import time
+SYMBOL_TO_ID_MAP, ID_TO_NAME_MAP, NAME_TO_ID_MAP, csv_load_error = (
+    load_coingecko_id_mappings()
+)
+
+
+def make_coingecko_request(
+    url: str,
+    params: Optional[Dict] = None,
+    max_retries: int = 3,
+    backoff_factor: float = 0.5,
+) -> Any:
+    """Make request to CoinGecko API with retry logic"""
+    retry_count = 0
+    while retry_count < max_retries:
+        try:
+            response = requests.get(
+                url, params=params, headers=COINGECKO_HEADERS, timeout=10
+            )
+
+            # Handle rate limiting
+            if response.status_code == 429:
+                retry_after = int(response.headers.get("Retry-After", 60))
+                sleep(retry_after)
+                retry_count += 1
+                continue
+
+            response.raise_for_status()
+            return response.json()
+
+        except requests.exceptions.RequestException:
+            retry_count += 1
+            wait_time = backoff_factor * (2 ** (retry_count - 1))
+            sleep(wait_time)
+
+    # All retries failed
+    raise Exception(f"Failed to make request to {url} after {max_retries} attempts")
+
+
+def get_coingecko_id(token_input: str) -> Tuple[str, Optional[str]]:
+    """
+    Resolve token symbol/name/id to valid CoinGecko ID.
+
+    Returns:
+        Tuple of (coingecko_id, error_message)
+    """
+    if not token_input:
+        return "", "Empty token input provided"
+
+    token_input_lower = token_input.lower()
+
+    # Check if input is already a valid CoinGecko ID
+    if token_input in ID_TO_NAME_MAP:
+        return token_input, None
+
+    # Check for preferred mapping
+    if token_input_lower in PREFERRED_TOKEN_IDS:
+        return PREFERRED_TOKEN_IDS[token_input_lower], None
+
+    # Try symbol match (case-insensitive)
+    if token_input_lower in SYMBOL_TO_ID_MAP:
+        symbol_match = SYMBOL_TO_ID_MAP[token_input_lower]
+
+        # Handle multiple IDs matching a symbol
+        if isinstance(symbol_match, list):
+            return (
+                symbol_match[0],
+                f"Multiple CoinGecko IDs found for symbol {token_input_lower}: {symbol_match}. Using {symbol_match[0]}",
+            )
+
+        return symbol_match, None
+
+    # Try name match (case-insensitive)
+    if token_input_lower in NAME_TO_ID_MAP:
+        return NAME_TO_ID_MAP[token_input_lower], None
+
+    # Fallback to lowercase input
+    return (
+        token_input_lower,
+        f"No exact CoinGecko ID match found for '{token_input}'. Using '{token_input_lower}' as a fallback",
+    )
+
+
+def format_ohlc_data(ohlc_data: List) -> List:
+    """Format OHLC data from CoinGecko API response"""
+    formatted_data = []
+    for candle in ohlc_data:
+        if len(candle) >= 5:
+            timestamp, open_price, high, low, close = candle
+            # Convert milliseconds to seconds if needed
+            if timestamp > 10000000000:
+                timestamp = timestamp / 1000
+
+            # Ensure all price values are numeric
+            open_price = float(open_price) if open_price is not None else None
+            high = float(high) if high is not None else None
+            low = float(low) if low is not None else None
+            close = float(close) if close is not None else None
+
+            formatted_data.append([timestamp, open_price, high, low, close])
+
+    # Sort by timestamp
+    formatted_data.sort(key=lambda x: x[0])
+    return formatted_data
+
+
+def get_coin_suggestions(token_symbol: str, token_id: str) -> Optional[str]:
+    """Generate suggestions for similar coin IDs when a match fails"""
+    suggestions = []
+    input_lower = token_symbol.lower()
+
+    for symbol in SYMBOL_TO_ID_MAP:
+        if input_lower in symbol or symbol in input_lower:
+            coin_id = SYMBOL_TO_ID_MAP[symbol]
+            if isinstance(coin_id, list):
+                for cid in coin_id:
+                    coin_name = ID_TO_NAME_MAP.get(cid, symbol)
+                    suggestions.append(f"{symbol} -> {cid} ({coin_name})")
+            else:
+                coin_name = ID_TO_NAME_MAP.get(coin_id, symbol)
+                suggestions.append(f"{symbol} -> {coin_id} ({coin_name})")
+
+            if len(suggestions) >= 5:
+                break
+
+    if suggestions:
+        return f"Suggested coins: {', '.join(suggestions[:5])}"
+    return None
 
 
 @tool()
+def get_coingecko_current_price(
+    token_symbol: str, vs_currency: str = "usd", days: int = 1
+) -> Dict[str, Any]:
+    """
+    Retrieve snapshot OHLC price data for a token over the specified number of days.
+    """
+    try:
+        token_id, error_message = get_coingecko_id(token_symbol)
+        if not token_id:
+            return {"error": f"Failed to resolve CoinGecko ID for {token_symbol}"}
+
+        # Construct request URL
+        url = f"{COINGECKO_BASE_URL}/coins/{token_id}/ohlc"
+
+        # Valid days values for the API
+        valid_days = [1, 7, 14, 30, 90, 180, 365, "max"]
+        if days not in valid_days:
+            days = 1
+
+        params = {"vs_currency": vs_currency, "days": days}
+
+        # Make the request
+        ohlc_data = make_coingecko_request(url, params=params)
+
+        if not isinstance(ohlc_data, list) or len(ohlc_data) == 0:
+            return {
+                "error": "CoinGecko API returned invalid or empty data",
+                "token_symbol": token_symbol,
+                "token_id": token_id,
+            }
+
+        # Format the response data
+        formatted_data = format_ohlc_data(ohlc_data)
+
+        result = {
+            "token_symbol": token_symbol,
+            "vs_currency": vs_currency,
+            "days": days,
+            "num_candles": len(formatted_data),
+            "data": formatted_data,
+            "columns": ["timestamp", "open", "high", "low", "close"],
+            "readable_dates": {
+                "start": (
+                    timestamp_to_date(formatted_data[0][0]) if formatted_data else None
+                ),
+                "end": (
+                    timestamp_to_date(formatted_data[-1][0]) if formatted_data else None
+                ),
+            },
+        }
+
+        if error_message:
+            result["warning"] = error_message
+
+        return result
+
+    except Exception as e:
+        return {
+            "error": f"Error fetching CoinGecko snapshot data for {token_symbol}: {str(e)}",
+            "token_symbol": token_symbol,
+            "traceback": traceback.format_exc(),
+        }
+
+
+def get_coingecko_price_data(
+    token_symbol: str,
+    candle_interval: CandleInterval,
+    from_timestamp: Optional[int] = None,
+    to_timestamp: Optional[int] = None,
+    num_candles: Optional[int] = None,
+    vs_currency: str = "usd",
+) -> Dict[str, Any]:
+    """
+    Retrieve historical price data for a token using CoinGecko.
+
+    Args:
+        token_symbol: The token symbol to fetch data for
+        candle_interval: The interval between candles (DAY or HOUR)
+        from_timestamp: Optional start timestamp in seconds
+        to_timestamp: Optional end timestamp in seconds
+        num_candles: Optional number of candles to fetch (used if timestamps not provided)
+        vs_currency: The currency to compare against (default: usd)
+
+    Returns:
+        Dict containing price data and metadata
+    """
+    # Check cache if using num_candles (history mode)
+    if num_candles is not None and from_timestamp is None and to_timestamp is None:
+        cache_key = f"{token_symbol}_{candle_interval}_{num_candles}"
+        if cache_key in price_data_cache:
+            return price_data_cache[cache_key]
+
+    try:
+        # Resolve token ID
+        token_id, error_message = get_coingecko_id(token_symbol)
+        if not token_id:
+            return {"error": f"Failed to resolve CoinGecko ID for {token_symbol}"}
+
+        # Validate and set up time parameters
+        now = int(datetime.now(UTC).timestamp())
+
+        if from_timestamp is None or to_timestamp is None:
+            if num_candles is None:
+                num_candles = 90  # Default to 90 candles
+
+            # Calculate time range based on interval
+            if candle_interval == CandleInterval.HOUR:
+                seconds_per_candle = 60 * 60
+                max_candles = 744  # API limit for hourly data
+            else:
+                seconds_per_candle = 60 * 60 * 24
+                max_candles = 180  # API limit for daily data
+
+            num_candles = min(num_candles, max_candles)
+            time_range_seconds = num_candles * seconds_per_candle
+            from_timestamp = now - time_range_seconds
+            to_timestamp = now
+
+        # Validate timestamp limits
+        min_timestamp = (
+            1518147224  # February 9, 2018 - CoinGecko data availability limit
+        )
+        if from_timestamp < min_timestamp:
+            from_timestamp = min_timestamp
+
+        # Construct request URL and parameters
+        url = f"{COINGECKO_BASE_URL}/coins/{token_id}/ohlc/range"
+        interval = "daily" if candle_interval == CandleInterval.DAY else "hourly"
+
+        params = {
+            "vs_currency": vs_currency,
+            "from": from_timestamp,
+            "to": to_timestamp,
+            "interval": interval,
+        }
+
+        # Make the request
+        ohlc_data = make_coingecko_request(url, params=params)
+
+        # Handle API errors
+        if isinstance(ohlc_data, dict) and "error" in ohlc_data:
+            if "Could not find coin" in ohlc_data["error"]:
+                suggestions = get_coin_suggestions(token_symbol, token_id)
+                error_msg = f"CoinGecko API couldn't find coin with ID '{token_id}'."
+                if suggestions:
+                    error_msg += f" {suggestions}"
+                return {
+                    "error": error_msg,
+                    "token_symbol": token_symbol,
+                    "attempted_id": token_id,
+                }
+            return {
+                "error": f"CoinGecko API returned an error: {ohlc_data['error']}",
+                "token_symbol": token_symbol,
+                "attempted_id": token_id,
+            }
+
+        # Validate response data
+        if not isinstance(ohlc_data, list) or len(ohlc_data) == 0:
+            return {
+                "error": "CoinGecko API returned invalid or empty data",
+                "token_symbol": token_symbol,
+                "attempted_id": token_id,
+            }
+
+        # Format the response data
+        formatted_data = format_ohlc_data(ohlc_data)
+
+        # If using num_candles, limit to requested number of candles
+        if num_candles is not None and len(formatted_data) > num_candles:
+            formatted_data = formatted_data[-num_candles:]
+
+        # Prepare result
+        result = {
+            "token_symbol": token_symbol,
+            "candle_interval": candle_interval,
+            "num_candles": len(formatted_data),
+            "data": formatted_data,
+            "columns": ["timestamp", "open", "high", "low", "close"],
+            "readable_dates": {
+                "start": (
+                    timestamp_to_date(formatted_data[0][0]) if formatted_data else None
+                ),
+                "end": (
+                    timestamp_to_date(formatted_data[-1][0]) if formatted_data else None
+                ),
+                "requested_range": {
+                    "from": timestamp_to_date(from_timestamp),
+                    "to": timestamp_to_date(to_timestamp),
+                },
+            },
+        }
+
+        if error_message:
+            result["warning"] = error_message
+
+        # Cache the result if using num_candles mode
+        if num_candles is not None and from_timestamp is None and to_timestamp is None:
+            cache_key = f"{token_symbol}_{candle_interval}_{num_candles}"
+            price_data_cache[cache_key] = result
+
+        return result
+
+    except Exception as e:
+        return {
+            "error": f"Error fetching CoinGecko data for {token_symbol}: {str(e)}",
+            "token_symbol": token_symbol,
+            "traceback": traceback.format_exc(),
+        }
+
+
+@tool()
+@track_tool_usage("analyze_price_trend")
 def analyze_price_trend(
     token_symbol: str, candle_interval: str, num_candles: int
 ) -> Dict[str, Any]:
@@ -73,13 +480,15 @@ def analyze_price_trend(
     """
     try:
         # Get the price history first
-        price_data = get_binance_price_history.invoke(
-            {
-                "token_symbol": token_symbol,
-                "candle_interval": candle_interval,
-                "num_candles": num_candles,
-            }
+        price_data = get_coingecko_price_data(
+            token_symbol=token_symbol,
+            candle_interval=candle_interval,
+            num_candles=num_candles,
         )
+
+        # Check for errors in price data
+        if "error" in price_data:
+            return {"error": price_data["error"]}
 
         # Extract relevant data for analysis
         raw_data = price_data["data"]
@@ -89,7 +498,6 @@ def analyze_price_trend(
         open_prices = [float(candle[1]) for candle in raw_data]
         high_prices = [float(candle[2]) for candle in raw_data]
         low_prices = [float(candle[3]) for candle in raw_data]
-        volumes = [float(candle[5]) for candle in raw_data]
 
         # Enhanced moving averages calculations with more periods and types
         def calculate_sma(prices, period):
@@ -124,20 +532,21 @@ def analyze_price_trend(
             upper_band = middle_band + (2 * std_dev)
             lower_band = middle_band - (2 * std_dev)
 
+            # Calculate normalized width and position safely to avoid division by zero
+            width = 0
+            if middle_band != 0:
+                width = (upper_band - lower_band) / middle_band
+
+            position = 0.5  # Default to middle if bands are identical
+            if upper_band != lower_band:
+                position = (close_prices[-1] - lower_band) / (upper_band - lower_band)
+
             bollinger_bands = {
                 "upper": round(upper_band, 2),
                 "middle": round(middle_band, 2),
                 "lower": round(lower_band, 2),
-                "width": round(
-                    (upper_band - lower_band) / middle_band, 4
-                ),  # Normalized width
-                "position": (
-                    round(
-                        (close_prices[-1] - lower_band) / (upper_band - lower_band), 2
-                    )
-                    if upper_band != lower_band
-                    else 0.5
-                ),
+                "width": round(width, 4),  # Normalized width
+                "position": round(position, 2),
             }
 
         # 4. Fibonacci Retracement Levels (based on recent high and low)
@@ -170,52 +579,26 @@ def analyze_price_trend(
             levels.sort(key=lambda x: abs(current_price - x[1]))
             fibonacci["current_position"] = levels[0][0]
 
-        # 5. Volume Analysis
-        volume_analysis = {
-            "trend": "Neutral",
-            "avg_volume": None,
-            "current_vs_avg": None,
-        }
-        if len(volumes) >= 7:
-            avg_volume = sum(volumes[-7:]) / 7
-            current_volume = volumes[-1]
-
-            volume_trend = "Increasing" if current_volume > avg_volume else "Decreasing"
-            # Check if volume confirms price trend
-            price_up = close_prices[-1] > open_prices[-1]
-            volume_confirms = (price_up and volume_trend == "Increasing") or (
-                not price_up and volume_trend == "Decreasing"
-            )
-
-            volume_analysis = {
-                "trend": volume_trend,
-                "avg_volume": round(avg_volume, 2),
-                "current_volume": round(current_volume, 2),
-                "current_vs_avg": round((current_volume / avg_volume - 1) * 100, 2),
-                "confirms_price": volume_confirms,
-            }
-
         # 9. Token-specific metrics
         token_metrics = {}
-        if len(close_prices) > 0 and len(volumes) > 0:
+        if len(close_prices) > 0:
             current_price = close_prices[-1]
-            avg_daily_volume = sum(volumes[-min(7, len(volumes)) :]) / min(
-                7, len(volumes)
-            )
+
+            # Calculate volatility safely
+            volatility = None
+            if len(close_prices) >= 7:
+                max_price = max(close_prices[-7:])
+                min_price = min(close_prices[-7:])
+                if min_price > 0:  # Avoid division by zero
+                    volatility = round(((max_price / min_price - 1) * 100), 2)
 
             token_metrics = {
                 "price": round(current_price, 4),
-                "avg_daily_volume_usd": round(avg_daily_volume * current_price, 2),
-                "volatility": (
-                    round(
-                        ((max(close_prices[-7:]) / min(close_prices[-7:]) - 1) * 100), 2
-                    )
-                    if len(close_prices) >= 7
-                    else None
-                ),
+                "volatility": volatility,
             }
 
-        return {
+        # Add source information to the output
+        result = {
             "token_symbol": token_symbol,
             "current_price": close_prices[-1] if close_prices else None,
             "price_range": {
@@ -261,62 +644,50 @@ def analyze_price_trend(
             "technical_indicators": {
                 "bollinger_bands": bollinger_bands,
                 "fibonacci": fibonacci,
-                "volume_analysis": volume_analysis,
             },
             "token_metrics": token_metrics,
             "analysis_summary": get_analysis_summary(
-                sma7, sma20, sma50, sma200, bollinger_bands, volume_analysis
+                sma7, sma20, sma50, sma200, bollinger_bands
             ),
         }
+
+        return result
+
     except Exception as e:
-        return {
-            "error": f"Error analyzing price trend for {token_symbol}: {e}",
-        }
+        return {"error": f"Error analyzing price trend for {token_symbol}: {e}"}
 
 
-def get_analysis_summary(sma7, sma20, sma50, sma200, bollinger_bands, volume_analysis):
-    """Generate a simple summary of the analysis results."""
+def get_analysis_summary(sma7, sma20, sma50, sma200, bollinger_bands):
+    """Generate a simple summary of the analysis results"""
     summary = []
 
-    # Moving average summary - Enhanced with multiple timeframes
     # Short-term trend
     if sma7 and sma20:
         if sma7[-1] > sma20[-1]:
-            ma_short_desc = "Short-term moving averages indicate bullish momentum."
-            summary.append(ma_short_desc)
+            summary.append("Short-term moving averages indicate bullish momentum.")
         else:
-            ma_short_desc = "Short-term moving averages indicate bearish momentum."
-            summary.append(ma_short_desc)
+            summary.append("Short-term moving averages indicate bearish momentum.")
 
     # Long-term trend and major crossovers
-    if sma50 and sma200:
+    if sma50 and sma200 and len(sma50) > 1 and len(sma200) > 1:
         # Check for golden cross (50-day crosses above 200-day)
-        if len(sma50) > 1 and len(sma200) > 1:
-            if sma50[-1] > sma200[-1] and sma50[-2] <= sma200[-2]:
-                summary.append("Golden Cross detected - a strong bullish signal.")
-            # Check for death cross (50-day crosses below 200-day)
-            elif sma50[-1] < sma200[-1] and sma50[-2] >= sma200[-2]:
-                summary.append("Death Cross detected - a strong bearish signal.")
+        if sma50[-1] > sma200[-1] and sma50[-2] <= sma200[-2]:
+            summary.append("Golden Cross detected - a strong bullish signal.")
+        # Check for death cross (50-day crosses below 200-day)
+        elif sma50[-1] < sma200[-1] and sma50[-2] >= sma200[-2]:
+            summary.append("Death Cross detected - a strong bearish signal.")
 
     # Bollinger Bands summary
     if bollinger_bands["upper"] is not None:
         position = bollinger_bands["position"]
         if position > 0.8:
-            bb_desc = "Price near upper Bollinger Band suggests overbought conditions."
-            summary.append(bb_desc)
-        elif position < 0.2:
-            bb_desc = "Price near lower Bollinger Band suggests oversold conditions."
-            summary.append(bb_desc)
-
-    # Volume confirmation
-    if volume_analysis["avg_volume"] is not None:
-        if volume_analysis["confirms_price"]:
-            vol_desc = "Volume confirms price movement."
-        else:
-            vol_desc = (
-                "Volume does not confirm price movement, suggesting potential reversal."
+            summary.append(
+                "Price near upper Bollinger Band suggests overbought conditions."
             )
-        summary.append(vol_desc)
+        elif position < 0.2:
+            summary.append(
+                "Price near lower Bollinger Band suggests oversold conditions."
+            )
 
     # Combine into a paragraph
     return " ".join(summary)
@@ -328,54 +699,58 @@ def compare_assets(
 ) -> Dict[str, Any]:
     """
     Compare performance of multiple crypto assets with simplified insights for average investors.
-
-    Args:
-        token_symbols: List of token symbols (e.g. ["BTC", "ETH", "SOL"])
-        candle_interval: Time interval for candles (1h, 1d, 1w)
-        num_candles: Number of historical candles to analyze
-
-    Returns:
-        Dictionary with individual asset analyses, comparative metrics, and investment insights
     """
+    # Generate a request ID for this comparison operation
+    comparison_id = f"compare_{datetime.now(UTC).strftime('%H%M%S')}"
+
     results = {}
     detailed_results = {}
+    error_count = 0
+    successful_tokens = []
 
     # Step 1: Collect individual asset data
     for token_symbol in token_symbols:
         try:
-            analysis = analyze_price_trend.invoke(
-                {
-                    "token_symbol": token_symbol,
-                    "candle_interval": candle_interval,
-                    "num_candles": num_candles,
-                }
+            # Get price data first to check for errors
+            price_data = get_coingecko_price_data(
+                token_symbol=token_symbol,
+                candle_interval=candle_interval,
+                num_candles=num_candles,
+            )
+
+            # Check for errors in price data
+            if "error" in price_data:
+                results[token_symbol] = {"error": price_data["error"]}
+                error_count += 1
+                continue
+
+            # Now get the analysis
+            analysis = analyze_price_trend(
+                token_symbol=token_symbol,
+                candle_interval=candle_interval,
+                num_candles=num_candles,
             )
 
             # Skip if there was an error
             if "error" in analysis:
                 results[token_symbol] = {"error": analysis["error"]}
+                error_count += 1
                 continue
 
             # Store detailed analysis results
             detailed_results[token_symbol] = analysis
 
-            # Extract price data
-            price_data = get_binance_price_history.invoke(
-                {
-                    "token_symbol": token_symbol,
-                    "candle_interval": candle_interval,
-                    "num_candles": num_candles,
-                }
-            )
-
             # Calculate actual price change
             price_history = price_data.get("data", [])
+            price_change_pct = 0
+
             if len(price_history) >= 2:
                 start_price = float(price_history[0][4])  # Close price of first candle
                 end_price = float(price_history[-1][4])  # Close price of last candle
-                price_change_pct = ((end_price / start_price) - 1) * 100
-            else:
-                price_change_pct = 0
+
+                # Calculate percentage change safely
+                if start_price > 0:  # Avoid division by zero
+                    price_change_pct = ((end_price / start_price) - 1) * 100
 
             # Store useful metrics for average investors
             results[token_symbol] = {
@@ -388,9 +763,6 @@ def compare_assets(
                     "long_term": analysis.get("moving_averages", {}).get("long_trend"),
                 },
                 "volatility": analysis.get("token_metrics", {}).get("volatility"),
-                "volume_trend": analysis.get("technical_indicators", {})
-                .get("volume_analysis", {})
-                .get("trend"),
                 "key_signals": [],
             }
 
@@ -418,10 +790,19 @@ def compare_assets(
                         "OPPORTUNITY: Potentially oversold"
                     )
 
+            successful_tokens.append(token_symbol)
+
         except Exception as e:
             results[token_symbol] = {
                 "error": f"Error analyzing {token_symbol}: {str(e)}"
             }
+            error_count += 1
+
+    # If all tokens had errors, return a general error
+    if error_count == len(token_symbols):
+        return {
+            "error": "Could not analyze any of the requested tokens. The CoinGecko API may be rate-limited or temporarily unavailable. Please try again later."
+        }
 
     # Step 2: Calculate investor-friendly comparative metrics
     valid_tokens = {
@@ -442,58 +823,67 @@ def compare_assets(
 
         # Volatility ranking (lower is better for risk-averse investors)
         volatility_ranking = sorted(
-            valid_tokens.items(), key=lambda x: x[1].get("volatility", float("inf"))
+            [
+                (symbol, data)
+                for symbol, data in valid_tokens.items()
+                if data.get("volatility", 0) is not None
+            ],
+            key=lambda x: x[1].get("volatility", float("inf")),
         )
 
         # Calculate simple risk-adjusted returns
         risk_adjusted = {}
         for symbol, data in valid_tokens.items():
-            volatility = data.get("volatility", 0)
+            volatility = data.get("volatility")
             price_change = data.get("price_change_pct", 0)
 
-            if volatility and volatility > 0:
+            # Only calculate if volatility exists and is greater than zero
+            if volatility is not None and volatility > 0:
                 risk_adjusted[symbol] = price_change / volatility
-            else:
-                risk_adjusted[symbol] = 0
+            # Skip tokens with no volatility data or zero volatility
 
         risk_adjusted_ranking = sorted(
             risk_adjusted.items(), key=lambda x: x[1], reverse=True
         )
 
         # Create a more beginner-friendly comparative analysis
+        best_performer = None
+        if performance_ranking:
+            best_performer = {
+                "token": performance_ranking[0][0],
+                "return": f"{performance_ranking[0][1].get('price_change_pct', 0):.2f}%",
+            }
+
+        worst_performer = None
+        if performance_ranking and len(performance_ranking) > 1:
+            worst_performer = {
+                "token": performance_ranking[-1][0],
+                "return": f"{performance_ranking[-1][1].get('price_change_pct', 0):.2f}%",
+            }
+
+        most_stable = None
+        if volatility_ranking:
+            most_stable = {
+                "token": volatility_ranking[0][0],
+                "volatility": volatility_ranking[0][1].get("volatility", 0),
+            }
+
+        best_risk_adjusted = None
+        if risk_adjusted_ranking:
+            best_risk_adjusted = {
+                "token": risk_adjusted_ranking[0][0],
+                "value": (
+                    round(risk_adjusted_ranking[0][1], 2)
+                    if risk_adjusted_ranking[0][1] != float("inf")
+                    else "High"
+                ),
+            }
+
         comparative_analysis = {
-            "best_performer": (
-                {
-                    "token": performance_ranking[0][0],
-                    "return": f"{performance_ranking[0][1].get('price_change_pct', 0):.2f}%",
-                }
-                if performance_ranking
-                else None
-            ),
-            "worst_performer": (
-                {
-                    "token": performance_ranking[-1][0],
-                    "return": f"{performance_ranking[-1][1].get('price_change_pct', 0):.2f}%",
-                }
-                if performance_ranking
-                else None
-            ),
-            "most_stable": (
-                {
-                    "token": volatility_ranking[0][0],
-                    "volatility": volatility_ranking[0][1].get("volatility", 0),
-                }
-                if volatility_ranking
-                else None
-            ),
-            "best_risk_adjusted": (
-                {
-                    "token": risk_adjusted_ranking[0][0],
-                    "value": round(risk_adjusted_ranking[0][1], 2),
-                }
-                if risk_adjusted_ranking
-                else None
-            ),
+            "best_performer": best_performer,
+            "worst_performer": worst_performer,
+            "most_stable": most_stable,
+            "best_risk_adjusted": best_risk_adjusted,
             "all_tokens_ranked_by_performance": [
                 {
                     "token": symbol,
@@ -507,7 +897,7 @@ def compare_assets(
             ],
         }
 
-        # Calculate average market trend
+        # Calculate average market trend with safety checks
         bullish_count = sum(
             1
             for symbol, data in valid_tokens.items()
@@ -529,10 +919,9 @@ def compare_assets(
 
         comparative_analysis["market_trend"] = market_trend
 
-    # Step 3: Create actionable insights for investors
-    investment_insights = []
+        # Step 3: Create actionable insights for investors
+        investment_insights = []
 
-    if comparative_analysis:
         # Add general market insight
         market_trend = comparative_analysis.get("market_trend")
         if market_trend == "Bullish":
@@ -549,14 +938,12 @@ def compare_assets(
             )
 
         # Add risk-based suggestions
-        best_risk_adjusted = comparative_analysis.get("best_risk_adjusted")
         if best_risk_adjusted:
             investment_insights.append(
                 f"{best_risk_adjusted['token']} shows the best balance of return vs risk."
             )
 
         # Add momentum-based suggestion
-        best_performer = comparative_analysis.get("best_performer")
         if best_performer:
             token = best_performer["token"]
             trend = valid_tokens[token].get("moving_averages", {}).get("short_term")
@@ -566,28 +953,35 @@ def compare_assets(
                 )
 
         # Add stability suggestion
-        most_stable = comparative_analysis.get("most_stable")
         if most_stable:
             investment_insights.append(
                 f"{most_stable['token']} has the lowest volatility, potentially suitable for risk-averse investors."
             )
 
-    # Format period in user-friendly terms
-    period_text = f"{num_candles} "
-    if candle_interval == "1d":
-        period_text += "days"
-    elif candle_interval == "1h":
-        period_text += "hours"
-    elif candle_interval == "1w":
-        period_text += "weeks"
+        # Format period in user-friendly terms
+        period_text = f"{num_candles} "
+        if candle_interval == CandleInterval.DAY:
+            period_text += "days"
+        elif candle_interval == CandleInterval.HOUR:
+            period_text += "hours"
 
-    # Step 4: Return the final results
-    return {
-        "individual_tokens": results,
-        "comparative_analysis": comparative_analysis,
-        "investment_insights": investment_insights,
-        "period": period_text,
-    }
+        # Return the final results
+        return {
+            "individual_tokens": results,
+            "comparative_analysis": comparative_analysis,
+            "investment_insights": investment_insights,
+            "period": period_text,
+            "error_count": error_count,
+            "total_tokens": len(token_symbols),
+            "successful_tokens": len(successful_tokens),
+        }
+    else:
+        return {
+            "error": "Could not generate comparative analysis due to insufficient valid data.",
+            "individual_tokens": results,
+            "error_count": error_count,
+            "total_tokens": len(token_symbols),
+        }
 
 
 @tool()
@@ -597,24 +991,14 @@ def max_drawdown_for_token(
     num_candles: int = 90,
 ) -> Dict[str, Any]:
     """
-    Calculates the maximum drawdown for a cryptocurrency using Binance price data
-
-    Args:
-        token_symbol: Token symbol (e.g., "BTC")
-        candle_interval: Candlestick interval (e.g., "1d", "4h", "1h", "15m")
-        num_candles: Number of candlesticks to retrieve (max 1000)
-
-    Returns:
-        Dictionary containing the maximum drawdown value
+    Calculates the maximum drawdown for a cryptocurrency using CoinGecko price data
     """
     try:
-        # Get price data from Binance
-        price_data = get_binance_price_history.invoke(
-            {
-                "token_symbol": token_symbol,
-                "candle_interval": candle_interval,
-                "num_candles": num_candles,
-            }
+        # Get price data from CoinGecko
+        price_data = get_coingecko_price_data(
+            token_symbol=token_symbol,
+            candle_interval=candle_interval,
+            num_candles=num_candles,
         )
 
         if "error" in price_data:
@@ -655,7 +1039,7 @@ def analyze_wallet_portfolio(
     Provides a comprehensive analysis of a crypto wallet portfolio with investor-friendly insights and recommendations.
     """
     try:
-        tokens: List[WalletTokenHolding] = config["configurable"]["tokens"]
+        tokens = config["configurable"]["tokens"]
 
         # Fetch price data for each asset
         all_price_data = []
@@ -664,27 +1048,34 @@ def analyze_wallet_portfolio(
         error_symbols = []
 
         for i, token in enumerate(tokens):
-            price_data = get_binance_price_history.invoke(
-                {
-                    "token_symbol": token.symbol,
-                    "candle_interval": candle_interval,
-                    "num_candles": num_candles,
-                }
+            # Handle both WalletTokenHolding objects and dicts
+            if hasattr(token, "symbol"):
+                symbol = token.symbol
+                amount = token.amount
+            else:
+                # Handle dict format
+                symbol = token.get("symbol")
+                amount = token.get("amount")
+
+            price_data = get_coingecko_price_data(
+                token_symbol=symbol,
+                candle_interval=candle_interval,
+                num_candles=num_candles,
             )
 
             if "error" in price_data:
-                error_symbols.append(token.symbol)
+                error_symbols.append(symbol)
                 continue  # Skip this token but continue with others
 
             # Extract closing prices
             close_prices = [float(candle[4]) for candle in price_data["data"]]
             all_price_data.append(close_prices)
-            valid_symbols.append(token.symbol)
-            valid_quantities.append(token.amount)
+            valid_symbols.append(symbol)
+            valid_quantities.append(amount)
 
         if not all_price_data:
             return {
-                "error": "Could not fetch price data for any of the tokens in your wallet. Please try with custom symbols that are available on Binance."
+                "error": "Could not fetch price data for any of the tokens in your wallet. Please try with custom symbols that are available on CoinGecko."
             }
 
         # Convert to numpy arrays and transpose to get [time][asset] format
@@ -856,12 +1247,10 @@ def analyze_wallet_portfolio(
 
         # Get time periods in user-friendly format
         period_text = ""
-        if candle_interval == "1d":
+        if candle_interval == CandleInterval.DAY:
             period_text = f"{num_candles} days"
-        elif candle_interval == "1h":
+        elif candle_interval == CandleInterval.HOUR:
             period_text = f"{num_candles} hours"
-        elif candle_interval == "1w":
-            period_text = f"{num_candles} weeks"
 
         # Check for missing tokens
         missing_tokens_message = ""
@@ -880,7 +1269,7 @@ def analyze_wallet_portfolio(
                     "total_return": f"{total_return_pct:.2f}%",
                     "annualized_return": (
                         f"{((1 + total_return_pct/100) ** (365/(num_candles)) - 1) * 100:.2f}%"
-                        if candle_interval == "1d"
+                        if candle_interval == CandleInterval.DAY
                         else "N/A"
                     ),
                     "max_drawdown": f"{max_dd * 100:.2f}%",
@@ -915,64 +1304,6 @@ def analyze_wallet_portfolio(
 
 
 @tool()
-def portfolio_value(
-    token_symbols: List[str],
-    token_quantities: List[float],
-    candle_interval: CandleInterval = CandleInterval.DAY,
-    num_candles: int = 90,
-) -> Dict[str, Any]:
-    """
-    Creates the time series of portfolio total value using Binance price data over the specified time period.
-    """
-    try:
-        if len(token_symbols) != len(token_quantities):
-            return {"error": "Number of symbols must match number of holdings"}
-
-        # Fetch price data for each asset
-        all_price_data = []
-
-        for token_symbol in token_symbols:
-            price_data = get_binance_price_history.invoke(
-                {
-                    "token_symbol": token_symbol,
-                    "candle_interval": candle_interval,
-                    "num_candles": num_candles,
-                }
-            )
-
-            if "error" in price_data:
-                return {
-                    "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}"
-                }
-
-            # Extract closing prices
-            close_prices = [float(candle[4]) for candle in price_data["data"]]
-            all_price_data.append(close_prices)
-
-        # Convert to numpy arrays and transpose to get [time][asset] format
-        prices = np.array(all_price_data).T
-        holding_qty = np.array(token_quantities)
-
-        # Calculate portfolio values
-        weighted_values = holding_qty * prices
-        portfolio_values = weighted_values.sum(axis=1)
-
-        return {
-            "assets": token_symbols,
-            "portfolio_values": portfolio_values.tolist(),
-            "initial_value": float(portfolio_values[0]),
-            "final_value": float(portfolio_values[-1]),
-            "change_percent": f"{((portfolio_values[-1] / portfolio_values[0]) - 1) * 100:.2f}%",
-            "period": f"{candle_interval} x {num_candles}",
-        }
-    except Exception as e:
-        return {
-            "error": f"Error calculating portfolio value: {str(e)}",
-            "traceback": traceback.format_exc(),
-        }
-
-
-@tool()
 def portfolio_volatility(
     token_symbols: List[str],
     token_quantities: List[float],
@@ -990,12 +1321,10 @@ def portfolio_volatility(
         all_price_data = []
 
         for token_symbol in token_symbols:
-            price_data = get_binance_price_history.invoke(
-                {
-                    "token_symbol": token_symbol,
-                    "candle_interval": candle_interval,
-                    "num_candles": num_candles,
-                }
+            price_data = get_coingecko_price_data(
+                token_symbol=token_symbol,
+                candle_interval=candle_interval,
+                num_candles=num_candles,
             )
 
             if "error" in price_data:
@@ -1033,94 +1362,5 @@ def portfolio_volatility(
     except Exception as e:
         return {
             "error": f"Error calculating portfolio volatility: {str(e)}",
-            "traceback": traceback.format_exc(),
-        }
-
-
-def volatility_trend(price_series):
-    """
-    Gives some information about trend in volatility by calculating
-    the slope of the line fit to the square root of
-    absolute value of returns over time.
-
-    Parameters
-    ----------
-    price_series : array
-        1-d array of prices.
-
-    Returns
-    -------
-    float
-        Linear regression coefficient interpreted as
-        the average increase or decrease of
-        square root of absolute value of returns per day.
-    """
-    return_series = price_series[1:] / price_series[:-1] - 1
-    log_abs_returns = np.log(np.abs(return_series) + 1e-12)
-    index_series = np.arange(log_abs_returns.shape[0]).reshape(-1, 1)
-    linreg = LinearRegression().fit(index_series, log_abs_returns)
-
-    return linreg.coef_[0]
-
-
-@tool()
-def analyze_volatility_trend(
-    token_symbol: str,
-    candle_interval: CandleInterval = CandleInterval.DAY,
-    num_candles: int = 90,
-) -> Dict[str, Any]:
-    """
-    Analyzes the trend in volatility for a cryptocurrency over the specified time period.
-    """
-    try:
-        # Get price data from Binance
-        price_data = get_binance_price_history.invoke(
-            {
-                "token_symbol": token_symbol,
-                "candle_interval": candle_interval,
-                "num_candles": num_candles,
-            }
-        )
-
-        if "error" in price_data:
-            return {
-                "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}"
-            }
-
-        # Extract closing prices
-        price_series = [float(candle[4]) for candle in price_data["data"]]
-
-        # Calculate volatility trend
-        price_series = np.array(price_series)
-        vol_trend = volatility_trend(price_series)
-
-        # Interpret the trend
-        if vol_trend > 0:
-            interpretation = "Increasing volatility trend"
-            direction = "upward"
-        elif vol_trend < 0:
-            interpretation = "Decreasing volatility trend"
-            direction = "downward"
-        else:
-            interpretation = "Stable volatility"
-            direction = "stable"
-
-        # Calculate standard volatility for comparison
-        returns = price_series[1:] / price_series[:-1] - 1
-        std_volatility = float(returns.std())
-
-        return {
-            "token_symbol": token_symbol,
-            "period": f"{candle_interval} x {num_candles}",
-            "volatility_trend_coefficient": float(vol_trend),
-            "trend_direction": direction,
-            "current_volatility": std_volatility,
-            "annualized_volatility": f"{float(std_volatility * np.sqrt(252) * 100):.2f}%",
-            "interpretation": interpretation,
-            "explanation": "A positive coefficient indicates volatility is increasing over time, while a negative coefficient indicates decreasing volatility.",
-        }
-    except Exception as e:
-        return {
-            "error": f"Error analyzing volatility trend: {str(e)}",
             "traceback": traceback.format_exc(),
         }

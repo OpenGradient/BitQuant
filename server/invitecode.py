@@ -4,18 +4,39 @@ import logging
 from datetime import datetime
 from boto3.resources.base import ServiceResource
 
+from server.activity_tracker import ActivityTracker
+
 logger = logging.getLogger(__name__)
 
 
 class InviteCodeManager:
     """Manages invite codes for whitelisting users."""
 
-    def __init__(self, table: ServiceResource):
+    MAX_UNUSED_CODES = 1000
+
+    def __init__(self, table: ServiceResource, activity_tracker: ActivityTracker):
         self.table = table
+        self.activity_tracker = activity_tracker
 
     def generate_invite_code(self, creator_address: str) -> Optional[str]:
         """Generate a new invite code for a whitelisted user."""
         try:
+            # Check current number of unused codes
+            response = self.table.query(
+                IndexName="creator_address-index",
+                KeyConditionExpression="creator_address = :addr",
+                FilterExpression="#used = :used",
+                ExpressionAttributeNames={"#used": "used"},
+                ExpressionAttributeValues={":addr": creator_address, ":used": False},
+            )
+
+            unused_codes = response.get("Items", [])
+            if len(unused_codes) >= self.MAX_UNUSED_CODES:
+                logger.warning(
+                    f"User {creator_address} has reached the limit of {self.MAX_UNUSED_CODES} unused invite codes"
+                )
+                return None
+
             # Generate a random 14-character code (10 bytes ≈ 14 characters in base64url)
             invite_code = secrets.token_urlsafe(10)
 
@@ -60,6 +81,11 @@ class InviteCodeManager:
                     ":used_by": user_address,
                     ":used_at": int(datetime.now().timestamp()),
                 },
+            )
+
+            # Increment creator's successful invites count
+            self.activity_tracker.increment_successful_invites(
+                invite["creator_address"]
             )
 
             return True

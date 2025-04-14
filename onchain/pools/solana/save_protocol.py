@@ -3,8 +3,8 @@ from typing import List, Dict, Any
 import requests
 
 from api.api_types import Pool, Token, Chain, PoolType
-from defi.pools.protocol import Protocol
-from tokens.metadata import TokenMetadataRepo
+from onchain.pools.protocol import Protocol
+from onchain.tokens.metadata import TokenMetadataRepo
 
 
 class SaveProtocol(Protocol):
@@ -83,7 +83,7 @@ class SaveProtocol(Protocol):
             tvl_usd = (tvl_tokens / (10**token_decimals)) * market_price
 
             # Get token information from the token list
-            token_info = token_metadata_repo.get_token_metadata(token_address)
+            token_info = token_metadata_repo.get_token_metadata(token_address, "solana")
             if token_info is None:
                 continue
 

@@ -3,10 +3,29 @@ from typing import List, Union, Optional, Dict, Literal
 from enum import IntEnum, StrEnum
 
 
+# Token metadata for pools
 class Token(BaseModel):
     address: str
     name: str
     symbol: str
+
+
+# Full token metadata
+class TokenMetadata(BaseModel):
+    # Add ID field method, which is the chain:address
+    @computed_field
+    def id(self) -> str:
+        return f"{self.chain}:{self.address}"
+
+    address: str
+    name: str
+    symbol: str
+    price_usd: str
+    chain: str
+
+    dex_pool_address: Optional[str] = None
+    market_cap_usd: Optional[str] = None
+    image_url: Optional[str] = None
 
 
 class Chain(IntEnum):
@@ -86,7 +105,8 @@ class UserMessage(BaseModel):
 class AgentMessage(BaseModel):
     type: Literal["assistant"] = "assistant"
     message: str
-    pools: List[Pool]
+    pools: List[Pool] = []
+    tokens: List[TokenMetadata] = []
 
 
 Message = Union[UserMessage, AgentMessage]
