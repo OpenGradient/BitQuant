@@ -7,6 +7,6 @@ logging.info(f"Running in subnet mode: {SUBNET_MODE}")
 
 # Bypass daily limit for miner wallet
 DAILY_LIMIT_BYPASS_WALLETS = [
-    "7FVPurQDkbj6g9dm5B52oCUr7JxqRpoYQcNitKaWVSgS", # subnet miner
-    "AzoqqVNzidLSVDiAfZcLf9AsXCVM5cFNLuwjcERPX8JN"
+    "7FVPurQDkbj6g9dm5B52oCUr7JxqRpoYQcNitKaWVSgS",  # subnet miner
+    "AzoqqVNzidLSVDiAfZcLf9AsXCVM5cFNLuwjcERPX8JN",
 ]

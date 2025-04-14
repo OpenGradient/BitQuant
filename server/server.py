@@ -22,7 +22,7 @@ from onchain.pools.solana.orca_protocol import OrcaProtocol
 from onchain.pools.solana.save_protocol import SaveProtocol
 from onchain.pools.solana.kamino_protocol import KaminoProtocol
 from onchain.tokens.metadata import TokenMetadataRepo
-from onchain.tokens.solana_portfolio import PortfolioFetcher
+from onchain.portfolio.solana_portfolio import PortfolioFetcher
 from api.api_types import (
     AgentChatRequest,
     AgentMessage,
@@ -419,7 +419,7 @@ def handle_investor_chat_request(
 ) -> AgentMessage:
     """Handle requests for the investor agent."""
     # Emit metric for investor agent usage
-    statsd.increment('agent.usage', tags=['agent_type:investor'])
+    statsd.increment("agent.usage", tags=["agent_type:investor"])
 
     # Build investor agent system prompt
     investor_system_prompt = get_investor_agent_prompt(
@@ -534,7 +534,7 @@ def run_main_agent(
         }
     except Exception as e:
         logger.error(f"Error running main agent: {e}")
-        statsd.increment('agent.failure', tags=['agent_type:main'])
+        statsd.increment("agent.failure", tags=["agent_type:main"])
         raise
 
 
@@ -569,7 +569,7 @@ def handle_analytics_chat_request(
     agent: CompiledGraph,
 ) -> AgentMessage:
     # Emit metric for analytics agent usage
-    statsd.increment('agent.usage', tags=['agent_type:analytics'])
+    statsd.increment("agent.usage", tags=["agent_type:analytics"])
 
     # Build analytics agent system prompt
     analytics_system_prompt = get_analytics_prompt(
@@ -630,7 +630,9 @@ def run_analytics_agent(
                 symbol=token.symbol,
                 chain=token.chain,
                 price_usd=str(token.price),
-                market_cap_usd=str(token.market_cap_usd) if token.market_cap_usd else None,
+                market_cap_usd=(
+                    str(token.market_cap_usd) if token.market_cap_usd else None
+                ),
                 dex_pool_address=token.dex_pool_address,
                 image_url=token.image_url,
             )
@@ -645,5 +647,5 @@ def run_analytics_agent(
         )
     except Exception as e:
         logger.error(f"Error running analytics agent: {e}")
-        statsd.increment('agent.failure', tags=['agent_type:analytics'])
+        statsd.increment("agent.failure", tags=["agent_type:analytics"])
         raise

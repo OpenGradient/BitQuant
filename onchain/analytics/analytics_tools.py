@@ -471,9 +471,7 @@ def get_coingecko_price_data(
 
 @tool()
 @track_tool_usage("analyze_price_trend")
-def analyze_price_trend(
-    token_symbol: str, num_days: int = 90
-) -> Dict[str, Any]:
+def analyze_price_trend(token_symbol: str, num_days: int = 90) -> Dict[str, Any]:
     """
     Analyzes price trend for a token including moving averages, volatility metrics,
     and enhanced technical indicators over the specified time period.

@@ -47,30 +47,51 @@ def evaluate_token_risk(
     chain = chain.lower()
     token_info = get_token_info_from_coingecko(token_address, chain)
     attributes = token_info["attributes"]
-    
+
     risk_analysis = {
         "trust_score": {
             "overall": attributes.get("gt_score", 0),
             "breakdown": {
-                "pool_quality (honeypot risk, buy/sell tax, proxy contract, liquidity amount)": attributes.get("gt_score_details", {}).get("pool", 0),
+                "pool_quality (honeypot risk, buy/sell tax, proxy contract, liquidity amount)": attributes.get(
+                    "gt_score_details", {}
+                ).get(
+                    "pool", 0
+                ),
                 "token_age": attributes.get("gt_score_details", {}).get("creation", 0),
-                "info_completeness": attributes.get("gt_score_details", {}).get("info", 0),
-                "transaction_volume": attributes.get("gt_score_details", {}).get("transaction", 0),
-                "holders_distribution": attributes.get("gt_score_details", {}).get("holders", 0)
-            }
+                "info_completeness": attributes.get("gt_score_details", {}).get(
+                    "info", 0
+                ),
+                "transaction_volume": attributes.get("gt_score_details", {}).get(
+                    "transaction", 0
+                ),
+                "holders_distribution": attributes.get("gt_score_details", {}).get(
+                    "holders", 0
+                ),
+            },
         },
         "holder_distribution": {
             "total_holders": attributes.get("holders", {}).get("count", 0),
             "distribution": {
-                "top_10": attributes.get("holders", {}).get("distribution_percentage", {}).get("top_10", "unknown"),
+                "top_10": attributes.get("holders", {})
+                .get("distribution_percentage", {})
+                .get("top_10", "unknown"),
             },
-            "concentration_risk": "High" if float(attributes.get("holders", {}).get("distribution_percentage", {}).get("top_10", "0")) > 30 else "Moderate"
+            "concentration_risk": (
+                "High"
+                if float(
+                    attributes.get("holders", {})
+                    .get("distribution_percentage", {})
+                    .get("top_10", "0")
+                )
+                > 30
+                else "Moderate"
+            ),
         },
         "social_presence": {
             "twitter": attributes.get("twitter_handle"),
             "discord": attributes.get("discord_url"),
             "telegram": attributes.get("telegram_handle"),
-            "website": attributes.get("websites")
+            "website": attributes.get("websites"),
         },
     }
 
@@ -90,7 +111,9 @@ def get_token_info_from_coingecko(token_address: str, chain: str) -> TokenMetada
     else:
         coingecko_chain = chain
 
-    response = requests.get(TOKEN_INFO_URL % (coingecko_chain, token_address), headers=headers)
+    response = requests.get(
+        TOKEN_INFO_URL % (coingecko_chain, token_address), headers=headers
+    )
     if response.status_code != 200:
         raise Exception(
             f"Failed to fetch token info: {response.status_code} {response.text}"

@@ -37,14 +37,15 @@ def make_request(input_data: Dict[str, Any], endpoint: str) -> requests.Response
         headers={"Content-Type": "application/json"},
     )
 
+
 def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) -> float:
     """
     Evaluate the subnet miner query based on the provided QuantQuery and QuantResponse.
-    
+
     Args:
         quant_query (QuantQuery): The query object containing the query string and metadata.
         quant_response (QuantResponse): The response object containing the agent's response.
-        
+
     Returns:
         float: A score representing the evaluation of the query and response.
     """
@@ -55,8 +56,8 @@ def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) ->
     # Use jinja2 to render the prompt
     template = env.get_template("evaluation_prompt.txt")
     prompt = template.render(
-        user_prompt=quant_query.query, 
-        agent_answer=quant_response.response)
+        user_prompt=quant_query.query, agent_answer=quant_response.response
+    )
 
     response = evaluation_model.chat.completions.create(
         model=GROK_MODEL,
@@ -75,6 +76,7 @@ def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) ->
     # Normalize the score to be between 0 and 1
     return float(score) / 50
 
+
 def subnet_query(quant_query: QuantQuery) -> QuantResponse:
     """
     TODO:
@@ -82,12 +84,12 @@ def subnet_query(quant_query: QuantQuery) -> QuantResponse:
     2. Remove whitelist check
     3. Handle wallet_address = None (can default to something)
     4. Create signature of sorts for quant_response
-    
+
     Make a request to the agent with the provided QuantQuery and return a QuantResponse.
-    
+
     Args:
         quant_query: A QuantQuery object containing the query, userID, and metadata
-        
+
     Returns:
         A QuantResponse object containing the agent's response, or None if the request failed
     """
@@ -97,48 +99,44 @@ def subnet_query(quant_query: QuantQuery) -> QuantResponse:
         "conversationHistory": [],
         "address": quant_query.userID,
     }
-    
+
     # Set the endpoint
     endpoint = "http://127.0.0.1:5000/api/agent/run"
-    
+
     # Format the message
     message = {"type": "user", "message": quant_query.query}
-    
+
     # Prepare the payload
-    payload = {
-        "message": message, 
-        "context": context
-    }
-    
-    
+    payload = {"message": message, "context": context}
+
     logging.info(f"Making request to {endpoint}")
     logging.info(f"Query: {quant_query.query}")
     logging.info(f"Wallet address: {quant_query.userID}")
     logging.info(f"Metadata: {quant_query.metadata}")
-    
+
     # Send request to agent
     try:
         response = make_request(payload, endpoint)
         response.raise_for_status()
     except Exception as e:
         logging.error(f"HTTP Error: {e}")
-        if hasattr(response, 'status_code'):
+        if hasattr(response, "status_code"):
             logging.error(f"Status Code: {response.status_code}")
-        if hasattr(response, 'text'):
+        if hasattr(response, "text"):
             logging.error(f"Response Text: {response.text}")
-        if hasattr(response, 'request') and hasattr(response.request, 'url'):
+        if hasattr(response, "request") and hasattr(response.request, "url"):
             logging.error(f"Request URL: {response.request.url}")
         return None
-    
+
     # Parse the response
     agent_output = response.json()
-    
+
     # Create and return a QuantResponse
     quant_response = QuantResponse(
         response=agent_output.get("message", "No message found in response"),
-        signature=b'',  
-        proofs=[],      
-        metadata={}
+        signature=b"",
+        proofs=[],
+        metadata={},
     )
-    
+
     return quant_response
