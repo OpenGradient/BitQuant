@@ -128,3 +128,8 @@ class FeedbackRequest(BaseModel):
     shareHistory: bool
     walletAddress: str
     conversationHistory: List[Dict]
+
+class SIWXVerifyRequest(BaseModel):
+    address: str
+    message: str
+    signature: str
