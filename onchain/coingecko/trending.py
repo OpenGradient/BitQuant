@@ -59,7 +59,7 @@ def evaluate_token_risk(
         "holder_distribution": {
             "total_holders": attributes.get("holders", {}).get("count", 0),
             "distribution": {
-                "top_10": attributes.get("holders", {}).get("distribution_percentage", {}).get("top_10", "0"),
+                "top_10": attributes.get("holders", {}).get("distribution_percentage", {}).get("top_10", "unknown"),
             },
             "concentration_risk": "High" if float(attributes.get("holders", {}).get("distribution_percentage", {}).get("top_10", "0")) > 30 else "Moderate"
         },
