@@ -19,7 +19,7 @@ from onchain.analytics.analytics_tools import (
     analyze_wallet_portfolio,
     get_coingecko_current_price,
 )
-from onchain.memecoins.trending import get_trending_tokens
+from onchain.coingecko.trending import get_trending_tokens, evaluate_token_risk
 from onchain.pools.protocol import ProtocolRegistry
 
 
@@ -77,5 +77,6 @@ def create_analytics_agent_toolkit(
         analyze_wallet_portfolio,
         get_trending_tokens,
         get_coingecko_current_price,
+        evaluate_token_risk,
         search_token,
     ]
