@@ -40,7 +40,7 @@ def evaluate_token_risk(
     chain: str = "solana",
     config: RunnableConfig = None,
 ) -> dict:
-    """Evaluate the risk of a token on the given chain."""
+    """Evaluate the risk of a token on the given chain, especially for memecoins."""
     chain = chain.lower()
     token_info = get_token_info_from_coingecko(token_address, chain)
     attributes = token_info["attributes"]
@@ -49,20 +49,17 @@ def evaluate_token_risk(
         "trust_score": {
             "overall": attributes.get("gt_score", 0),
             "breakdown": {
-                "pool": attributes.get("gt_score_details", {}).get("pool", 0),
-                "creation": attributes.get("gt_score_details", {}).get("creation", 0),
-                "info": attributes.get("gt_score_details", {}).get("info", 0),
-                "transaction": attributes.get("gt_score_details", {}).get("transaction", 0),
-                "holders": attributes.get("gt_score_details", {}).get("holders", 0)
+                "pool_quality (honeypot risk, buy/sell tax, proxy contract, liquidity amount)": attributes.get("gt_score_details", {}).get("pool", 0),
+                "token_age": attributes.get("gt_score_details", {}).get("creation", 0),
+                "info_completeness": attributes.get("gt_score_details", {}).get("info", 0),
+                "transaction_volume": attributes.get("gt_score_details", {}).get("transaction", 0),
+                "holders_distribution": attributes.get("gt_score_details", {}).get("holders", 0)
             }
         },
         "holder_distribution": {
             "total_holders": attributes.get("holders", {}).get("count", 0),
             "distribution": {
                 "top_10": attributes.get("holders", {}).get("distribution_percentage", {}).get("top_10", "0"),
-                "11_30": attributes.get("holders", {}).get("distribution_percentage", {}).get("11_30", "0"),
-                "31_50": attributes.get("holders", {}).get("distribution_percentage", {}).get("31_50", "0"),
-                "rest": attributes.get("holders", {}).get("distribution_percentage", {}).get("rest", "0")
             },
             "concentration_risk": "High" if float(attributes.get("holders", {}).get("distribution_percentage", {}).get("top_10", "0")) > 30 else "Moderate"
         },
