@@ -225,20 +225,25 @@ def create_flask_app() -> Flask:
             statsd.increment("agent.message.daily_limit_reached")
             return jsonify({"error": "Daily message limit reached"}), 429
 
-        portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
-        response = handle_agent_chat_request(
-            token_metadata_repo=token_metadata_repo,
-            protocol_registry=protocol_registry,
-            request=agent_request,
-            portfolio=portfolio,
-            investor_agent=investor_agent,
-            analytics_agent=analytics_agent,
-            router_model=router_model,
-        )
+        try:
+            portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
+            response = handle_agent_chat_request(
+                token_metadata_repo=token_metadata_repo,
+                protocol_registry=protocol_registry,
+                request=agent_request,
+                portfolio=portfolio,
+                investor_agent=investor_agent,
+                analytics_agent=analytics_agent,
+                router_model=router_model,
+            )
 
-        return jsonify(
-            response.model_dump() if hasattr(response, "model_dump") else response
-        )
+            return jsonify(
+                response.model_dump() if hasattr(response, "model_dump") else response
+            )
+        except Exception as e:
+            logger.error(f"Error processing agent request: {e}")
+            statsd.increment("agent.message.server_error")
+            raise
 
     @app.route("/api/agent/suggestions", methods=["POST"])
     def run_suggestions():
