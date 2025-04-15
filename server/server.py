@@ -214,11 +214,15 @@ def create_flask_app() -> Flask:
         request_data = request.get_json()
         agent_request = AgentChatRequest(**request_data)
 
+        statsd.increment("agent.message.received")
+
         if not whitelist.is_allowed(agent_request.context.address):
+            statsd.increment("agent.message.not_whitelisted")
             return jsonify({"error": "Address is not whitelisted"}), 400
 
         # Increment message count, return 403 if limit reached
         if not activity_tracker.increment_message_count(agent_request.context.address):
+            statsd.increment("agent.message.daily_limit_reached")
             return jsonify({"error": "Daily message limit reached"}), 429
 
         portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
