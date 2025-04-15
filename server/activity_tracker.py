@@ -20,7 +20,7 @@ class ActivityStats:
 
 class PointsConfig:
     POINTS_PER_MESSAGE = 1
-    POINTS_PER_SUCCESSFUL_INVITE = 75
+    POINTS_PER_SUCCESSFUL_INVITE = 80
 
 
 class ActivityTracker:
