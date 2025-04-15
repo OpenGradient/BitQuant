@@ -47,12 +47,12 @@ def show_defi_llama_chain_tvl(chain: str) -> Dict[str, Any]:
 @tool()
 @track_tool_usage("show_defi_llama_top_pools")
 def show_defi_llama_top_pools(
-    chain: str = None, limit: int = 10, min_tvl: float = 500000, max_apy: float = 1000
+    chain: str = None, min_tvl: float = 500000, max_apy: float = 1000
 ) -> List[Dict[str, Any]]:
     """
     Get top DeFi pools ranked by APY with TVL filters
     """
-    return defillama.get_top_pools(chain, limit, min_tvl, max_apy)
+    return defillama.get_top_pools(chain, 10, min_tvl, max_apy)
 
 
 @tool()

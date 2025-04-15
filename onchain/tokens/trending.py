@@ -29,14 +29,18 @@ CHAIN_REMAPPINGS = {
 @tool
 @track_tool_usage("get_top_token_holders")
 def get_top_token_holders(
-    token_address: str,
-    chain: str,
+    token_id: str,
     config: RunnableConfig = None,
 ) -> List[TokenMetadata]:
     """Get the top holders of a token on the given chain."""
+    if ":" not in token_id:
+        raise ValueError("Token ID must be in the format <chain>:<address>")
+
+    chain, address = token_id.split(":")
     chain = chain.lower()
-    holders = get_top_token_holders_from_coingecko(token_address, chain)
-    return f"""Top holders of {token_address} on {chain}: {holders}."""
+
+    holders = get_top_token_holders_from_coingecko(address, chain)
+    return f"""Top holders of {address} on {chain}: {holders}."""
 
 
 @cached(cache=TTLCache(maxsize=10_000, ttl=60 * 10))
@@ -98,7 +102,9 @@ def evaluate_token_risk(
     config: RunnableConfig = None,
 ) -> dict:
     """Evaluate the risk of a token on the given chain, especially for memecoins. Token ID is in the format <chain>:<address>."""
-    # add error handling
+    if ":" not in token_id:
+        raise ValueError("Token ID must be in the format <chain>:<address>")
+
     chain, address = token_id.split(":")
     chain = chain.lower()
 

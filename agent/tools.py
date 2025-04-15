@@ -5,6 +5,7 @@ from langchain_core.tools import BaseTool, tool
 from server.metrics import track_tool_usage
 
 from onchain.tokens.metadata import TokenMetadataRepo, TokenMetadata
+from api.api_types import TokenMetadata as TokenMetadataApi
 
 from onchain.analytics.defillama_tools import (
     show_defi_llama_top_pools,
@@ -70,7 +71,18 @@ def create_analytics_agent_toolkit(
         token: str, chain: Optional[str] = None
     ) -> Optional[TokenMetadata]:
         """Search for a token by name or symbol. Returns metadata for the first token found."""
-        return token_metadata_repo.search_token(token, chain)
+        token: Optional[TokenMetadata] = token_metadata_repo.search_token(token, chain)
+        if not token:
+            return "No token found."
+
+        return {
+            "id": f"{token.chain}:{token.address}",
+            "address": token.address,
+            "name": token.name,
+            "symbol": token.symbol,
+            "price_usd": token.price,
+            "chain": token.chain,
+        }
 
     return [
         show_defi_llama_historical_global_tvl,
@@ -80,8 +92,9 @@ def create_analytics_agent_toolkit(
         max_drawdown_for_token,
         portfolio_volatility,
         analyze_wallet_portfolio,
-        get_trending_tokens,
         get_coingecko_current_price,
+        # Token tools
+        get_trending_tokens,
         evaluate_token_risk,
         search_token,
         get_top_token_holders,
