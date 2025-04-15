@@ -16,7 +16,7 @@ CONTEXT AWARENESS:
 - If discussing yield → Suggest yield on tokens (that the user owns)
 - If analyzing market → Suggest analyze_price_trend(), show_defi_llama_historical_chain_tvl(), etc
 - If analyzing portfolio → Suggest analyze_wallet_portfolio(), portfolio_volatility(), max_drawdown_for_token(), analyze_price_trend() on the user's tokens, etc
-- If discussing a token → Suggest analyze_price_trend(), get_coingecko_current_price(), max_drawdown_for_token(), etc
+- If discussing a token → evaluate_token_risk(), get_top_token_holders() etc
 
 Always consider:
 - User's wallet tokens (prioritize tokens they own)
@@ -24,10 +24,10 @@ Always consider:
 
 EXAMPLE RESPONSES:
 - After yield discussion: ["Yield on USDC", "Yield on SOL", "Yield on BONK", "Get price history for SOL", etc]
-- After token mention: ["Analyze BONK price trend", "Analyze BONK risk", "Top holders of BONK", etc]
+- After token mention: ["Evaluate BONK risk", "Top holders of BONK", "Evaluate TOKEN_B risk", etc]
 - After market question: ["Analyze ETH trend", "Get Ethereum TVL", "Portfolio volatility", "TVL trends on Ethereum", "Portfolio summary", etc]
-- After risk concern: ["Analyze BONK risk", "Analyze BONK price trend", "Portfolio volatility", "Compare Ethereum top pools", "Global TVL data", etc]
-- After trending tokens on CHAIN_A: ["Evaluate TOKEN_A risk", "Evaluate TOKEN_B risk", "Top holders of TOKEN_A", etc]
+- After risk concern: ["Analyze BONK risk", "Analyze BONK price trend", etc]
+- After trending tokens on CHAIN_A: ["Evaluate TOKEN_A risk", "Top holders of TOKEN_A", "Evaluate TOKEN_B risk", etc]
 
 User's Solana wallet tokens: {{ tokens }}
 
