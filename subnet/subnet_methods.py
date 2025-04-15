@@ -70,7 +70,7 @@ def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) ->
         answer = response.content if hasattr(response, "content") else response["content"]
 
         # Find ```json{{...}}``` in the answer
-        match = re.search(r"```json\{(.*)}```", answer)
+        match = re.search(r"```json\s*({.*})\s*```", answer, re.DOTALL)
         if not match:
             logging.error(f"Could not find JSON in model response: {answer}")
             return 0.0
