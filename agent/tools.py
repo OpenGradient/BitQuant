@@ -19,7 +19,11 @@ from onchain.analytics.analytics_tools import (
     analyze_wallet_portfolio,
     get_coingecko_current_price,
 )
-from onchain.tokens.trending import get_trending_tokens, evaluate_token_risk
+from onchain.tokens.trending import (
+    get_trending_tokens,
+    evaluate_token_risk,
+    get_top_token_holders,
+)
 from onchain.pools.protocol import ProtocolRegistry
 
 
@@ -80,4 +84,5 @@ def create_analytics_agent_toolkit(
         get_coingecko_current_price,
         evaluate_token_risk,
         search_token,
+        get_top_token_holders,
     ]

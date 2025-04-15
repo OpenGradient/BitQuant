@@ -15,12 +15,69 @@ TRENDING_POOLS_URL = (
 TOKEN_INFO_URL = (
     "https://pro-api.coingecko.com/api/v3/onchain/networks/%s/tokens/%s/info"
 )
+TOKEN_HOLDERS_URL = (
+    "https://pro-api.coingecko.com/api/v3/onchain/networks/%s/tokens/%s/top_holders"
+)
 
 CHAIN_REMAPPINGS = {
     "sui": "sui-network",
     "ethereum": "eth",
     "ethereum-network": "eth",
 }
+
+
+@tool
+@track_tool_usage("get_top_token_holders")
+def get_top_token_holders(
+    token_address: str,
+    chain: str,
+    config: RunnableConfig = None,
+) -> List[TokenMetadata]:
+    """Get the top holders of a token on the given chain."""
+    chain = chain.lower()
+    holders = get_top_token_holders_from_coingecko(token_address, chain)
+    return f"""Top holders of {token_address} on {chain}: {holders}."""
+
+
+@cached(cache=TTLCache(maxsize=10_000, ttl=60 * 10))
+def get_top_token_holders_from_coingecko(token_address: str, chain: str) -> List:
+    """Get the top holders of a token on the given chain."""
+    headers = {
+        "accept": "application/json",
+        "x-cg-pro-api-key": os.environ.get("COINGECKO_API_KEY"),
+    }
+
+    chain = chain.lower()
+    if chain in CHAIN_REMAPPINGS:
+        coingecko_chain = CHAIN_REMAPPINGS[chain]
+    else:
+        coingecko_chain = chain
+
+    response = requests.get(
+        TOKEN_HOLDERS_URL % (coingecko_chain, token_address), headers=headers
+    )
+    if response.status_code != 200:
+        raise Exception(
+            f"Failed to fetch token holders: {response.status_code} {response.text}"
+        )
+
+    data = response.json()["data"]
+    holders = data["attributes"]["holders"]
+
+    # Format each holder's information
+    formatted_holders = []
+    for holder in holders:
+        holder_info = {
+            "rank": holder["rank"],
+            "address": holder["address"],
+            "label": holder["label"] or "None",
+            "amount": float(holder["amount"]),
+            "percentage": float(holder["percentage"]),
+            "value": float(holder["value"]),
+        }
+        formatted_holders.append(holder_info)
+
+    return formatted_holders
 
 
 @tool
@@ -57,16 +114,18 @@ def evaluate_token_risk(
                 ).get(
                     "pool", 0
                 ),
-                "token_age_score": attributes.get("gt_score_details", {}).get("creation", 0),
+                "token_age_score": attributes.get("gt_score_details", {}).get(
+                    "creation", 0
+                ),
                 "info_completeness_score": attributes.get("gt_score_details", {}).get(
                     "info", 0
                 ),
                 "transaction_volume_score": attributes.get("gt_score_details", {}).get(
                     "transaction", 0
                 ),
-                "holders_distribution_score": attributes.get("gt_score_details", {}).get(
-                    "holders", 0
-                ),
+                "holders_distribution_score": attributes.get(
+                    "gt_score_details", {}
+                ).get("holders", 0),
             },
         },
         "holder_distribution": {
