@@ -3,12 +3,11 @@ import os
 import boto3.dynamodb
 import boto3.dynamodb.table
 import boto3.dynamodb.types
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, g
 from flask_cors import CORS
 from pydantic import ValidationError, BaseModel
 from langgraph.graph.graph import CompiledGraph, RunnableConfig
 import json
-import logging
 import traceback
 import boto3
 import re
@@ -31,6 +30,7 @@ from api.api_types import (
     Portfolio,
     FeedbackRequest,
     TokenMetadata,
+    SolanaVerifyRequest,
 )
 from agent.agent_executors import (
     create_investor_executor,
@@ -53,7 +53,9 @@ from server.whitelist import TwoLigmaWhitelist
 from server.invitecode import InviteCodeManager
 from server.activity_tracker import ActivityTracker
 from server.utils import extract_patterns, convert_to_agent_msg
-
+from . import service
+from .auth import auth_required
+from .logging import logger
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
@@ -64,11 +66,6 @@ initialize(
     app_key=os.environ.get("DD_APP_KEY"),
     host_name=os.environ.get("DD_HOSTNAME", "localhost"),
 )
-
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger(__name__)
 
 # number of messages to send to agents
 NUM_MESSAGES_TO_KEEP = 6
@@ -150,8 +147,24 @@ def create_flask_app() -> Flask:
             logger.error(f"Request Body: {request.get_data(as_text=True)}")
             return jsonify({"error": str(e)}), 500
 
+    @app.route("/api/verify/solana", methods=["POST"])
+    def verify_solana_signature():
+        try:
+            request_data = request.get_json()
+            verify_request = SolanaVerifyRequest(**request_data)
+
+            token = service.verify_solana_signature(verify_request)
+            return jsonify({"token": token})
+
+        except ValidationError as e:
+            return jsonify({"error": str(e)}), 400
+        except Exception as e:
+            logger.error(f"Error verifying SIWX signature: {e}")
+            return jsonify({"error": "Internal server error"}), 500
+
     @app.route("/api/healthcheck", methods=["GET"])
     def healthcheck():
+        logger.info(f"g.user: {g.user}")
         return jsonify({"status": "ok"})
 
     @app.route("/api/portfolio", methods=["GET"])
