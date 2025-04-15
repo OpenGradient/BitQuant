@@ -164,7 +164,6 @@ def create_flask_app() -> Flask:
 
     @app.route("/api/healthcheck", methods=["GET"])
     def healthcheck():
-        logger.info(f"g.user: {g.user}")
         return jsonify({"status": "ok"})
 
     @app.route("/api/portfolio", methods=["GET"])
