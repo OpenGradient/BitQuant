@@ -219,7 +219,7 @@ def create_flask_app() -> Flask:
 
         # Increment message count, return 403 if limit reached
         if not activity_tracker.increment_message_count(agent_request.context.address):
-            return jsonify({"error": "Daily message limit reached"}), 403
+            return jsonify({"error": "Daily message limit reached"}), 429
 
         portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
         response = handle_agent_chat_request(
