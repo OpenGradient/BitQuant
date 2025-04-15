@@ -3,8 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
-from server.config import DAILY_LIMIT_BYPASS_WALLETS
-
+from server.config import MINER_TOKEN, DAILY_LIMIT_BYPASS_WALLETS
 
 @dataclass
 class ActivityStats:
@@ -37,7 +36,7 @@ class ActivityTracker:
         """
         self.table = table
 
-    def increment_message_count(self, user_address: str) -> bool:
+    def increment_message_count(self, user_address: str, miner_token: str = None) -> bool:
         """
         Increment the message count for a user.
         Returns True if the message was counted, False if the daily limit was reached.
@@ -60,8 +59,9 @@ class ActivityTracker:
 
             # Check if daily limit reached, except for Subnet miner wallet
             if (
-                daily_message_count >= self.DAILY_MESSAGE_LIMIT
-                and user_address not in DAILY_LIMIT_BYPASS_WALLETS
+              daily_message_count >= self.DAILY_MESSAGE_LIMIT 
+              and user_address not in DAILY_LIMIT_BYPASS_WALLETS
+              and miner_token != MINER_TOKEN
             ):
                 return False
 
