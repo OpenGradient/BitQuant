@@ -72,7 +72,7 @@ def get_top_token_holders_from_coingecko(token_address: str, chain: str) -> List
     formatted_holders = []
     for holder in holders:
         holder_info = {
-            "address": f"```address:{chain}:{holder["address"]}```",
+            "address": f"```address:{chain}:{holder['address']}```",
             "account_label": holder["label"] or "None",
             "percentage": float(holder["percentage"]),
             "value_usd": float(holder["value"]),
