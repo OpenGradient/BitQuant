@@ -11,7 +11,7 @@ The `onchain` module contains all the classes and utilities for interacting with
 
 ## Purpose
 
-This module serves as the data layer for the OpenQuant platform, providing:
+This module serves as the data layer for the BitQuant platform, providing:
 - Real-time and historical on-chain data access
 - Protocol interaction capabilities
 - Data analysis and processing tools
