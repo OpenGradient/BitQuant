@@ -2,7 +2,7 @@ import unittest
 import os
 import boto3
 
-from onchain.tokens.solana_portfolio import PortfolioFetcher
+from onchain.portfolio.solana_portfolio import PortfolioFetcher
 from onchain.tokens.metadata import TokenMetadataRepo
 import dotenv
 

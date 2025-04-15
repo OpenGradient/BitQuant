@@ -1,6 +1,6 @@
 import unittest
 
-from onchain.memecoins.trending import get_trending_tokens_from_coingecko
+from onchain.tokens.trending import get_trending_tokens_from_coingecko
 
 
 class TestTrending(unittest.TestCase):

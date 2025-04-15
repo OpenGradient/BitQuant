@@ -4,6 +4,9 @@ import sys
 from dotenv import load_dotenv
 from flask import jsonify
 
+# Load environment variables before all imports (DO NOT MOVE)
+load_dotenv()
+
 # Add the current directory to the Python path to make imports work properly
 current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
@@ -16,9 +19,6 @@ from onchain.pools.solana.orca_protocol import OrcaProtocol
 from onchain.pools.solana.save_protocol import SaveProtocol
 from onchain.pools.solana.kamino_protocol import KaminoProtocol
 
-# Load environment variables
-load_dotenv()
-
 # Define protocols enabled
 protocols = [
     OrcaProtocol.PROTOCOL_NAME,
@@ -29,10 +29,12 @@ protocols = [
 # Create flask app
 app = create_flask_app()
 
+
 # Add a health check endpoint
-@app.route('/health', methods=['GET'])
+@app.route("/health", methods=["GET"])
 def health_check():
     return jsonify({"status": "ok", "service": "quant-agent-server"})
+
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)

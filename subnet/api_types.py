@@ -17,27 +17,31 @@
 
 from pydantic import BaseModel
 
+
 class QuantQuery(BaseModel):
     """
     A query sent from the validator to the miner.
     """
+
     query: str
     userID: str
     metadata: dict
-    
+
     model_config = {"arbitrary_types_allowed": True}
+
 
 class QuantResponse(BaseModel):
     """
     A response sent from the miner to the validator.
     """
+
     response: str
     signature: bytes
     proofs: list[bytes]
     metadata: dict
-    
+
     model_config = {"arbitrary_types_allowed": True}
-    
+
     def validate(self) -> bool:
         """
         Validates the response proofs as well as the signatures.
@@ -47,4 +51,3 @@ class QuantResponse(BaseModel):
         """
         # TODO(developer): Implement validation logic for the proofs
         return True
-

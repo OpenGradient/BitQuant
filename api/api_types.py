@@ -129,3 +129,8 @@ class FeedbackRequest(BaseModel):
     shareHistory: bool
     walletAddress: str
     conversationHistory: List[Dict]
+
+class SolanaVerifyRequest(BaseModel):
+    address: str
+    message: str
+    signature: str

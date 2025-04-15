@@ -3,17 +3,17 @@ import os
 import boto3.dynamodb
 import boto3.dynamodb.table
 import boto3.dynamodb.types
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, g
 from flask_cors import CORS
 from pydantic import ValidationError, BaseModel
 from langgraph.graph.graph import CompiledGraph, RunnableConfig
 import json
-import logging
 import traceback
 import boto3
 import re
 from datetime import datetime
 from functools import wraps
+from datadog import initialize, statsd
 
 import boto3.data
 from onchain.pools.protocol import ProtocolRegistry
@@ -21,7 +21,7 @@ from onchain.pools.solana.orca_protocol import OrcaProtocol
 from onchain.pools.solana.save_protocol import SaveProtocol
 from onchain.pools.solana.kamino_protocol import KaminoProtocol
 from onchain.tokens.metadata import TokenMetadataRepo
-from onchain.tokens.solana_portfolio import PortfolioFetcher
+from onchain.portfolio.solana_portfolio import PortfolioFetcher
 from api.api_types import (
     AgentChatRequest,
     AgentMessage,
@@ -30,6 +30,7 @@ from api.api_types import (
     Portfolio,
     FeedbackRequest,
     TokenMetadata,
+    SolanaVerifyRequest,
 )
 from agent.agent_executors import (
     create_investor_executor,
@@ -52,16 +53,19 @@ from server.whitelist import TwoLigmaWhitelist
 from server.invitecode import InviteCodeManager
 from server.activity_tracker import ActivityTracker
 from server.utils import extract_patterns, convert_to_agent_msg
-
+from . import service
+from .auth import auth_required
+from .logging import logger
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+# Initialize Datadog
+initialize(
+    api_key=os.environ.get("DD_API_KEY"),
+    app_key=os.environ.get("DD_APP_KEY"),
+    host_name=os.environ.get("DD_HOSTNAME", "localhost"),
 )
-logger = logging.getLogger(__name__)
-
 
 # number of messages to send to agents
 NUM_MESSAGES_TO_KEEP = 6
@@ -85,7 +89,11 @@ def create_flask_app() -> Flask:
     """Create and configure the Flask application with routes."""
     app = Flask(__name__)
     app.config["PROPAGATE_EXCEPTIONS"] = True
-    CORS(app)
+    CORS(app, origins=[
+        "https://bitquant.io",
+        "https://www.bitquant.io",
+        r"^http://localhost:(3000|3001|3002|4000|4200|5000|5173|8000|8080|8081|9000)$"
+    ])
 
     # Initialize DynamoDB
     dynamodb = boto3.resource(
@@ -138,6 +146,21 @@ def create_flask_app() -> Flask:
             logger.error(f"Request Path: {request.path}")
             logger.error(f"Request Body: {request.get_data(as_text=True)}")
             return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/verify/solana", methods=["POST"])
+    def verify_solana_signature():
+        try:
+            request_data = request.get_json()
+            verify_request = SolanaVerifyRequest(**request_data)
+
+            token = service.verify_solana_signature(verify_request)
+            return jsonify({"token": token})
+
+        except ValidationError as e:
+            return jsonify({"error": str(e)}), 400
+        except Exception as e:
+            logger.error(f"Error verifying SIWX signature: {e}")
+            return jsonify({"error": "Internal server error"}), 500
 
     @app.route("/api/healthcheck", methods=["GET"])
     def healthcheck():
@@ -207,27 +230,36 @@ def create_flask_app() -> Flask:
         request_data = request.get_json()
         agent_request = AgentChatRequest(**request_data)
 
+        statsd.increment("agent.message.received")
+
         if not whitelist.is_allowed(agent_request.context.address):
+            statsd.increment("agent.message.not_whitelisted")
             return jsonify({"error": "Address is not whitelisted"}), 400
 
         # Increment message count, return 403 if limit reached
         if not activity_tracker.increment_message_count(agent_request.context.address, agent_request.context.miner_token):
+            statsd.increment("agent.message.daily_limit_reached")
             return jsonify({"error": "Daily message limit reached"}), 403
 
-        portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
-        response = handle_agent_chat_request(
-            token_metadata_repo=token_metadata_repo,
-            protocol_registry=protocol_registry,
-            request=agent_request,
-            portfolio=portfolio,
-            investor_agent=investor_agent,
-            analytics_agent=analytics_agent,
-            router_model=router_model,
-        )
+        try:
+            portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
+            response = handle_agent_chat_request(
+                token_metadata_repo=token_metadata_repo,
+                protocol_registry=protocol_registry,
+                request=agent_request,
+                portfolio=portfolio,
+                investor_agent=investor_agent,
+                analytics_agent=analytics_agent,
+                router_model=router_model,
+            )
 
-        return jsonify(
-            response.model_dump() if hasattr(response, "model_dump") else response
-        )
+            return jsonify(
+                response.model_dump() if hasattr(response, "model_dump") else response
+            )
+        except Exception as e:
+            logger.error(f"Error processing agent request: {e}")
+            statsd.increment("agent.message.server_error")
+            raise
 
     @app.route("/api/agent/suggestions", methods=["POST"])
     def run_suggestions():
@@ -411,6 +443,9 @@ def handle_investor_chat_request(
     protocol_registry: ProtocolRegistry,
 ) -> AgentMessage:
     """Handle requests for the investor agent."""
+    # Emit metric for investor agent usage
+    statsd.increment("agent.usage", tags=["agent_type:investor"])
+
     # Build investor agent system prompt
     investor_system_prompt = get_investor_agent_prompt(
         tokens=portfolio.holdings,
@@ -505,22 +540,27 @@ def run_main_agent(
     config: RunnableConfig,
     protocol_registry: ProtocolRegistry,
 ) -> Dict[str, Any]:
-    # Run agent directly
-    result = agent.invoke({"messages": messages}, config=config, debug=False)
-    # Extract final state and last message
-    last_message = result["messages"][-1]
+    try:
+        # Run agent directly
+        result = agent.invoke({"messages": messages}, config=config, debug=False)
+        # Extract final state and last message
+        last_message = result["messages"][-1]
 
-    # Extract pool IDs and clean text
-    cleaned_text, pool_ids = extract_patterns(last_message.content, "pool")
+        # Extract pool IDs and clean text
+        cleaned_text, pool_ids = extract_patterns(last_message.content, "pool")
 
-    # Get full pool objects for the extracted pool IDs
-    pool_objects = protocol_registry.get_pools_by_ids(pool_ids)
+        # Get full pool objects for the extracted pool IDs
+        pool_objects = protocol_registry.get_pools_by_ids(pool_ids)
 
-    return {
-        "content": cleaned_text,
-        "pools": pool_objects,
-        "messages": result["messages"],
-    }
+        return {
+            "content": cleaned_text,
+            "pools": pool_objects,
+            "messages": result["messages"],
+        }
+    except Exception as e:
+        logger.error(f"Error running main agent: {e}")
+        statsd.increment("agent.failure", tags=["agent_type:main"])
+        raise
 
 
 def convert_to_agent_message_history(messages: List[Message]) -> List[Tuple[str, str]]:
@@ -553,6 +593,8 @@ def handle_analytics_chat_request(
     portfolio: Portfolio,
     agent: CompiledGraph,
 ) -> AgentMessage:
+    # Emit metric for analytics agent usage
+    statsd.increment("agent.usage", tags=["agent_type:analytics"])
 
     # Build analytics agent system prompt
     analytics_system_prompt = get_analytics_prompt(
@@ -590,38 +632,45 @@ def run_analytics_agent(
     messages: List,
     config: RunnableConfig,
 ) -> AgentMessage:
-    # Run agent directly
-    result = agent.invoke({"messages": messages}, config=config, debug=False)
+    try:
+        # Run agent directly
+        result = agent.invoke({"messages": messages}, config=config, debug=False)
 
-    # Extract final state and last message
-    last_message = result["messages"][-1]
-    cleaned_text, token_ids = extract_patterns(last_message.content, "token")
+        # Extract final state and last message
+        last_message = result["messages"][-1]
+        cleaned_text, token_ids = extract_patterns(last_message.content, "token")
 
-    token_metadata = [
-        token_metadata_repo.search_token(
-            parts[1] if len(parts) > 1 else parts[0],  # token part
-            parts[0] if len(parts) > 1 else None,  # chain part, None if no colon
+        token_metadata = [
+            token_metadata_repo.search_token(
+                parts[1] if len(parts) > 1 else parts[0],  # token part
+                parts[0] if len(parts) > 1 else None,  # chain part, None if no colon
+            )
+            for token_id in token_ids
+            for parts in [token_id.split(":", 1)]
+        ]
+        api_token_metadata = [
+            TokenMetadata(
+                address=token.address,
+                name=token.name,
+                symbol=token.symbol,
+                chain=token.chain,
+                price_usd=str(token.price),
+                market_cap_usd=(
+                    str(token.market_cap_usd) if token.market_cap_usd else None
+                ),
+                dex_pool_address=token.dex_pool_address,
+                image_url=token.image_url,
+            )
+            for token in token_metadata
+            if token is not None
+        ]
+
+        return AgentMessage(
+            message=cleaned_text,
+            tokens=api_token_metadata,
+            pools=[],
         )
-        for token_id in token_ids
-        for parts in [token_id.split(":", 1)]
-    ]
-    api_token_metadata = [
-        TokenMetadata(
-            address=token.address,
-            name=token.name,
-            symbol=token.symbol,
-            chain=token.chain,
-            price_usd=str(token.price),
-            market_cap_usd=str(token.market_cap_usd) if token.market_cap_usd else None,
-            dex_pool_address=token.dex_pool_address,
-            image_url=token.image_url,
-        )
-        for token in token_metadata
-        if token is not None
-    ]
-
-    return AgentMessage(
-        message=cleaned_text,
-        tokens=api_token_metadata,
-        pools=[],
-    )
+    except Exception as e:
+        logger.error(f"Error running analytics agent: {e}")
+        statsd.increment("agent.failure", tags=["agent_type:analytics"])
+        raise

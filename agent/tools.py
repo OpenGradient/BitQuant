@@ -2,11 +2,11 @@ from typing import List, Optional
 
 from langgraph.graph.graph import RunnableConfig
 from langchain_core.tools import BaseTool, tool
+from server.metrics import track_tool_usage
 
 from onchain.tokens.metadata import TokenMetadataRepo, TokenMetadata
 
 from onchain.analytics.defillama_tools import (
-    show_defi_llama_global_tvl,
     show_defi_llama_top_pools,
     show_defi_llama_historical_global_tvl,
     show_defi_llama_historical_chain_tvl,
@@ -19,11 +19,16 @@ from onchain.analytics.analytics_tools import (
     analyze_wallet_portfolio,
     get_coingecko_current_price,
 )
-from onchain.memecoins.trending import get_trending_tokens
+from onchain.tokens.trending import (
+    get_trending_tokens,
+    evaluate_token_risk,
+    get_top_token_holders,
+)
 from onchain.pools.protocol import ProtocolRegistry
 
 
 @tool
+@track_tool_usage("retrieve_solana_pools")
 def retrieve_solana_pools(
     tokens: List[str] = None,
     config: RunnableConfig = None,
@@ -42,7 +47,11 @@ def retrieve_solana_pools(
         user_tokens=user_tokens,
     )
 
-    return protocol_registry.get_pools(query)
+    pools = protocol_registry.get_pools(query)
+    if len(pools) == 0:
+        return "No pools found."
+
+    return pools
 
 
 def create_investor_agent_toolkit() -> List[BaseTool]:
@@ -56,6 +65,7 @@ def create_analytics_agent_toolkit(
 ) -> List[BaseTool]:
 
     @tool
+    @track_tool_usage("search_token")
     def search_token(
         token: str, chain: Optional[str] = None
     ) -> Optional[TokenMetadata]:
@@ -63,7 +73,6 @@ def create_analytics_agent_toolkit(
         return token_metadata_repo.search_token(token, chain)
 
     return [
-        show_defi_llama_global_tvl,
         show_defi_llama_historical_global_tvl,
         show_defi_llama_historical_chain_tvl,
         show_defi_llama_top_pools,
@@ -73,5 +82,7 @@ def create_analytics_agent_toolkit(
         analyze_wallet_portfolio,
         get_trending_tokens,
         get_coingecko_current_price,
+        evaluate_token_risk,
         search_token,
+        get_top_token_holders,
     ]
