@@ -13,22 +13,16 @@ def validate_firebase_env_vars():
         "FIREBASE_PRIVATE_KEY_ID",
         "FIREBASE_PRIVATE_KEY",
         "FIREBASE_CLIENT_EMAIL",
-        "FIREBASE_CLIENT_ID"
+        "FIREBASE_CLIENT_ID",
+        "FIREBASE_CLIENT_X509_CERT_URL"
     ]
 
     missing_vars = [var for var in required_vars if not os.environ.get(var)]
-
     if missing_vars:
         raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
 
     # Get and process the private key to handle newlines
     private_key = os.environ.get("FIREBASE_PRIVATE_KEY").replace("\\n", "\n")
-
-    # Get the optional client_x509_cert_url or use a default value
-    client_x509_cert_url = os.environ.get(
-        "FIREBASE_CLIENT_X509_CERT_URL",
-        "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40bitquant-afc7f.iam.gserviceaccount.com"
-    )
 
     return (
         os.environ.get("FIREBASE_PROJECT_ID"),
@@ -36,7 +30,7 @@ def validate_firebase_env_vars():
         private_key,
         os.environ.get("FIREBASE_CLIENT_EMAIL"),
         os.environ.get("FIREBASE_CLIENT_ID"),
-        client_x509_cert_url
+        os.environ.get("FIREBASE_CLIENT_X509_CERT_URL")
     )
 
 # TODO: SECURITY ISSUE - it's better to use .env variable for this.
