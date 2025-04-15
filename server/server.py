@@ -21,7 +21,7 @@ from onchain.pools.solana.orca_protocol import OrcaProtocol
 from onchain.pools.solana.save_protocol import SaveProtocol
 from onchain.pools.solana.kamino_protocol import KaminoProtocol
 from onchain.tokens.metadata import TokenMetadataRepo
-from onchain.tokens.solana_portfolio import PortfolioFetcher
+from onchain.portfolio.solana_portfolio import PortfolioFetcher
 from api.api_types import (
     AgentChatRequest,
     AgentMessage,
@@ -89,7 +89,11 @@ def create_flask_app() -> Flask:
     """Create and configure the Flask application with routes."""
     app = Flask(__name__)
     app.config["PROPAGATE_EXCEPTIONS"] = True
-    CORS(app)
+    CORS(app, origins=[
+        "https://bitquant.io",
+        "https://www.bitquant.io",
+        r"^http://localhost:(3000|3001|3002|4000|4200|5000|5173|8000|8080|8081|9000)$"
+    ])
 
     # Initialize DynamoDB
     dynamodb = boto3.resource(
@@ -227,27 +231,36 @@ def create_flask_app() -> Flask:
         request_data = request.get_json()
         agent_request = AgentChatRequest(**request_data)
 
+        statsd.increment("agent.message.received")
+
         if not whitelist.is_allowed(agent_request.context.address):
+            statsd.increment("agent.message.not_whitelisted")
             return jsonify({"error": "Address is not whitelisted"}), 400
 
         # Increment message count, return 403 if limit reached
         if not activity_tracker.increment_message_count(agent_request.context.address):
-            return jsonify({"error": "Daily message limit reached"}), 403
+            statsd.increment("agent.message.daily_limit_reached")
+            return jsonify({"error": "Daily message limit reached"}), 429
 
-        portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
-        response = handle_agent_chat_request(
-            token_metadata_repo=token_metadata_repo,
-            protocol_registry=protocol_registry,
-            request=agent_request,
-            portfolio=portfolio,
-            investor_agent=investor_agent,
-            analytics_agent=analytics_agent,
-            router_model=router_model,
-        )
+        try:
+            portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
+            response = handle_agent_chat_request(
+                token_metadata_repo=token_metadata_repo,
+                protocol_registry=protocol_registry,
+                request=agent_request,
+                portfolio=portfolio,
+                investor_agent=investor_agent,
+                analytics_agent=analytics_agent,
+                router_model=router_model,
+            )
 
-        return jsonify(
-            response.model_dump() if hasattr(response, "model_dump") else response
-        )
+            return jsonify(
+                response.model_dump() if hasattr(response, "model_dump") else response
+            )
+        except Exception as e:
+            logger.error(f"Error processing agent request: {e}")
+            statsd.increment("agent.message.server_error")
+            raise
 
     @app.route("/api/agent/suggestions", methods=["POST"])
     def run_suggestions():
@@ -431,6 +444,9 @@ def handle_investor_chat_request(
     protocol_registry: ProtocolRegistry,
 ) -> AgentMessage:
     """Handle requests for the investor agent."""
+    # Emit metric for investor agent usage
+    statsd.increment("agent.usage", tags=["agent_type:investor"])
+
     # Build investor agent system prompt
     investor_system_prompt = get_investor_agent_prompt(
         tokens=portfolio.holdings,
@@ -544,7 +560,7 @@ def run_main_agent(
         }
     except Exception as e:
         logger.error(f"Error running main agent: {e}")
-        statsd.increment('agent.failure', tags=['agent_type:main'])
+        statsd.increment("agent.failure", tags=["agent_type:main"])
         raise
 
 
@@ -578,6 +594,8 @@ def handle_analytics_chat_request(
     portfolio: Portfolio,
     agent: CompiledGraph,
 ) -> AgentMessage:
+    # Emit metric for analytics agent usage
+    statsd.increment("agent.usage", tags=["agent_type:analytics"])
 
     # Build analytics agent system prompt
     analytics_system_prompt = get_analytics_prompt(
@@ -638,7 +656,9 @@ def run_analytics_agent(
                 symbol=token.symbol,
                 chain=token.chain,
                 price_usd=str(token.price),
-                market_cap_usd=str(token.market_cap_usd) if token.market_cap_usd else None,
+                market_cap_usd=(
+                    str(token.market_cap_usd) if token.market_cap_usd else None
+                ),
                 dex_pool_address=token.dex_pool_address,
                 image_url=token.image_url,
             )
@@ -653,5 +673,5 @@ def run_analytics_agent(
         )
     except Exception as e:
         logger.error(f"Error running analytics agent: {e}")
-        statsd.increment('agent.failure', tags=['agent_type:analytics'])
+        statsd.increment("agent.failure", tags=["agent_type:analytics"])
         raise

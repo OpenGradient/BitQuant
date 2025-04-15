@@ -52,6 +52,9 @@ class TokenMetadataRepo:
         self, token: str, chain: Optional[str] = None
     ) -> Optional[TokenMetadata]:
         """Search for a token by name or symbol."""
+        if chain:
+            chain = chain.lower()
+
         if chain is not None:
             # Check if token is a valid address
             token_metadata = self.get_token_metadata(token, chain)

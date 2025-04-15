@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
 
-from server.config import MINER_WALLET_ADDRESS
+from server.config import DAILY_LIMIT_BYPASS_WALLETS
 
 
 @dataclass
@@ -19,12 +19,17 @@ class ActivityStats:
     daily_message_limit: int
 
 
+class PointsConfig:
+    POINTS_PER_MESSAGE = 1
+    POINTS_PER_SUCCESSFUL_INVITE = 150
+
+
 class ActivityTracker:
     """
     A class for tracking points for users.
     """
 
-    DAILY_MESSAGE_LIMIT = 20
+    DAILY_MESSAGE_LIMIT = 25
 
     def __init__(self, table: ServiceResource):
         """
@@ -54,7 +59,10 @@ class ActivityTracker:
                 daily_message_count = 0
 
             # Check if daily limit reached, except for Subnet miner wallet
-            if daily_message_count >= self.DAILY_MESSAGE_LIMIT and user_address != MINER_WALLET_ADDRESS:
+            if (
+                daily_message_count >= self.DAILY_MESSAGE_LIMIT
+                and user_address not in DAILY_LIMIT_BYPASS_WALLETS
+            ):
                 return False
 
             # Update both total and daily message counts
@@ -100,7 +108,10 @@ class ActivityTracker:
             successful_invites = item.get("successful_invites", 0)
             daily_message_count = item.get("daily_message_count", 0)
             last_message_date = item.get("last_message_date")
-            points = message_count + (successful_invites * 30)
+            points = (
+                message_count * PointsConfig.POINTS_PER_MESSAGE
+                + successful_invites * PointsConfig.POINTS_PER_SUCCESSFUL_INVITE
+            )
 
             # Reset daily count if it's a new day
             today = datetime.now(timezone.utc).strftime("%Y-%m-%d")

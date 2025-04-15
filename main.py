@@ -29,10 +29,12 @@ protocols = [
 # Create flask app
 app = create_flask_app()
 
+
 # Add a health check endpoint
-@app.route('/health', methods=['GET'])
+@app.route("/health", methods=["GET"])
 def health_check():
     return jsonify({"status": "ok", "service": "quant-agent-server"})
+
 
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
