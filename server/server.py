@@ -236,10 +236,10 @@ def create_flask_app() -> Flask:
             statsd.increment("agent.message.not_whitelisted")
             return jsonify({"error": "Address is not whitelisted"}), 400
 
-        # Increment message count, return 403 if limit reached
+        # Increment message count, return 429 if limit reached
         if not activity_tracker.increment_message_count(agent_request.context.address, agent_request.context.miner_token):
             statsd.increment("agent.message.daily_limit_reached")
-            return jsonify({"error": "Daily message limit reached"}), 403
+            return jsonify({"error": "Daily message limit reached"}), 429
 
         try:
             portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
