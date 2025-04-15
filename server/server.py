@@ -92,7 +92,8 @@ def create_flask_app() -> Flask:
     CORS(app, origins=[
         "https://bitquant.io",
         "https://www.bitquant.io",
-        r"^http://localhost:(3000|3001|3002|4000|4200|5000|5173|8000|8080|8081|9000)$"
+        r"^http://localhost:(3000|3001|3002|4000|4200|5000|5173|8000|8080|8081|9000)$",
+        r"^https://defi-chat-hub-git-[\w-]+-open-gradient\.vercel\.app$"
     ])
 
     # Initialize DynamoDB
