@@ -68,12 +68,10 @@ def get_top_token_holders_from_coingecko(token_address: str, chain: str) -> List
     formatted_holders = []
     for holder in holders:
         holder_info = {
-            "rank": holder["rank"],
             "address": holder["address"],
-            "label": holder["label"] or "None",
-            "amount": float(holder["amount"]),
+            "account_label": holder["label"] or "None",
             "percentage": float(holder["percentage"]),
-            "value": float(holder["value"]),
+            "value_usd": float(holder["value"]),
         }
         formatted_holders.append(holder_info)
 
@@ -85,24 +83,26 @@ def get_top_token_holders_from_coingecko(token_address: str, chain: str) -> List
 def get_trending_tokens(
     chain: str = "solana",
     config: RunnableConfig = None,
-) -> List[TokenMetadata]:
+) -> str:
     """Retrieve the latest trending tokens on the given chain from DEX data."""
     chain = chain.lower()
     trending_tokens = get_trending_tokens_from_coingecko(chain)[:8]
 
-    return f"""Latest trending tokens: {trending_tokens}. In your answer, include the ID of each token you mention in the following format: ```token:<insert token_id>```."""
+    return f"""Latest trending tokens: {trending_tokens}. In your answer, include the ID of each token you mention in the following format: ```token:<insert token_id>```, and also the name and symbol of each token."""
 
 
 @tool
 @track_tool_usage("evaluate_token_risk")
 def evaluate_token_risk(
-    token_address: str,
-    chain: str = "solana",
+    token_id: str,
     config: RunnableConfig = None,
 ) -> dict:
-    """Evaluate the risk of a token on the given chain, especially for memecoins."""
+    """Evaluate the risk of a token on the given chain, especially for memecoins. Token ID is in the format <chain>:<address>."""
+    # add error handling
+    chain, address = token_id.split(":")
     chain = chain.lower()
-    token_info = get_token_info_from_coingecko(token_address, chain)
+
+    token_info = get_token_info_from_coingecko(address, chain)
     attributes = token_info["attributes"]
 
     risk_analysis = {

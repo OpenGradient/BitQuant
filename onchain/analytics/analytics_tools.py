@@ -10,8 +10,9 @@ import requests
 from time import sleep
 from datetime import datetime, timedelta, UTC
 from cachetools import TTLCache
-from server.metrics import track_tool_usage
 
+from server.metrics import track_tool_usage
+from api.api_types import WalletTokenHolding
 
 class CandleInterval(StrEnum):
     """Candle interval options for price data"""
@@ -1037,7 +1038,7 @@ def analyze_wallet_portfolio(
     Provides a comprehensive analysis of a crypto wallet portfolio with investor-friendly insights and recommendations.
     """
     try:
-        tokens = config["configurable"]["tokens"]
+        tokens: List[WalletTokenHolding] = config["configurable"]["tokens"]
 
         # Fetch price data for each asset
         all_price_data = []
@@ -1303,31 +1304,29 @@ def analyze_wallet_portfolio(
 
 @tool()
 def portfolio_volatility(
-    token_symbols: List[str],
-    token_quantities: List[float],
     candle_interval: CandleInterval = CandleInterval.DAY,
     num_candles: int = 90,
+    config: RunnableConfig = None,
 ) -> Dict[str, Any]:
     """
     Calculates the volatility (standard deviation of returns) of a portfolio over the specified time period. Do not pass in stablecoins.
     """
     try:
-        if len(token_symbols) != len(token_quantities):
-            return {"error": "Number of symbols must match number of holdings"}
+        tokens: List[WalletTokenHolding] = config["configurable"]["tokens"]
 
         # Fetch price data for each asset
         all_price_data = []
 
-        for token_symbol in token_symbols:
+        for token in tokens:
             price_data = get_coingecko_price_data(
-                token_symbol=token_symbol,
+                token_symbol=token.symbol,
                 candle_interval=candle_interval,
                 num_candles=num_candles,
             )
 
             if "error" in price_data:
                 return {
-                    "error": f"Failed to fetch price data for {token_symbol}: {price_data['error']}"
+                    "error": f"Failed to fetch price data for {token}: {price_data['error']}"
                 }
 
             # Extract closing prices
@@ -1336,7 +1335,7 @@ def portfolio_volatility(
 
         # Convert to numpy arrays and transpose to get [time][asset] format
         prices = np.array(all_price_data).T
-        holding_qty = np.array(token_quantities)
+        holding_qty = np.array(token.amount)
 
         # Calculate portfolio values
         weighted_values = holding_qty * prices
@@ -1347,7 +1346,7 @@ def portfolio_volatility(
         portfolio_sd = float(portfolio_returns.std())
 
         return {
-            "assets": token_symbols,
+            "assets": [token.symbol for token in tokens],
             "portfolio_volatility": portfolio_sd,
             "annualized_volatility": float(
                 portfolio_sd * np.sqrt(252)
