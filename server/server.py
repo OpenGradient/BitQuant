@@ -54,7 +54,7 @@ from server.invitecode import InviteCodeManager
 from server.activity_tracker import ActivityTracker
 from server.utils import extract_patterns, convert_to_agent_msg
 from . import service
-from .auth import auth_required
+from .auth import protected_route
 from .logging import logger
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -167,6 +167,7 @@ def create_flask_app() -> Flask:
         return jsonify({"status": "ok"})
 
     @app.route("/api/portfolio", methods=["GET"])
+    @protected_route
     def get_portfolio():
         address = request.args.get("address")
         if not address:
@@ -226,6 +227,7 @@ def create_flask_app() -> Flask:
         return send_from_directory(STATIC_DIR, "tokenlist.json")
 
     @app.route("/api/agent/run", methods=["POST"])
+    @protected_route
     def run_agent():
         request_data = request.get_json()
         agent_request = AgentChatRequest(**request_data)
@@ -262,6 +264,7 @@ def create_flask_app() -> Flask:
             raise
 
     @app.route("/api/agent/suggestions", methods=["POST"])
+    @protected_route
     def run_suggestions():
         request_data = request.get_json()
         agent_request = AgentChatRequest(**request_data)
@@ -279,6 +282,7 @@ def create_flask_app() -> Flask:
         return jsonify({"suggestions": suggestions})
 
     @app.route("/api/feedback", methods=["POST"])
+    @protected_route
     def submit_feedback():
         try:
             request_data = request.get_json()
@@ -312,6 +316,7 @@ def create_flask_app() -> Flask:
             return jsonify({"error": "Internal server error"}), 500
 
     @app.route("/api/invite/generate", methods=["POST"])
+    @protected_route
     def generate_invite_code():
         try:
             request_data = request.get_json()
@@ -371,6 +376,7 @@ def create_flask_app() -> Flask:
             return jsonify({"error": "Internal server error"}), 500
 
     @app.route("/api/activity/stats", methods=["GET"])
+    @protected_route
     def get_activity_stats():
         try:
             address = request.args.get("address")

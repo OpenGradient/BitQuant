@@ -32,7 +32,7 @@ def _verify_firebase_id_token(token: str) -> FirebaseIDTokenData:
 
 T = TypeVar('T')
 
-def auth_required(f: Callable[..., T]) -> Callable[..., T]:
+def protected_route(f: Callable[..., T]) -> Callable[..., T]:
     """
     Decorator to require Firebase authentication for Flask routes.
     Stores user data in Flask's `g` object as `g.user`.
