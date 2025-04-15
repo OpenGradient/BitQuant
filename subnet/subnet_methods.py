@@ -13,19 +13,18 @@ from subnet.api_types import QuantQuery, QuantResponse
 
 env = jinja2.Environment(loader=jinja2.FileSystemLoader("./subnet"))
 
-GROK_MODEL = "x-ai/grok-2-1212"  # $2/M input tokens; $10/M output tokens
+LLM_MODEL = "google/gemini-2.0-flash-001"
 BASE_URL = "https://openrouter.ai/api/v1"
 API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 
 def create_evaluation_model() -> OpenAI:
     return OpenAI(
-        model=GROK_MODEL,
+        model=LLM_MODEL,
         temperature=0.0,
         openai_api_base=BASE_URL,
         openai_api_key=API_KEY,
         request_timeout=120,
-        default_headers={"X-Title": "bitquant-evaluation"},
     )
 
 
@@ -60,7 +59,7 @@ def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) ->
     )
 
     response = evaluation_model.chat.completions.create(
-        model=GROK_MODEL,
+        model=LLM_MODEL,
         messages=[{"role": "user", "content": prompt}],
         max_tokens=5_000,
         temperature=0.0,
