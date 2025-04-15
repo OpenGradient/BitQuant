@@ -6,25 +6,29 @@ import json
 import re
 
 import jinja2
-from openai import OpenAI
+from langchain_openai import ChatOpenAI
+import os
+import logging
+import json
+import re
 
-from subnet.api_types import QuantQuery, QuantResponse
+from .api_types import QuantQuery, QuantResponse
 
+evaluation_model = None
 
-env = jinja2.Environment(loader=jinja2.FileSystemLoader("./subnet"))
-
+env = jinja2.Environment(loader=jinja2.FileSystemLoader(os.path.dirname(os.path.abspath(__file__))))
 LLM_MODEL = "google/gemini-2.0-flash-001"
 BASE_URL = "https://openrouter.ai/api/v1"
 API_KEY = os.getenv("OPENROUTER_API_KEY")
 
+def create_evaluation_model() -> ChatOpenAI:
 
-def create_evaluation_model() -> OpenAI:
-    return OpenAI(
+    return ChatOpenAI(
         model=LLM_MODEL,
         temperature=0.0,
         openai_api_base=BASE_URL,
         openai_api_key=API_KEY,
-        request_timeout=120,
+        request_timeout=120.0,
     )
 
 
@@ -52,28 +56,31 @@ def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) ->
     if evaluation_model is None:
         evaluation_model = create_evaluation_model()
 
-    # Use jinja2 to render the prompt
-    template = env.get_template("evaluation_prompt.txt")
-    prompt = template.render(
-        user_prompt=quant_query.query, agent_answer=quant_response.response
-    )
+    try:
+        template = env.get_template("evaluation_prompt.txt")
+        prompt = template.render(
+            user_prompt=quant_query.query,
+            agent_answer="No response provided" if quant_response is None else quant_response.response)
 
-    response = evaluation_model.chat.completions.create(
-        model=LLM_MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=5_000,
-        temperature=0.0,
-    )
+        # Format messages properly for ChatOpenAI
+        messages = [{"role": "user", "content": prompt}]
+        response = evaluation_model.invoke(messages)
 
-    # Parse the response
-    answer = response.choices[0].message.content
+        # Parse the response
+        answer = response.content if hasattr(response, "content") else response["content"]
 
-    # Find ```json{...}``` in the answer
-    json_str = re.search(r"```json{(.*)}```", answer).group(1)
-    score = json.loads(json_str)["score"]
-
-    # Normalize the score to be between 0 and 1
-    return float(score) / 50
+        # Find ```json{{...}}``` in the answer
+        match = re.search(r"```json\{(.*)}```", answer)
+        if not match:
+            logging.error(f"Could not find JSON in model response: {answer}")
+            return 0.0
+        json_str = match.group(1)
+        score = json.loads(json_str)["score"]
+        # Normalize the score to be between 0 and 1
+        return float(score) / 50
+    except Exception as e:
+        logging.error(f"subnet_evaluation error: {e}")
+        return 0.0
 
 
 def subnet_query(quant_query: QuantQuery) -> QuantResponse:
