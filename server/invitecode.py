@@ -12,7 +12,8 @@ logger = logging.getLogger(__name__)
 class InviteCodeManager:
     """Manages invite codes for whitelisting users."""
 
-    MAX_UNUSED_CODES = 1000
+    # How many unused codes a user can have
+    MAX_UNUSED_CODES = 500
 
     def __init__(self, table: ServiceResource, activity_tracker: ActivityTracker):
         self.table = table
