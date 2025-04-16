@@ -14,7 +14,7 @@ class InviteCodeManager:
     """Manages invite codes for whitelisting users."""
 
     # How many unused codes a user can have
-    MAX_UNUSED_CODES = 500
+    MAX_UNUSED_CODES = 200
 
     def __init__(self, table: ServiceResource, activity_tracker: ActivityTracker):
         self.table = table
