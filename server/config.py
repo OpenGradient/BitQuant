@@ -1,5 +1,8 @@
 import os
 import logging
+from typing import Literal
+
+SKIP_FIREBASE_TOKEN_AUTH = bool(os.getenv("SKIP_FIREBASE_TOKEN_AUTH", False))
 
 # See if we are running in subnet mode
 SUBNET_MODE = os.getenv("subnet_mode", "false").lower() == "true"

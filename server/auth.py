@@ -1,9 +1,10 @@
 from .firebase import auth
 from pydantic import BaseModel
 from functools import wraps
-from typing import Callable, Optional, TypeVar, cast
+from typing import Callable, TypeVar, cast
 from flask import abort, request, jsonify, g
 from .logging import logger
+from .config import SKIP_FIREBASE_TOKEN_AUTH
 
 class FirebaseIDTokenData(BaseModel):
     uid: str
@@ -47,6 +48,9 @@ def protected_route(f: Callable[..., T]) -> Callable[..., T]:
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        if SKIP_FIREBASE_TOKEN_AUTH:
+            return f(*args, **kwargs)
+
         auth_header = request.headers.get('Authorization')
         if not auth_header or not auth_header.startswith('Bearer '):
             return jsonify({"error": "Authorization header required"}), 401
