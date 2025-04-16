@@ -21,14 +21,13 @@ class ActivityStats:
 class PointsConfig:
     POINTS_PER_MESSAGE = 1
     POINTS_PER_SUCCESSFUL_INVITE = 80
+    DAILY_MESSAGE_LIMIT = 20
 
 
 class ActivityTracker:
     """
     A class for tracking points for users.
     """
-
-    DAILY_MESSAGE_LIMIT = 25
 
     def __init__(self, table: ServiceResource):
         """
@@ -59,7 +58,7 @@ class ActivityTracker:
 
             # Check if daily limit reached, except for Subnet miner wallet
             if (
-              daily_message_count >= self.DAILY_MESSAGE_LIMIT 
+              daily_message_count >= PointsConfig.DAILY_MESSAGE_LIMIT 
               and user_address not in DAILY_LIMIT_BYPASS_WALLETS
               and miner_token != MINER_TOKEN
             ):
