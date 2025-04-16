@@ -20,7 +20,7 @@ class TokenMetadata:
     image_url: Optional[str]
     price: Optional[float]
     dex_pool_address: Optional[str]
-    market_cap_usd: Optional[float]
+    market_cap_usd: Optional[int]
 
 
 class TokenMetadataRepo:
@@ -157,7 +157,7 @@ class TokenMetadataRepo:
                 image_url=item.get("image_url"),
                 price=item.get("price"),
                 dex_pool_address=item.get("dex_pool_address"),
-                market_cap_usd=item.get("market_cap_usd"),
+                market_cap_usd=int(item.get("market_cap_usd", 0)),
             )
 
             return metadata
@@ -186,7 +186,7 @@ class TokenMetadataRepo:
         if metadata.dex_pool_address:
             item["dex_pool_address"] = metadata.dex_pool_address
         if metadata.market_cap_usd:
-            item["market_cap_usd"] = metadata.market_cap_usd
+            item["market_cap_usd"] = int(metadata.market_cap_usd)
 
         self._tokens_table.put_item(Item=item)
         logging.info(
