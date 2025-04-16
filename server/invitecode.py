@@ -3,6 +3,7 @@ import secrets
 import logging
 from datetime import datetime
 from boto3.resources.base import ServiceResource
+from datadog import statsd
 
 from server.activity_tracker import ActivityTracker
 
@@ -53,6 +54,7 @@ class InviteCodeManager:
                 }
             )
 
+            statsd.increment("invitecode.generated")
             return invite_code
         except Exception as e:
             logger.error(f"Error generating invite code: {e}")
@@ -89,6 +91,7 @@ class InviteCodeManager:
                 invite["creator_address"]
             )
 
+            statsd.increment("invitecode.activated")
             return True
         except Exception as e:
             logger.error(f"Error using invite code: {e}")
