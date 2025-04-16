@@ -261,8 +261,6 @@ def get_coingecko_categories_list() -> list:
     """
     Fetch the list of all coin categories (category_id and name) from CoinGecko.
     Useful for letting users sift through available categories.
-    Returns:
-        List[Dict]: Each dict contains 'category_id' and 'name'.
     """
     url = f"{COINGECKO_BASE_URL}/coins/categories/list"
     try:
@@ -277,8 +275,6 @@ def get_coingecko_categories_info() -> list:
     """
     Fetch detailed info for all coin categories from CoinGecko.
     Each entry includes category_id, name, market cap, volume, and top coins.
-    Returns:
-        List[Dict]: Each dict contains detailed info for a category.
     """
     url = f"{COINGECKO_BASE_URL}/coins/categories"
     try:
