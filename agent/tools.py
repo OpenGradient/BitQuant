@@ -19,6 +19,8 @@ from onchain.analytics.analytics_tools import (
     analyze_price_trend,
     analyze_wallet_portfolio,
     get_coingecko_current_price,
+    get_coingecko_categories_list,
+    get_coingecko_categories_info,
 )
 from onchain.tokens.trending import (
     get_trending_tokens,
@@ -102,4 +104,8 @@ def create_analytics_agent_toolkit(
         evaluate_token_risk,
         search_token,
         get_top_token_holders,
+
+        # CoinGecko categories
+        get_coingecko_categories_list,
+        get_coingecko_categories_info,
     ]

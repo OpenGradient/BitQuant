@@ -58,6 +58,37 @@ ID_TO_NAME_MAP = {}
 NAME_TO_ID_MAP = {}
 
 
+@tool("get_coingecko_categories_list")
+def get_coingecko_categories_list() -> list:
+    """
+    Fetch the list of all coin categories (category_id and name) from CoinGecko.
+    Useful for letting users sift through available categories.
+    Returns:
+        List[Dict]: Each dict contains 'category_id' and 'name'.
+    """
+    url = f"{COINGECKO_BASE_URL}/coins/categories/list"
+    try:
+        categories = make_coingecko_request(url, params=None)
+        return categories
+    except Exception as e:
+        return [{"error": str(e)}]
+
+
+@tool("get_coingecko_categories_info")
+def get_coingecko_categories_info() -> list:
+    """
+    Fetch detailed info for all coin categories from CoinGecko.
+    Each entry includes category_id, name, market cap, volume, and top coins.
+    Returns:
+        List[Dict]: Each dict contains detailed info for a category.
+    """
+    url = f"{COINGECKO_BASE_URL}/coins/categories"
+    try:
+        categories_info = make_coingecko_request(url, params=None)
+        return categories_info
+    except Exception as e:
+        return [{"error": str(e)}]
+
 def timestamp_to_date(timestamp: int) -> str:
     """Convert Unix timestamp to human-readable date string"""
     # Convert milliseconds to seconds if needed
