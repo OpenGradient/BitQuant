@@ -1,6 +1,7 @@
 import os
 import firebase_admin  # type: ignore[import-untyped]
 from firebase_admin import auth  # noqa: F401
+from dotenv import dotenv_values
 
 def validate_firebase_env_vars():
     """
@@ -23,6 +24,13 @@ def validate_firebase_env_vars():
 
     # Get and process the private key to handle newlines
     private_key = os.environ.get("FIREBASE_PRIVATE_KEY").replace("\\n", "\n")
+
+    # Sometimes, when loading multiline env variables from a .env file,
+    # Only the -----BEGIN PRIVATE KEY----- is loaded (\n causes issues).
+    # This handles this case.
+    if '\n' not in private_key:
+        config = dotenv_values()
+        private_key = config["FIREBASE_PRIVATE_KEY"]
 
     return (
         os.environ.get("FIREBASE_PROJECT_ID"),
