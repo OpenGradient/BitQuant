@@ -122,7 +122,7 @@ class ActivityTracker:
                 successful_invites=successful_invites,
                 points=points,
                 daily_message_count=daily_message_count,
-                daily_message_limit=self.DAILY_MESSAGE_LIMIT,
+                daily_message_limit=PointsConfig.DAILY_MESSAGE_LIMIT,
             )
         except Exception:
             return ActivityStats(
@@ -130,5 +130,5 @@ class ActivityTracker:
                 successful_invites=0,
                 points=0,
                 daily_message_count=0,
-                daily_message_limit=self.DAILY_MESSAGE_LIMIT,
+                daily_message_limit=PointsConfig.DAILY_MESSAGE_LIMIT,
             )
