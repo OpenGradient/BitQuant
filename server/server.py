@@ -89,6 +89,7 @@ def create_flask_app() -> Flask:
     """Create and configure the Flask application with routes."""
     app = Flask(__name__)
     app.config["PROPAGATE_EXCEPTIONS"] = True
+
     CORS(app, origins=[
         "https://bitquant.io",
         "https://www.bitquant.io",
