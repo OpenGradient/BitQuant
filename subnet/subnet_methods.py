@@ -41,9 +41,12 @@ def make_request(input_data: Dict[str, Any], endpoint: str) -> requests.Response
     )
 
 
+import time
+
+
 def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) -> float:
     """
-    Evaluate the subnet miner query based on the provided QuantQuery and QuantResponse.
+    Evaluate the subnet miner query based on the provided QuantQuery and QuantResponse, with up to 3 retries on failure.
 
     Args:
         quant_query (QuantQuery): The query object containing the query string and metadata.
@@ -56,31 +59,39 @@ def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) ->
     if evaluation_model is None:
         evaluation_model = create_evaluation_model()
 
-    try:
-        template = env.get_template("evaluation_prompt.txt")
-        prompt = template.render(
-            user_prompt=quant_query.query,
-            agent_answer="No response provided" if quant_response is None else quant_response.response)
+    retries = 3
+    delay = 3.0
+    last_exception = None
+    for attempt in range(1, retries + 1):
+        try:
+            template = env.get_template("evaluation_prompt.txt")
+            prompt = template.render(
+                user_prompt=quant_query.query,
+                agent_answer="No response provided" if quant_response is None else quant_response.response)
 
-        # Format messages properly for ChatOpenAI
-        messages = [{"role": "user", "content": prompt}]
-        response = evaluation_model.invoke(messages)
+            # Format messages properly for ChatOpenAI
+            messages = [{"role": "user", "content": prompt}]
+            response = evaluation_model.invoke(messages)
 
-        # Parse the response
-        answer = response.content if hasattr(response, "content") else response["content"]
+            # Parse the response
+            answer = response.content if hasattr(response, "content") else response["content"]
 
-        # Find ```json{{...}}``` in the answer
-        match = re.search(r"```json\s*({.*})\s*```", answer, re.DOTALL)
-        if not match:
-            logging.error(f"Could not find JSON in model response: {answer}")
-            return 0.0
-        json_str = match.group(1)
-        score = json.loads(json_str)["score"]
-        # Normalize the score to be between 0 and 1
-        return float(score) / 50
-    except Exception as e:
-        logging.error(f"subnet_evaluation error: {e}")
-        return 0.0
+            # Find ```json{{...}}``` in the answer
+            match = re.search(r"```json\s*({.*})\s*```", answer, re.DOTALL)
+            if not match:
+                logging.error(f"Could not find JSON in model response: {answer}")
+                return 0.0
+            json_str = match.group(1)
+            score = json.loads(json_str)["score"]
+            # Normalize the score to be between 0 and 1
+            return float(score) / 50
+        except Exception as e:
+            last_exception = e
+            logging.error(f"subnet_evaluation attempt {attempt} failed: {e}")
+            if attempt < retries:
+                time.sleep(delay)
+    logging.error(f"subnet_evaluation failed after {retries} attempts: {last_exception}")
+    return 0.0
 
 
 def subnet_query(quant_query: QuantQuery) -> QuantResponse:
