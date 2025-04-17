@@ -36,7 +36,7 @@ def main():
         tokens = agent_output.get("tokens", [])
 
         # print results
-        print(f"Two-Ligma: {answer}")
+        print(f"BitQuant: {answer}")
         if pools:
             print(f"Pools: {pools}")
         if tokens:
