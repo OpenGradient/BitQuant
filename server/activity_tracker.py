@@ -16,6 +16,7 @@ class ActivityStats:
     points: int
     daily_message_count: int
     daily_message_limit: int
+    rank: int  # Global rank based on points
 
 
 class PointsConfig:
@@ -64,17 +65,19 @@ class ActivityTracker:
             ):
                 return False
 
-            # Update both total and daily message counts
+            # Update both total and daily message counts, and points
             self.table.update_item(
                 Key={"user_address": user_address},
                 UpdateExpression="SET message_count = if_not_exists(message_count, :zero) + :inc, "
                 "daily_message_count = :daily_count, "
-                "last_message_date = :today",
+                "last_message_date = :today "
+                "ADD points :points_inc",
                 ExpressionAttributeValues={
                     ":inc": 1,
                     ":zero": 0,
                     ":daily_count": daily_message_count + 1,
                     ":today": today,
+                    ":points_inc": PointsConfig.POINTS_PER_MESSAGE,
                 },
             )
             return True
@@ -87,8 +90,11 @@ class ActivityTracker:
         """
         self.table.update_item(
             Key={"user_address": user_address},
-            UpdateExpression="ADD successful_invites :inc",
-            ExpressionAttributeValues={":inc": 1},
+            UpdateExpression="ADD successful_invites :inc, points :points_inc",
+            ExpressionAttributeValues={
+                ":inc": 1,
+                ":points_inc": PointsConfig.POINTS_PER_SUCCESSFUL_INVITE
+            },
         )
 
     def get_activity_stats(self, user_address: str) -> ActivityStats:
@@ -97,9 +103,10 @@ class ActivityTracker:
         Returns ActivityStats with 0 for both counts if the user doesn't exist.
         """
         try:
+            # First get the user's stats
             response = self.table.get_item(
                 Key={"user_address": user_address},
-                ProjectionExpression="message_count, successful_invites, daily_message_count, last_message_date",
+                ProjectionExpression="message_count, successful_invites, daily_message_count, last_message_date, points",
             )
             item = response.get("Item", {})
 
@@ -107,15 +114,21 @@ class ActivityTracker:
             successful_invites = item.get("successful_invites", 0)
             daily_message_count = item.get("daily_message_count", 0)
             last_message_date = item.get("last_message_date")
-            points = (
-                message_count * PointsConfig.POINTS_PER_MESSAGE
-                + successful_invites * PointsConfig.POINTS_PER_SUCCESSFUL_INVITE
-            )
+            points = item.get("points", 0)
 
             # Reset daily count if it's a new day
             today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
             if last_message_date != today:
                 daily_message_count = 0
+
+            # Get the user's rank by counting users with more points
+            rank_response = self.table.query(
+                IndexName="points-index",  # This GSI needs to be created in DynamoDB
+                KeyConditionExpression="points > :points",
+                ExpressionAttributeValues={":points": points},
+                Select="COUNT"
+            )
+            rank = rank_response.get("Count", 0) + 1  # Add 1 since rank is 1-based
 
             return ActivityStats(
                 message_count=message_count,
@@ -123,6 +136,7 @@ class ActivityTracker:
                 points=points,
                 daily_message_count=daily_message_count,
                 daily_message_limit=PointsConfig.DAILY_MESSAGE_LIMIT,
+                rank=rank
             )
         except Exception:
             return ActivityStats(
@@ -131,4 +145,5 @@ class ActivityTracker:
                 points=0,
                 daily_message_count=0,
                 daily_message_limit=PointsConfig.DAILY_MESSAGE_LIMIT,
+                rank=-1  # Return -1 for rank if there's an error
             )

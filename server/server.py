@@ -10,10 +10,10 @@ from langgraph.graph.graph import CompiledGraph, RunnableConfig
 import json
 import traceback
 import boto3
-import re
 from datetime import datetime
 from functools import wraps
 from datadog import initialize, statsd
+import logging
 
 import boto3.data
 from onchain.pools.protocol import ProtocolRegistry
@@ -55,7 +55,7 @@ from server.activity_tracker import ActivityTracker
 from server.utils import extract_patterns, convert_to_agent_msg
 from . import service
 from .auth import protected_route
-from .logging import logger
+
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
@@ -143,10 +143,10 @@ def create_flask_app() -> Flask:
         @app.errorhandler(Exception)
         def handle_generic_error(e):
             error_traceback = traceback.format_exc()
-            logger.error(f"500 Error: {str(e)}")
-            logger.error(f"Traceback: {error_traceback}")
-            logger.error(f"Request Path: {request.path}")
-            logger.error(f"Request Body: {request.get_data(as_text=True)}")
+            logging.error(f"500 Error: {str(e)}")
+            logging.error(f"Traceback: {error_traceback}")
+            logging.error(f"Request Path: {request.path}")
+            logging.error(f"Request Body: {request.get_data(as_text=True)}")
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/verify/solana", methods=["POST"])
@@ -161,7 +161,7 @@ def create_flask_app() -> Flask:
         except ValidationError as e:
             return jsonify({"error": str(e)}), 400
         except Exception as e:
-            logger.error(f"Error verifying SIWX signature: {e}")
+            logging.error(f"Error verifying SIWX signature: {e}")
             return jsonify({"error": "Internal server error"}), 500
 
     @app.route("/api/healthcheck", methods=["GET"])
@@ -218,7 +218,7 @@ def create_flask_app() -> Flask:
                 return jsonify({"status": "success"})
             return jsonify({"error": "Failed to add address"}), 500
         except Exception as e:
-            logger.error(f"Error adding to whitelist: {e}")
+            logging.error(f"Error adding to whitelist: {e}")
             return jsonify({"error": "Internal server error"}), 500
 
     @app.route("/api/tokenlist", methods=["GET"])
@@ -261,7 +261,7 @@ def create_flask_app() -> Flask:
                 response.model_dump() if hasattr(response, "model_dump") else response
             )
         except Exception as e:
-            logger.error(f"Error processing agent request: {e}")
+            logging.error(f"Error processing agent request: {e}")
             statsd.increment("agent.message.server_error")
             raise
 
@@ -313,8 +313,8 @@ def create_flask_app() -> Flask:
         except ValidationError as e:
             return jsonify({"error": str(e)}), 400
         except Exception as e:
-            logger.error(f"Error submitting feedback: {str(e)}")
-            logger.error(f"Traceback: {traceback.format_exc()}")
+            logging.error(f"Error submitting feedback: {str(e)}")
+            logging.error(f"Traceback: {traceback.format_exc()}")
             return jsonify({"error": "Internal server error"}), 500
 
     @app.route("/api/invite/generate", methods=["POST"])
@@ -343,7 +343,7 @@ def create_flask_app() -> Flask:
 
             return jsonify({"invite_code": invite_code})
         except Exception as e:
-            logger.error(f"Error generating invite code: {e}")
+            logging.error(f"Error generating invite code: {e}")
             return jsonify({"error": "Internal server error"}), 500
 
     @app.route("/api/invite/use", methods=["POST"])
@@ -374,7 +374,7 @@ def create_flask_app() -> Flask:
 
             return jsonify({"status": "success"})
         except Exception as e:
-            logger.error(f"Error using invite code: {e}")
+            logging.error(f"Error using invite code: {e}")
             return jsonify({"error": "Internal server error"}), 500
 
     @app.route("/api/activity/stats", methods=["GET"])
@@ -395,7 +395,7 @@ def create_flask_app() -> Flask:
             stats = activity_tracker.get_activity_stats(address)
             return jsonify(stats)
         except Exception as e:
-            logger.error(f"Error getting activity stats: {e}")
+            logging.error(f"Error getting activity stats: {e}")
             return jsonify({"error": "Internal server error"}), 500
 
     return app
@@ -536,7 +536,7 @@ def handle_suggestions_request(
             suggestions = [item.strip().strip("'\"") for item in cleaned.split(",")]
             return suggestions
         except Exception as e:
-            logger.error(f"Error parsing suggestions string: {e}")
+            logging.error(f"Error parsing suggestions string: {e}")
             return []
 
     return []
@@ -566,7 +566,7 @@ def run_main_agent(
             "messages": result["messages"],
         }
     except Exception as e:
-        logger.error(f"Error running main agent: {e}")
+        logging.error(f"Error running main agent: {e}")
         statsd.increment("agent.failure", tags=["agent_type:main"])
         raise
 
@@ -588,7 +588,7 @@ def convert_to_agent_message_history(messages: List[Message]) -> List[Tuple[str,
 
     for _, message in converted_messages:
         if not message:
-            logger.error(
+            logging.error(
                 f"Empty message.\nOriginal: {messages}\nConverted: {converted_messages}"
             )
 
@@ -679,6 +679,6 @@ def run_analytics_agent(
             pools=[],
         )
     except Exception as e:
-        logger.error(f"Error running analytics agent: {e}")
+        logging.error(f"Error running analytics agent: {e}")
         statsd.increment("agent.failure", tags=["agent_type:analytics"])
         raise
