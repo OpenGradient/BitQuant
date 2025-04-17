@@ -275,7 +275,6 @@ def get_coingecko_category(category_id: str, page: int = 1, per_page: int = 10) 
     """
     Fetch coins in a specific CoinGecko category by category_id.
     """
-    import requests
     url = f"{COINGECKO_BASE_URL}/coins/markets"
     params = {
         "vs_currency": "usd",
@@ -285,9 +284,8 @@ def get_coingecko_category(category_id: str, page: int = 1, per_page: int = 10) 
         "page": page,
         "sparkline": "false"
     }
-    response = requests.get(url, params=params)
-    response.raise_for_status()
-    return response.json()
+    response = make_coingecko_request(url, params=params)
+    return response
 
 @tool("get_coingecko_categories_info")
 def get_coingecko_categories_info() -> list:
