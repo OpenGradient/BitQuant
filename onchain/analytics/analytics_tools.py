@@ -271,15 +271,9 @@ def get_coingecko_categories_list() -> list:
 
 
 @tool("get_coingecko_category")
-def get_coingecko_category(category_id: str, page: int = 1, per_page: int = 250) -> list:
+def get_coingecko_category(category_id: str, page: int = 1, per_page: int = 10) -> list:
     """
     Fetch coins in a specific CoinGecko category by category_id.
-    Args:
-        category_id (str): The CoinGecko category_id (e.g., 'layer-1')
-        page (int): Page number for pagination (default 1)
-        per_page (int): Number of coins per page (default 250, CoinGecko max)
-    Returns:
-        list: List of coins in the category with their market data
     """
     import requests
     url = "https://api.coingecko.com/api/v3/coins/markets"
