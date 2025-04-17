@@ -287,16 +287,16 @@ def get_coingecko_category_info(category_id: str, page: int = 1, per_page: int =
     """
     Fetch coins in a specific CoinGecko category by category_id.
     """
+    url = f"{COINGECKO_BASE_URL}/coins/markets"
+    params = {
+        "vs_currency": "usd",
+        "category": category_id,
+        "order": "market_cap_desc",
+        "per_page": per_page,
+        "page": page,
+        "sparkline": "false"
+    }
     try:
-        url = f"{COINGECKO_BASE_URL}/coins/markets"
-        params = {
-            "vs_currency": "usd",
-            "category": category_id,
-            "order": "market_cap_desc",
-            "per_page": per_page,
-            "page": page,
-            "sparkline": "false"
-        }
         response = make_coingecko_request(url, params=params)
         return response
     except Exception as e:
