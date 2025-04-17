@@ -269,9 +269,21 @@ def get_coingecko_categories_list() -> list:
     except Exception as e:
         return [{"error": str(e)}]
 
+@tool("get_coingecko_categories_info")
+def get_coingecko_categories_info() -> list:
+    """
+    Fetch detailed info for all coin categories from CoinGecko.
+    Each entry includes category_id, name, market cap, volume, and top coins.
+    """
+    url = f"{COINGECKO_BASE_URL}/coins/categories"
+    try:
+        categories_info = make_coingecko_request(url, params=None)
+        return categories_info
+    except Exception as e:
+        return [{"error": str(e)}]
 
-@tool("get_coingecko_category")
-def get_coingecko_category(category_id: str, page: int = 1, per_page: int = 10) -> list:
+@tool("get_coingecko_category_info")
+def get_coingecko_category_info(category_id: str, page: int = 1, per_page: int = 10) -> list:
     """
     Fetch coins in a specific CoinGecko category by category_id.
     """
@@ -286,19 +298,6 @@ def get_coingecko_category(category_id: str, page: int = 1, per_page: int = 10) 
     }
     response = make_coingecko_request(url, params=params)
     return response
-
-@tool("get_coingecko_categories_info")
-def get_coingecko_categories_info() -> list:
-    """
-    Fetch detailed info for all coin categories from CoinGecko.
-    Each entry includes category_id, name, market cap, volume, and top coins.
-    """
-    url = f"{COINGECKO_BASE_URL}/coins/categories"
-    try:
-        categories_info = make_coingecko_request(url, params=None)
-        return categories_info
-    except Exception as e:
-        return [{"error": str(e)}]
 
 @tool()
 def get_coingecko_current_price(
