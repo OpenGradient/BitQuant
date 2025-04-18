@@ -1,9 +1,10 @@
-from .firebase import auth
 from pydantic import BaseModel
 from functools import wraps
 from typing import Callable, TypeVar, cast
 from flask import abort, request, jsonify, g
-from .logging import logger
+import logging
+
+from .firebase import auth
 from .config import SKIP_TOKEN_AUTH_HEADER, SKIP_TOKEN_AUTH_KEY
 
 class FirebaseIDTokenData(BaseModel):
@@ -22,13 +23,13 @@ def _verify_firebase_id_token(token: str) -> FirebaseIDTokenData:
         user_data = auth.verify_id_token(id_token=token, app=None, check_revoked=True, clock_skew_seconds=10)
         return FirebaseIDTokenData(**user_data)
     except (auth.InvalidIdTokenError, auth.ExpiredIdTokenError, auth.RevokedIdTokenError) as e:
-        logger.exception(msg=e, stack_info=True)
+        logging.exception(msg=e, stack_info=True)
         abort(401)
     except auth.UserDisabledError as e:
-        logger.exception(msg=e, stack_info=True)
+        logging.exception(msg=e, stack_info=True)
         abort(404)
     except (ValueError, auth.CertificateFetchError, auth.FirebaseError) as e:
-        logger.exception(msg=e, stack_info=True)
+        logging.exception(msg=e, stack_info=True)
         abort(500)
 
 T = TypeVar('T')
