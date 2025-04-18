@@ -3,6 +3,7 @@ import os
 import requests
 from cachetools import cached, TTLCache
 import logging
+from typing import Tuple, Optional
 
 from langchain_core.tools import BaseTool, tool
 from langgraph.graph.graph import RunnableConfig
@@ -41,7 +42,10 @@ def get_top_token_holders(
     chain = chain.lower()
 
     try:
-        holders = get_top_token_holders_from_coingecko(address, chain)
+        holders, error = get_top_token_holders_from_coingecko(address, chain)
+        if error:
+            return error
+
         return f"""Top holders of {address} on {chain}: {holders}."""
     except Exception as e:
         logging.error(f"Error in get_top_token_holders with input {token_id}: {e}")
@@ -49,7 +53,9 @@ def get_top_token_holders(
 
 
 @cached(cache=TTLCache(maxsize=10_000, ttl=60 * 10))
-def get_top_token_holders_from_coingecko(token_address: str, chain: str) -> List:
+def get_top_token_holders_from_coingecko(
+    token_address: str, chain: str
+) -> Tuple[List, Optional[str]]:
     """Get the top holders of a token on the given chain."""
     headers = {
         "accept": "application/json",
@@ -67,7 +73,7 @@ def get_top_token_holders_from_coingecko(token_address: str, chain: str) -> List
     )
     if response.status_code == 404:
         logging.warning(f"Token top holders not found: {token_address} on {chain}")
-        return "Top holders for this token are not available."
+        return [], "Top holders for this token are not available."
     if response.status_code != 200:
         raise Exception(
             f"Failed to fetch token holders: {response.status_code} {response.text}"
@@ -87,7 +93,7 @@ def get_top_token_holders_from_coingecko(token_address: str, chain: str) -> List
         }
         formatted_holders.append(holder_info)
 
-    return formatted_holders
+    return formatted_holders, None
 
 
 @tool
@@ -120,9 +126,11 @@ def evaluate_token_risk(
     chain, address = token_id.split(":", 1)
     chain = chain.lower()
 
-    token_info = get_token_info_from_coingecko(address, chain)
-    attributes = token_info["attributes"]
+    token_info, error = get_token_info_from_coingecko(address, chain)
+    if error:
+        return error
 
+    attributes = token_info["attributes"]
     risk_analysis = {
         "trust_score": {
             "overall_score": attributes.get("gt_score", 0),
@@ -176,7 +184,9 @@ def evaluate_token_risk(
 
 
 @cached(cache=TTLCache(maxsize=1000, ttl=60 * 10))
-def get_token_info_from_coingecko(token_address: str, chain: str) -> TokenMetadata:
+def get_token_info_from_coingecko(
+    token_address: str, chain: str
+) -> Tuple[TokenMetadata, Optional[str]]:
     """Get token info from CoinGecko's token info endpoint for the chain."""
     headers = {
         "accept": "application/json",
@@ -191,13 +201,16 @@ def get_token_info_from_coingecko(token_address: str, chain: str) -> TokenMetada
     response = requests.get(
         TOKEN_INFO_URL % (coingecko_chain, token_address), headers=headers
     )
+    if response.status_code == 404:
+        logging.warning(f"Token info not found: {token_address} on {chain}")
+        return None, "Token metadata not available."
     if response.status_code != 200:
         raise Exception(
             f"Failed to fetch token info: {response.status_code} {response.text}"
         )
 
     data = response.json()
-    return data["data"]
+    return data["data"], None
 
 
 @cached(cache=TTLCache(maxsize=100, ttl=60 * 10))
