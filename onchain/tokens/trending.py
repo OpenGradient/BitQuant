@@ -36,7 +36,7 @@ def get_top_token_holders(
     if ":" not in token_id:
         raise ValueError("Token ID must be in the format <chain>:<address>")
 
-    chain, address = token_id.split(":")
+    chain, address = token_id.split(":", 1)
     chain = chain.lower()
 
     holders = get_top_token_holders_from_coingecko(address, chain)
@@ -105,7 +105,7 @@ def evaluate_token_risk(
     if ":" not in token_id:
         raise ValueError("Token ID must be in the format <chain>:<address>")
 
-    chain, address = token_id.split(":")
+    chain, address = token_id.split(":", 1)
     chain = chain.lower()
 
     token_info = get_token_info_from_coingecko(address, chain)
