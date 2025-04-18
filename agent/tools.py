@@ -22,6 +22,7 @@ from onchain.analytics.analytics_tools import (
     get_coingecko_categories_list,
     get_coingecko_categories_info,
     get_coingecko_category_info,
+    get_trending_tokens_in_category,
 )
 from onchain.tokens.trending import (
     get_trending_tokens,

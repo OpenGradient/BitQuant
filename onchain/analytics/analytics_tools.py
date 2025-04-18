@@ -282,6 +282,26 @@ def get_coingecko_categories_info() -> list:
     except Exception as e:
         return [{"error": str(e)}]
 
+@tool("get_trending_tokens_in_category")
+def get_trending_tokens_in_category(category_id: str, page: int = 1, per_page: int = 10) -> list:
+    """
+    Fetch the top tokens in a CoinGecko category, sorted by market cap (i.e., trending by market cap).
+    """
+    url = f"{COINGECKO_BASE_URL}/coins/markets"
+    params = {
+        "vs_currency": "usd",
+        "category": category_id,
+        "order": "market_cap_desc",
+        "per_page": per_page,
+        "page": page,
+        "sparkline": "false"
+    }
+    try:
+        response = make_coingecko_request(url, params=params)
+        return response
+    except Exception as e:
+        return [{"error": str(e)}]
+
 @tool("get_coingecko_category_info")
 def get_coingecko_category_info(category_id: str, page: int = 1, per_page: int = 10) -> list:
     """
