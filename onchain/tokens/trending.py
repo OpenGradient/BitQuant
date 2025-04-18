@@ -2,6 +2,7 @@ from typing import List, Dict
 import os
 import requests
 from cachetools import cached, TTLCache
+import logging
 
 from langchain_core.tools import BaseTool, tool
 from langgraph.graph.graph import RunnableConfig
@@ -43,6 +44,7 @@ def get_top_token_holders(
         holders = get_top_token_holders_from_coingecko(address, chain)
         return f"""Top holders of {address} on {chain}: {holders}."""
     except Exception as e:
+        logging.error(f"Error in get_top_token_holders with input {token_id}: {e}")
         return f"ERROR: Failed to get top holders for {token_id}: {e}"
 
 
@@ -98,6 +100,7 @@ def get_trending_tokens(
         trending_tokens = get_trending_tokens_from_coingecko(chain)[:8]
         return f"""Latest trending tokens: {trending_tokens}. In your answer, include the ID of each token you mention in the following format: ```token:<insert token_id>```, and also the name and symbol of each token."""
     except Exception as e:
+        logging.error(f"Error in get_trending_tokens with input {chain}: {e}")
         return f"ERROR: Failed to get trending tokens for {chain}: {e}"
 
 
