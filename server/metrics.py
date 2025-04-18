@@ -2,6 +2,7 @@ from datadog import statsd
 import os
 from functools import wraps
 import time
+import logging
 
 
 def track_tool_usage(tool_name: str):
@@ -35,6 +36,7 @@ def track_tool_usage(tool_name: str):
                 ]
                 statsd.increment("tool.errors.count", tags=tags)
                 statsd.histogram("tool.execution.duration", duration, tags=tags)
+                logging.error(f"Error in tool {tool_name}: {e}")
 
                 raise e
 
