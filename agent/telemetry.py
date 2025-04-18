@@ -41,7 +41,6 @@ def track_tool_usage(tool_name: str):
                 )
                 return f"ERROR: Failed to execute tool {tool_name}."
 
-
         return wrapper
 
     return decorator

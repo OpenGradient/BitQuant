@@ -12,7 +12,7 @@ from agent.telemetry import track_tool_usage
 from api.api_types import TokenMetadata
 
 TRENDING_POOLS_URL = (
-    "https://pro-api.coingecko.com/api/v3/onchain/networks/%s/trending_pools"
+    "https://pro-api.coingecko.com/api/v3/onchain/networks/%s/trending_pools?include=base_token"
 )
 TOKEN_INFO_URL = (
     "https://pro-api.coingecko.com/api/v3/onchain/networks/%s/tokens/%s/info"
@@ -101,7 +101,7 @@ def get_trending_tokens(
     """Retrieve the latest trending tokens on the given chain from DEX data."""
     chain = chain.lower()
     trending_tokens = get_trending_tokens_from_coingecko(chain)[:8]
-    return f"""Latest trending tokens: {trending_tokens}. In your answer, include the ID of each token you mention in the following format: ```token:<insert token_id>```, and also the name and symbol of each token."""
+    return f"""Trending tokens: {trending_tokens}. In your answer, include the ID of each token you mention in the following format: ```token:<insert token_id>```, and the name and symbol too."""
 
 
 @tool
@@ -206,7 +206,6 @@ def get_token_info_from_coingecko(
 
 @cached(cache=TTLCache(maxsize=100, ttl=60 * 10))
 def get_trending_tokens_from_coingecko(chain: str) -> List[TokenMetadata]:
-    """Get trending tokens from CoinGecko's trending pools endpoint for the chain."""
     headers = {
         "accept": "application/json",
         "x-cg-pro-api-key": os.environ.get("COINGECKO_API_KEY"),
@@ -226,22 +225,24 @@ def get_trending_tokens_from_coingecko(chain: str) -> List[TokenMetadata]:
     data = response.json()
     trending_tokens = []
 
+    token_metadata = {
+        token["id"]: token["attributes"] for token in data.get("included", [])
+    }
+
     # The response has a data array containing pool information
     for pool in data.get("data", []):
         attributes = pool["attributes"]
         relationships = pool["relationships"]
 
         # eg solana_BQQzEvYT4knThhkSPBvSKBLg1LEczisWLhx5ydJipump
-        token_address = relationships["base_token"]["data"]["id"].split("_")[1]
-
-        # eg "Ghibli / SOL"
-        token_name = attributes["name"].split("/")[0].strip()
+        token_id = relationships["base_token"]["data"]["id"]
+        token = token_metadata[token_id]
 
         token = TokenMetadata(
-            address=token_address,
+            address=token["address"],
             chain=chain,
-            name=token_name,
-            symbol=token_name,
+            name=token["name"],
+            symbol=token["symbol"],
             dex_pool_address=attributes["address"],
             price_usd=attributes["base_token_price_usd"],
             market_cap_usd=attributes.get("market_cap_usd"),
