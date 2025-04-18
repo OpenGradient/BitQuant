@@ -121,22 +121,13 @@ class ActivityTracker:
             if last_message_date != today:
                 daily_message_count = 0
 
-            # Get the user's rank by counting users with more points
-            rank_response = self.table.query(
-                IndexName="points-index",  # This GSI needs to be created in DynamoDB
-                KeyConditionExpression="points > :points",
-                ExpressionAttributeValues={":points": points},
-                Select="COUNT"
-            )
-            rank = rank_response.get("Count", 0) + 1  # Add 1 since rank is 1-based
-
             return ActivityStats(
                 message_count=message_count,
                 successful_invites=successful_invites,
                 points=points,
                 daily_message_count=daily_message_count,
                 daily_message_limit=PointsConfig.DAILY_MESSAGE_LIMIT,
-                rank=rank
+                rank=-1
             )
         except Exception:
             return ActivityStats(
