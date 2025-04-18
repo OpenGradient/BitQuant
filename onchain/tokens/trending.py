@@ -41,15 +41,11 @@ def get_top_token_holders(
     chain, address = token_id.split(":", 1)
     chain = chain.lower()
 
-    try:
-        holders, error = get_top_token_holders_from_coingecko(address, chain)
-        if error:
-            return error
+    holders, error = get_top_token_holders_from_coingecko(address, chain)
+    if error:
+        return error
 
-        return f"""Top holders of {address} on {chain}: {holders}."""
-    except Exception as e:
-        logging.error(f"Error in get_top_token_holders with input {token_id}: {e}")
-        return f"ERROR: Failed to get top holders for {token_id}: {e}"
+    return f"""Top holders of {address} on {chain}: {holders}."""
 
 
 @cached(cache=TTLCache(maxsize=10_000, ttl=60 * 10))
@@ -104,13 +100,8 @@ def get_trending_tokens(
 ) -> str:
     """Retrieve the latest trending tokens on the given chain from DEX data."""
     chain = chain.lower()
-
-    try:
-        trending_tokens = get_trending_tokens_from_coingecko(chain)[:8]
-        return f"""Latest trending tokens: {trending_tokens}. In your answer, include the ID of each token you mention in the following format: ```token:<insert token_id>```, and also the name and symbol of each token."""
-    except Exception as e:
-        logging.error(f"Error in get_trending_tokens with input {chain}: {e}")
-        return f"ERROR: Failed to get trending tokens for {chain}: {e}"
+    trending_tokens = get_trending_tokens_from_coingecko(chain)[:8]
+    return f"""Latest trending tokens: {trending_tokens}. In your answer, include the ID of each token you mention in the following format: ```token:<insert token_id>```, and also the name and symbol of each token."""
 
 
 @tool

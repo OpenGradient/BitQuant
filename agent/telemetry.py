@@ -32,15 +32,15 @@ def track_tool_usage(tool_name: str):
                 tags = [
                     f"tool_name:{tool_name}",
                     f"error_type:{type(e).__name__}",
-                    f"environment:{os.environ.get('ENVIRONMENT', 'development')}",
                 ]
                 statsd.increment("tool.errors.count", tags=tags)
                 statsd.histogram("tool.execution.duration", duration, tags=tags)
-                logging.error(
-                    f"Error in tool {tool_name} with input {args} and kwargs {kwargs}: {e}"
-                )
 
-                raise e
+                logging.error(
+                    f"Error in tool: {tool_name} with input {args} and kwargs {kwargs}: {e}"
+                )
+                return f"ERROR: Failed to execute tool {tool_name}."
+
 
         return wrapper
 
