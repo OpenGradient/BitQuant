@@ -34,13 +34,16 @@ def get_top_token_holders(
 ) -> List[TokenMetadata]:
     """Get the top holders of a token on the given chain."""
     if ":" not in token_id:
-        raise ValueError("Token ID must be in the format <chain>:<address>")
+        return "ERROR: Token ID must be in the format <chain>:<address>"
 
     chain, address = token_id.split(":", 1)
     chain = chain.lower()
 
-    holders = get_top_token_holders_from_coingecko(address, chain)
-    return f"""Top holders of {address} on {chain}: {holders}."""
+    try:
+        holders = get_top_token_holders_from_coingecko(address, chain)
+        return f"""Top holders of {address} on {chain}: {holders}."""
+    except Exception as e:
+        return f"ERROR: Failed to get top holders for {token_id}: {e}"
 
 
 @cached(cache=TTLCache(maxsize=10_000, ttl=60 * 10))
@@ -90,9 +93,12 @@ def get_trending_tokens(
 ) -> str:
     """Retrieve the latest trending tokens on the given chain from DEX data."""
     chain = chain.lower()
-    trending_tokens = get_trending_tokens_from_coingecko(chain)[:8]
 
-    return f"""Latest trending tokens: {trending_tokens}. In your answer, include the ID of each token you mention in the following format: ```token:<insert token_id>```, and also the name and symbol of each token."""
+    try:
+        trending_tokens = get_trending_tokens_from_coingecko(chain)[:8]
+        return f"""Latest trending tokens: {trending_tokens}. In your answer, include the ID of each token you mention in the following format: ```token:<insert token_id>```, and also the name and symbol of each token."""
+    except Exception as e:
+        return f"ERROR: Failed to get trending tokens for {chain}: {e}"
 
 
 @tool
