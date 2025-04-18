@@ -1036,7 +1036,7 @@ def analyze_wallet_portfolio(
     config: RunnableConfig = None,
 ) -> Dict[str, Any]:
     """
-    Provides a comprehensive analysis of a crypto wallet portfolio with investor-friendly insights and recommendations.
+    Provides a comprehensive analysis of the user's connected wallet portfolio.
     """
     try:
         tokens: List[WalletTokenHolding] = config["configurable"]["tokens"]
@@ -1310,7 +1310,7 @@ def portfolio_volatility(
     config: RunnableConfig = None,
 ) -> Dict[str, Any]:
     """
-    Calculates the volatility (standard deviation of returns) of a portfolio over the specified time period. Do not pass in stablecoins.
+    Calculates the volatility (standard deviation of returns) of the user's connected wallet portfolio over the specified time period.
     """
     try:
         tokens: List[WalletTokenHolding] = config["configurable"]["tokens"]
