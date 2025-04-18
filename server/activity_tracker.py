@@ -5,6 +5,7 @@ from typing import Optional
 
 from server.config import MINER_TOKEN, DAILY_LIMIT_BYPASS_WALLETS
 
+
 @dataclass
 class ActivityStats:
     """
@@ -36,7 +37,9 @@ class ActivityTracker:
         """
         self.table = table
 
-    def increment_message_count(self, user_address: str, miner_token: str = None) -> bool:
+    def increment_message_count(
+        self, user_address: str, miner_token: str = None
+    ) -> bool:
         """
         Increment the message count for a user.
         Returns True if the message was counted, False if the daily limit was reached.
@@ -59,9 +62,9 @@ class ActivityTracker:
 
             # Check if daily limit reached, except for Subnet miner wallet
             if (
-              daily_message_count >= PointsConfig.DAILY_MESSAGE_LIMIT 
-              and user_address not in DAILY_LIMIT_BYPASS_WALLETS
-              and miner_token != MINER_TOKEN
+                daily_message_count >= PointsConfig.DAILY_MESSAGE_LIMIT
+                and user_address not in DAILY_LIMIT_BYPASS_WALLETS
+                and miner_token != MINER_TOKEN
             ):
                 return False
 
@@ -93,7 +96,7 @@ class ActivityTracker:
             UpdateExpression="ADD successful_invites :inc, points :points_inc",
             ExpressionAttributeValues={
                 ":inc": 1,
-                ":points_inc": PointsConfig.POINTS_PER_SUCCESSFUL_INVITE
+                ":points_inc": PointsConfig.POINTS_PER_SUCCESSFUL_INVITE,
             },
         )
 
@@ -127,7 +130,7 @@ class ActivityTracker:
                 points=points,
                 daily_message_count=daily_message_count,
                 daily_message_limit=PointsConfig.DAILY_MESSAGE_LIMIT,
-                rank=-1
+                rank=-1,
             )
         except Exception:
             return ActivityStats(
@@ -136,5 +139,5 @@ class ActivityTracker:
                 points=0,
                 daily_message_count=0,
                 daily_message_limit=PointsConfig.DAILY_MESSAGE_LIMIT,
-                rank=-1  # Return -1 for rank if there's an error
+                rank=-1,  # Return -1 for rank if there's an error
             )

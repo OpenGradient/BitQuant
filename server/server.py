@@ -90,12 +90,15 @@ def create_flask_app() -> Flask:
     app = Flask(__name__)
     app.config["PROPAGATE_EXCEPTIONS"] = True
 
-    CORS(app, origins=[
-        "https://bitquant.io",
-        "https://www.bitquant.io",
-        r"^http://localhost:(3000|3001|3002|4000|4200|5000|5173|8000|8080|8081|9000)$",
-        r"^https://defi-chat-hub-git-[\w-]+-open-gradient\.vercel\.app$"
-    ])
+    CORS(
+        app,
+        origins=[
+            "https://bitquant.io",
+            "https://www.bitquant.io",
+            r"^http://localhost:(3000|3001|3002|4000|4200|5000|5173|8000|8080|8081|9000)$",
+            r"^https://defi-chat-hub-git-[\w-]+-open-gradient\.vercel\.app$",
+        ],
+    )
 
     # Initialize DynamoDB
     dynamodb = boto3.resource(
@@ -241,7 +244,9 @@ def create_flask_app() -> Flask:
             return jsonify({"error": "Address is not whitelisted"}), 400
 
         # Increment message count, return 429 if limit reached
-        if not activity_tracker.increment_message_count(agent_request.context.address, agent_request.context.miner_token):
+        if not activity_tracker.increment_message_count(
+            agent_request.context.address, agent_request.context.miner_token
+        ):
             statsd.increment("agent.message.daily_limit_reached")
             return jsonify({"error": "Daily message limit reached"}), 429
 

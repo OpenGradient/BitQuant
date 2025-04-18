@@ -43,7 +43,7 @@ def extract_patterns(text: str, pattern_type: str) -> Tuple[str, List[str]]:
     # Find all occurrences of ```pattern_type:ID``` patterns
     pattern = f"```{pattern_type}:([^`]+)```"
     matches = re.finditer(pattern, text)
-    
+
     for match in matches:
         pattern_ids.append(match.group(1))
 

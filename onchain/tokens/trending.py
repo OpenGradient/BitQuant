@@ -6,7 +6,7 @@ import logging
 
 from langchain_core.tools import BaseTool, tool
 from langgraph.graph.graph import RunnableConfig
-from server.metrics import track_tool_usage
+from agent.telemetry import track_tool_usage
 
 from api.api_types import TokenMetadata
 

@@ -1,7 +1,7 @@
 from typing import Dict, Any, List
 from langchain_core.tools import tool
 from onchain.analytics.defillama_metrics import DefiLlamaMetrics
-from server.metrics import track_tool_usage
+from agent.telemetry import track_tool_usage
 
 defillama = DefiLlamaMetrics()
 

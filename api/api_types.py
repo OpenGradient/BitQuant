@@ -130,6 +130,7 @@ class FeedbackRequest(BaseModel):
     walletAddress: str
     conversationHistory: List[Dict]
 
+
 class SolanaVerifyRequest(BaseModel):
     address: str
     message: str

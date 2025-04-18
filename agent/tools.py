@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from langgraph.graph.graph import RunnableConfig
 from langchain_core.tools import BaseTool, tool
-from server.metrics import track_tool_usage
+from agent.telemetry import track_tool_usage
 
 from onchain.tokens.metadata import TokenMetadataRepo, TokenMetadata
 from api.api_types import TokenMetadata as TokenMetadataApi
@@ -89,14 +89,12 @@ def create_analytics_agent_toolkit(
         show_defi_llama_historical_global_tvl,
         show_defi_llama_historical_chain_tvl,
         show_defi_llama_top_pools,
-
         # Price tools
         analyze_price_trend,
         max_drawdown_for_token,
         portfolio_volatility,
         analyze_wallet_portfolio,
         get_coingecko_current_price,
-
         # Token tools
         get_trending_tokens,
         evaluate_token_risk,

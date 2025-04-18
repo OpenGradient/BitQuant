@@ -16,10 +16,13 @@ from .api_types import QuantQuery, QuantResponse
 
 evaluation_model = None
 
-env = jinja2.Environment(loader=jinja2.FileSystemLoader(os.path.dirname(os.path.abspath(__file__))))
+env = jinja2.Environment(
+    loader=jinja2.FileSystemLoader(os.path.dirname(os.path.abspath(__file__)))
+)
 LLM_MODEL = "google/gemini-2.0-flash-001"
 BASE_URL = "https://openrouter.ai/api/v1"
 API_KEY = os.getenv("OPENROUTER_API_KEY")
+
 
 def create_evaluation_model() -> ChatOpenAI:
 
@@ -67,14 +70,23 @@ def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) ->
             template = env.get_template("evaluation_prompt.txt")
             prompt = template.render(
                 user_prompt=quant_query.query,
-                agent_answer="No response provided" if quant_response is None else quant_response.response)
+                agent_answer=(
+                    "No response provided"
+                    if quant_response is None
+                    else quant_response.response
+                ),
+            )
 
             # Format messages properly for ChatOpenAI
             messages = [{"role": "user", "content": prompt}]
             response = evaluation_model.invoke(messages)
 
             # Parse the response
-            answer = response.content if hasattr(response, "content") else response["content"]
+            answer = (
+                response.content
+                if hasattr(response, "content")
+                else response["content"]
+            )
 
             # Find ```json{{...}}``` in the answer
             match = re.search(r"```json\s*({.*})\s*```", answer, re.DOTALL)
@@ -90,7 +102,9 @@ def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) ->
             logging.error(f"subnet_evaluation attempt {attempt} failed: {e}")
             if attempt < retries:
                 time.sleep(delay)
-    logging.error(f"subnet_evaluation failed after {retries} attempts: {last_exception}")
+    logging.error(
+        f"subnet_evaluation failed after {retries} attempts: {last_exception}"
+    )
     return 0.0
 
 

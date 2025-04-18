@@ -11,8 +11,9 @@ from time import sleep
 from datetime import datetime, timedelta, UTC
 from cachetools import TTLCache
 
-from server.metrics import track_tool_usage
+from agent.telemetry import track_tool_usage
 from api.api_types import WalletTokenHolding
+
 
 class CandleInterval(StrEnum):
     """Candle interval options for price data"""
