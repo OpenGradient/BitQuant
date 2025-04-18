@@ -62,6 +62,10 @@ def get_top_token_holders_from_coingecko(token_address: str, chain: str) -> List
     else:
         coingecko_chain = chain
 
+    # SOL is not supported by the API
+    if coingecko_chain == "solana" and (token_address == "So1111111111111111111111111111111111111112" or token_address == "SOL"):
+        return "Top holders for SOL are not available."
+
     response = requests.get(
         TOKEN_HOLDERS_URL % (coingecko_chain, token_address), headers=headers
     )
