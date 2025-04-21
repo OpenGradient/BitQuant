@@ -25,6 +25,7 @@ CHAIN_REMAPPINGS = {
     "sui": "sui-network",
     "ethereum": "eth",
     "ethereum-network": "eth",
+    "polygon": "polygon_pos",
 }
 
 
@@ -122,6 +123,9 @@ def evaluate_token_risk(
         return error
 
     attributes = token_info["attributes"]
+    if not attributes:
+        return "Token info not available."
+
     risk_analysis = {
         "trust_score": {
             "overall_score": attributes.get("gt_score", 0),
