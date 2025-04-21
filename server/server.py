@@ -141,6 +141,7 @@ def create_flask_app() -> Flask:
 
         @app.errorhandler(ValidationError)
         def handle_validation_error(e):
+            logging.error(f"400 Error: {str(e)}")
             return jsonify({"error": str(e)}), 400
 
         @app.errorhandler(Exception)
