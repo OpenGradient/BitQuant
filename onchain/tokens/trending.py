@@ -27,6 +27,7 @@ CHAIN_REMAPPINGS = {
     "ethereum-network": "eth",
     "polygon": "polygon_pos",
     "avalanche": "avax",
+    "bnb": "bsc",
 }
 
 
