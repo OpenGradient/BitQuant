@@ -11,6 +11,8 @@ import os
 import logging
 import json
 import re
+import opengradient as og
+from opengradient import LlmInferenceMode
 
 from .api_types import QuantQuery, QuantResponse
 
@@ -110,20 +112,41 @@ def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) ->
 
 def subnet_query(quant_query: QuantQuery) -> QuantResponse:
     """
-    TODO:
-    1. Metadata contains TEE -> return a remote attestation
-    2. Remove whitelist check
-    3. Handle wallet_address = None (can default to something)
-    4. Create signature of sorts for quant_response
-
     Make a request to the agent with the provided QuantQuery and return a QuantResponse.
-
-    Args:
-        quant_query: A QuantQuery object containing the query, userID, and metadata
-
-    Returns:
-        A QuantResponse object containing the agent's response, or None if the request failed
+    If TEE is enabled (via env or quant_query.metadata), use OG SDK (llm_chat). Otherwise, use REST agent as before.
     """
+    # Check for TEE/OG SDK usage via USE_OG_TEE env var only
+    use_tee = os.getenv("USE_OG_TEE", "").lower() in ("true")
+
+    if use_tee:
+        try:
+            og.init(private_key=os.getenv("OG_PRIVATE_KEY"))
+            # Use the query string as prompt
+            messages = [{"role": "user", "content": quant_query.query}]
+            # Use model_cid from quant_query.metadata if present, else default
+            model_cid = (quant_query.metadata.get("model_cid")
+                         if hasattr(quant_query, "metadata") and isinstance(quant_query.metadata, dict)
+                         else None) or "google/gemini-2.0-flash-001"
+            tee_result = og.llm_chat(
+                model_cid=model_cid,
+                messages=messages,
+                inference_mode=LlmInferenceMode.TEE,
+                temperature=0.0,
+                max_tokens=100
+            )
+            answer = tee_result.get("output") or tee_result.get("content", "")
+            quant_response = QuantResponse(
+                response=answer,
+                signature=b"",
+                proofs=[],
+                metadata={"tee": True},
+            )
+            return quant_response
+        except Exception as tee_e:
+            logging.error(f"TEE/OG SDK query failed: {tee_e}")
+            return QuantResponse(response="TEE/OG SDK error", signature=b"", proofs=[], metadata={"tee_error": str(tee_e)})
+
+    # --- Existing REST agent logic ---
     print(quant_query)
     # Create context with the provided wallet address
     context = {
