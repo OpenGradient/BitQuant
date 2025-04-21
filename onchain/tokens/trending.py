@@ -26,6 +26,7 @@ CHAIN_REMAPPINGS = {
     "ethereum": "eth",
     "ethereum-network": "eth",
     "polygon": "polygon_pos",
+    "avalanche": "avax",
 }
 
 
