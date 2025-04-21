@@ -151,6 +151,8 @@ def create_flask_app() -> Flask:
             logging.error(f"Traceback: {error_traceback}")
             logging.error(f"Request Path: {request.path}")
             logging.error(f"Request Body: {request.get_data(as_text=True)}")
+            statsd.increment("agent.message.unhandled_error")
+
             return jsonify({"error": str(e)}), 500
 
     @app.route("/api/verify/solana", methods=["POST"])
