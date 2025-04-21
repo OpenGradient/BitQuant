@@ -28,6 +28,7 @@ CHAIN_REMAPPINGS = {
     "polygon": "polygon_pos",
     "avalanche": "avax",
     "bnb": "bsc",
+    "dogecoin": "dogechain",
 }
 
 
