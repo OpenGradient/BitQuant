@@ -14,4 +14,5 @@ MINER_TOKEN = os.getenv("MINER_TOKEN")
 DAILY_LIMIT_BYPASS_WALLETS = [
     "7FVPurQDkbj6g9dm5B52oCUr7JxqRpoYQcNitKaWVSgS",  # subnet miner
     "AzoqqVNzidLSVDiAfZcLf9AsXCVM5cFNLuwjcERPX8JN",
+    "c7ymPF9vuXTzzecxqkGBg43scBSTC5iqodG2PjBaLjN",
 ]
