@@ -14,6 +14,7 @@ from datetime import datetime
 from functools import wraps
 from datadog import initialize, statsd
 import logging
+import requests
 
 import boto3.data
 from onchain.pools.protocol import ProtocolRegistry
@@ -154,6 +155,39 @@ def create_flask_app() -> Flask:
             statsd.increment("agent.message.unhandled_error")
 
             return jsonify({"error": str(e)}), 500
+
+    @app.route("/api/cloudflare/turnstile/v0/siteverify", methods=["POST"])
+    def verify_cloudflare_turnstile_token():
+        try:
+            secret_key = os.getenv("CLOUDFLARE_TURNSTILE_SECRET_KEY")
+            if not secret_key:
+                raise Exception("CLOUDFLARE_TURNSTILE_SECRET_KEY environment variable is not set")
+
+            data = request.get_json()
+            token = data.get('token')
+
+            if not token:
+                return jsonify({"error": "Missing token"}), 400
+
+            # Make the request to Cloudflare Turnstile
+            response = requests.post(
+                'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+                data={
+                    'secret': secret_key,
+                    'response': token
+                },
+                headers={
+                    'content-type': 'application/x-www-form-urlencoded'
+                }
+            )
+
+            result = response.json()
+            status_code = 200 if result.get('success') else 400
+            return jsonify(result), status_code
+
+        except Exception as e:
+            logging.error(f"Error verifying Cloudflare Turnstile token: {e}")
+            return jsonify({"error": "Internal server error"}), 500
 
     @app.route("/api/verify/solana", methods=["POST"])
     def verify_solana_signature():
