@@ -124,12 +124,18 @@ class ActivityTracker:
             if last_message_date != today:
                 daily_message_count = 0
 
+            # Bypass daily limit for privileged wallets
+            if user_address in DAILY_LIMIT_BYPASS_WALLETS:
+                daily_message_limit = 10_000
+            else:
+                daily_message_limit = PointsConfig.DAILY_MESSAGE_LIMIT
+
             return ActivityStats(
                 message_count=message_count,
                 successful_invites=successful_invites,
                 points=points,
                 daily_message_count=daily_message_count,
-                daily_message_limit=PointsConfig.DAILY_MESSAGE_LIMIT,
+                daily_message_limit=daily_message_limit,
                 rank=-1,
             )
         except Exception:
