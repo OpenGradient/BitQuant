@@ -112,8 +112,18 @@ def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) ->
 
 def subnet_query(quant_query: QuantQuery) -> QuantResponse:
     """
+    TODO:
+    1. Metadata contains TEE -> return a remote attestation
+    2. Remove whitelist check
+    3. Handle wallet_address = None (can default to something)
+    4. Create signature of sorts for quant_response
+    
     Make a request to the agent with the provided QuantQuery and return a QuantResponse.
-    If TEE is enabled (via env or quant_query.metadata), use OG SDK (llm_chat). Otherwise, use REST agent as before.
+    
+    Args:
+        quant_query: A QuantQuery object containing the query, userID, and metadata
+    Returns:
+        A QuantResponse object containing the agent's response, or None if the request failed
     """
     use_tee = os.getenv("USE_OG_TEE", "").lower() in ("true")
     if use_tee:
