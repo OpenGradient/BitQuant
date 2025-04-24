@@ -11,6 +11,9 @@ logging.info(f"Running in subnet mode: {SUBNET_MODE}")
 # Bypass daily limit for miner wallet
 MINER_TOKEN = os.getenv("MINER_TOKEN")
 
+# Use OG TEE flag for LLM inference
+USE_TEE = os.getenv("USE_OG_TEE", "").lower() == "true"
+
 DAILY_LIMIT_BYPASS_WALLETS = [
     "7FVPurQDkbj6g9dm5B52oCUr7JxqRpoYQcNitKaWVSgS",  # subnet miner
     "AzoqqVNzidLSVDiAfZcLf9AsXCVM5cFNLuwjcERPX8JN",

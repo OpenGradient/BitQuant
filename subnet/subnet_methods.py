@@ -11,6 +11,8 @@ import os
 import logging
 import json
 import re
+import opengradient as og
+from server.config import USE_TEE
 
 from .api_types import QuantQuery, QuantResponse
 
@@ -115,15 +117,40 @@ def subnet_query(quant_query: QuantQuery) -> QuantResponse:
     2. Remove whitelist check
     3. Handle wallet_address = None (can default to something)
     4. Create signature of sorts for quant_response
-
     Make a request to the agent with the provided QuantQuery and return a QuantResponse.
-
     Args:
         quant_query: A QuantQuery object containing the query, userID, and metadata
-
     Returns:
         A QuantResponse object containing the agent's response, or None if the request failed
     """
+    if USE_TEE:
+        try:
+            og.init(
+                private_key=os.environ["OG_PRIVATE_KEY"],
+                email=os.environ["OG_EMAIL"],
+                password=os.environ["OG_PASSWORD"]
+            )
+            # Use the query string as prompt
+            messages = [
+                {"role": "user", "content": quant_query.query}
+            ]
+            model_cid = og.LLM.LLAMA_3_2_3B_INSTRUCT
+            result = og.llm_chat(
+                model_cid=model_cid,
+                messages=messages
+            )
+            answer = result.chat_output['content']
+            quant_response = QuantResponse(
+                response=answer,
+                signature=b"",
+                proofs=[],
+                metadata={"tee": True},
+            )
+            return quant_response
+        except Exception as tee_e:
+            logging.error(f"TEE/OG SDK query failed: {tee_e}")
+            return QuantResponse(response="TEE/OG SDK error", signature=b"", proofs=[], metadata={"tee_error": str(tee_e)})
+
     print(quant_query)
     # Create context with the provided wallet address
     context = {
