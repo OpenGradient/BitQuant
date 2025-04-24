@@ -117,7 +117,9 @@ def subnet_query(quant_query: QuantQuery) -> QuantResponse:
     2. Remove whitelist check
     3. Handle wallet_address = None (can default to something)
     4. Create signature of sorts for quant_response
+    
     Make a request to the agent with the provided QuantQuery and return a QuantResponse.
+    
     Args:
         quant_query: A QuantQuery object containing the query, userID, and metadata
     Returns:
