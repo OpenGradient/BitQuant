@@ -117,9 +117,7 @@ def subnet_query(quant_query: QuantQuery) -> QuantResponse:
     2. Remove whitelist check
     3. Handle wallet_address = None (can default to something)
     4. Create signature of sorts for quant_response
-    
     Make a request to the agent with the provided QuantQuery and return a QuantResponse.
-    
     Args:
         quant_query: A QuantQuery object containing the query, userID, and metadata
     Returns:
@@ -134,14 +132,13 @@ def subnet_query(quant_query: QuantQuery) -> QuantResponse:
                 password=os.environ["OG_PASSWORD"]
             )
             # Use the query string as prompt
-            messages = [
-                {"role": "system", "content": "You are a helpful AI assistant.", "name": "HAL"},
+            message = [
                 {"role": "user", "content": quant_query.query}
             ]
             model_cid = og.LLM.LLAMA_3_2_3B_INSTRUCT
             result = og.llm_chat(
                 model_cid=model_cid,
-                messages=messages
+                messages=message
             )
             answer = result.chat_output['content']
             quant_response = QuantResponse(
