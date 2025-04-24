@@ -127,8 +127,8 @@ def subnet_query(quant_query: QuantQuery) -> QuantResponse:
         try:
             og.init(
                 private_key=os.environ["OG_PRIVATE_KEY"],
-                email=os.environ.get("OG_EMAIL", "oliver@opengradient.ai"),
-                password=os.environ.get("OG_PASSWORD", "9^D.fMNwDGL7f5\\Xk$+r")
+                email=os.environ["OG_EMAIL"],
+                password=os.environ["OG_PASSWORD"]
             )
             # Use the query string as prompt
             messages = [
