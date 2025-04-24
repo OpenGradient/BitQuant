@@ -12,7 +12,7 @@ import logging
 import json
 import re
 import opengradient as og
-from quant.BitQuant.server.config import USE_TEE
+from server.config import USE_TEE
 
 from .api_types import QuantQuery, QuantResponse
 
