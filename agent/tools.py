@@ -110,5 +110,6 @@ def create_analytics_agent_toolkit(
         # CoinGecko categories
         get_coingecko_categories_list,
         get_coingecko_categories_info,
-        get_coingecko_category_info
+        get_coingecko_category_info,
+        get_trending_tokens_in_category
     ]
