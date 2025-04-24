@@ -12,7 +12,7 @@ import logging
 import json
 import re
 import opengradient as og
-from opengradient import LlmInferenceMode
+from quant.BitQuant.server.config import USE_TEE
 
 from .api_types import QuantQuery, QuantResponse
 
@@ -112,35 +112,24 @@ def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) ->
 
 def subnet_query(quant_query: QuantQuery) -> QuantResponse:
     """
-    TODO:
-    1. Metadata contains TEE -> return a remote attestation
-    2. Remove whitelist check
-    3. Handle wallet_address = None (can default to something)
-    4. Create signature of sorts for quant_response
-    
     Make a request to the agent with the provided QuantQuery and return a QuantResponse.
-    
-    Args:
-        quant_query: A QuantQuery object containing the query, userID, and metadata
-    Returns:
-        A QuantResponse object containing the agent's response, or None if the request failed
+    If TEE is enabled (via env or quant_query.metadata), use OG SDK (llm_chat). Otherwise, use REST agent as before.
     """
-    use_tee = os.getenv("USE_OG_TEE", "").lower() in ("true")
-    if use_tee:
+    if USE_TEE:
         try:
             og.init(
                 private_key=os.environ["OG_PRIVATE_KEY"],
-                email=os.environ["OG_EMAIL"],
-                password=os.environ["OG_PASSWORD"]
+                email=os.environ.get("OG_EMAIL", "oliver@opengradient.ai"),
+                password=os.environ.get("OG_PASSWORD", "9^D.fMNwDGL7f5\\Xk$+r")
             )
             # Use the query string as prompt
-            message = [
+            messages = [
                 {"role": "user", "content": quant_query.query}
             ]
             model_cid = og.LLM.LLAMA_3_2_3B_INSTRUCT
             result = og.llm_chat(
                 model_cid=model_cid,
-                messages=message
+                messages=messages
             )
             answer = result.chat_output['content']
             quant_response = QuantResponse(
