@@ -137,24 +137,21 @@ def create_flask_app() -> Flask:
     protocol_registry.register_protocol(KaminoProtocol())
     protocol_registry.initialize()
 
-    # Set up error handlers for production environment
-    if not app.config.get("TESTING"):
+    @app.errorhandler(ValidationError)
+    def handle_validation_error(e):
+        logging.error(f"400 Error: {str(e)}")
+        return jsonify({"error": str(e)}), 400
 
-        @app.errorhandler(ValidationError)
-        def handle_validation_error(e):
-            logging.error(f"400 Error: {str(e)}")
-            return jsonify({"error": str(e)}), 400
+    @app.errorhandler(Exception)
+    def handle_generic_error(e):
+        error_traceback = traceback.format_exc()
+        logging.error(f"500 Error: {str(e)}")
+        logging.error(f"Traceback: {error_traceback}")
+        logging.error(f"Request Path: {request.path}")
+        logging.error(f"Request Body: {request.get_data(as_text=True)}")
+        statsd.increment("agent.message.unhandled_error")
 
-        @app.errorhandler(Exception)
-        def handle_generic_error(e):
-            error_traceback = traceback.format_exc()
-            logging.error(f"500 Error: {str(e)}")
-            logging.error(f"Traceback: {error_traceback}")
-            logging.error(f"Request Path: {request.path}")
-            logging.error(f"Request Body: {request.get_data(as_text=True)}")
-            statsd.increment("agent.message.unhandled_error")
-
-            return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
     @app.route("/api/cloudflare/turnstile/v0/siteverify", methods=["POST"])
     def verify_cloudflare_turnstile_token():
