@@ -41,8 +41,8 @@ if not config.SUBNET_MODE:
     SUGGESTIONS_MODEL = GOOGLE_GEMINI_20_FLASH_MODEL
     ROUTING_MODEL = GOOGLE_GEMINI_FLASH_15_8B_MODEL
     REASONING_MODEL = GOOGLE_GEMINI_20_FLASH_MODEL
-    BASE_URL = "https://openrouter.ai/api/v1"
-    API_KEY = os.getenv("OPENROUTER_API_KEY")
+    BASE_URL = "https://generativelanguage.googleapis.com/v1beta/"
+    API_KEY = os.getenv("GEMINI_API_KEY")
 else:
     SUGGESTIONS_MODEL = LOCAL_LLM_MODEL
     ROUTING_MODEL = LOCAL_LLM_MODEL
