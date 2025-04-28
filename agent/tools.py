@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from langgraph.graph.graph import RunnableConfig
+from langchain_core.runnables.config import RunnableConfig
 from langchain_core.tools import BaseTool, tool
 from agent.telemetry import track_tool_usage
 

@@ -6,7 +6,7 @@ import logging
 from typing import Tuple, Optional
 
 from langchain_core.tools import BaseTool, tool
-from langgraph.graph.graph import RunnableConfig
+from langchain_core.runnables.config import RunnableConfig
 from agent.telemetry import track_tool_usage
 
 from api.api_types import TokenMetadata

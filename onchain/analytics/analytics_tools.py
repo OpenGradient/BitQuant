@@ -1,6 +1,6 @@
 from typing import Dict, Any, List, Tuple, Optional
 from langchain_core.tools import tool
-from langgraph.graph.graph import RunnableConfig
+from langchain_core.runnables.config import RunnableConfig
 import traceback
 import numpy as np
 from enum import StrEnum
