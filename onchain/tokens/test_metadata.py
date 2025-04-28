@@ -9,7 +9,6 @@ dotenv.load_dotenv()
 
 
 class TestMetadata(unittest.TestCase):
-
     def setUp(self):
         self.dynamodb = boto3.resource(
             "dynamodb",

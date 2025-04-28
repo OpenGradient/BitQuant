@@ -159,28 +159,25 @@ def create_flask_app() -> Flask:
         try:
             secret_key = os.getenv("CLOUDFLARE_TURNSTILE_SECRET_KEY")
             if not secret_key:
-                raise Exception("CLOUDFLARE_TURNSTILE_SECRET_KEY environment variable is not set")
+                raise Exception(
+                    "CLOUDFLARE_TURNSTILE_SECRET_KEY environment variable is not set"
+                )
 
             data = request.get_json()
-            token = data.get('token')
+            token = data.get("token")
 
             if not token:
                 return jsonify({"error": "Missing token"}), 400
 
             # Make the request to Cloudflare Turnstile
             response = requests.post(
-                'https://challenges.cloudflare.com/turnstile/v0/siteverify',
-                data={
-                    'secret': secret_key,
-                    'response': token
-                },
-                headers={
-                    'content-type': 'application/x-www-form-urlencoded'
-                }
+                "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+                data={"secret": secret_key, "response": token},
+                headers={"content-type": "application/x-www-form-urlencoded"},
             )
 
             result = response.json()
-            status_code = 200 if result.get('success') else 400
+            status_code = 200 if result.get("success") else 400
             return jsonify(result), status_code
 
         except Exception as e:

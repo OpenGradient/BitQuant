@@ -11,9 +11,7 @@ from agent.telemetry import track_tool_usage
 
 from api.api_types import TokenMetadata
 
-TRENDING_POOLS_URL = (
-    "https://pro-api.coingecko.com/api/v3/onchain/networks/%s/trending_pools?include=base_token"
-)
+TRENDING_POOLS_URL = "https://pro-api.coingecko.com/api/v3/onchain/networks/%s/trending_pools?include=base_token"
 TOKEN_INFO_URL = (
     "https://pro-api.coingecko.com/api/v3/onchain/networks/%s/tokens/%s/info"
 )
@@ -135,9 +133,7 @@ def evaluate_token_risk(
             "category_scores (out of 100)": {
                 "pool_quality_score (honeypot risk, buy/sell tax, proxy contract, liquidity amount)": attributes.get(
                     "gt_score_details", {}
-                ).get(
-                    "pool", 0
-                ),
+                ).get("pool", 0),
                 "token_age_score": attributes.get("gt_score_details", {}).get(
                     "creation", 0
                 ),

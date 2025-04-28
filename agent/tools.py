@@ -64,7 +64,6 @@ def create_investor_agent_toolkit() -> List[BaseTool]:
 def create_analytics_agent_toolkit(
     token_metadata_repo: TokenMetadataRepo,
 ) -> List[BaseTool]:
-
     @tool
     @track_tool_usage("search_token")
     def search_token(

@@ -27,7 +27,6 @@ API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 
 def create_evaluation_model() -> ChatOpenAI:
-
     return ChatOpenAI(
         model=LLM_MODEL,
         temperature=0.0,
@@ -128,18 +127,13 @@ def subnet_query(quant_query: QuantQuery) -> QuantResponse:
             og.init(
                 private_key=os.environ["OG_PRIVATE_KEY"],
                 email=os.environ["OG_EMAIL"],
-                password=os.environ["OG_PASSWORD"]
+                password=os.environ["OG_PASSWORD"],
             )
             # Use the query string as prompt
-            messages = [
-                {"role": "user", "content": quant_query.query}
-            ]
+            messages = [{"role": "user", "content": quant_query.query}]
             model_cid = og.LLM.LLAMA_3_2_3B_INSTRUCT
-            result = og.llm_chat(
-                model_cid=model_cid,
-                messages=messages
-            )
-            answer = result.chat_output['content']
+            result = og.llm_chat(model_cid=model_cid, messages=messages)
+            answer = result.chat_output["content"]
             quant_response = QuantResponse(
                 response=answer,
                 signature=b"",
@@ -149,7 +143,12 @@ def subnet_query(quant_query: QuantQuery) -> QuantResponse:
             return quant_response
         except Exception as tee_e:
             logging.error(f"TEE/OG SDK query failed: {tee_e}")
-            return QuantResponse(response="TEE/OG SDK error", signature=b"", proofs=[], metadata={"tee_error": str(tee_e)})
+            return QuantResponse(
+                response="TEE/OG SDK error",
+                signature=b"",
+                proofs=[],
+                metadata={"tee_error": str(tee_e)},
+            )
 
     print(quant_query)
     # Create context with the provided wallet address

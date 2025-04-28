@@ -3,7 +3,8 @@ import os
 from openai import OpenAI
 from langgraph.prebuilt import create_react_agent
 from langgraph.graph.graph import CompiledGraph
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.language_models.chat_models import BaseChatModel
 
 from agent.tools import create_investor_agent_toolkit, create_analytics_agent_toolkit
 from onchain.tokens.metadata import TokenMetadataRepo
@@ -51,37 +52,27 @@ else:
     API_KEY = "dummy_key"
 
 
-def create_routing_model() -> ChatOpenAI:
-    return ChatOpenAI(
+def create_routing_model() -> BaseChatModel:
+    return ChatGoogleGenerativeAI(
         model=ROUTING_MODEL,
         temperature=0.0,
-        openai_api_base=BASE_URL,
-        openai_api_key=API_KEY,
-        request_timeout=60,
+        google_api_key=API_KEY,
     )
 
 
-def create_suggestions_model() -> ChatOpenAI:
-    return ChatOpenAI(
+def create_suggestions_model() -> BaseChatModel:
+    return ChatGoogleGenerativeAI(
         model=SUGGESTIONS_MODEL,
         temperature=0.3,
-        openai_api_base=BASE_URL,
-        openai_api_key=API_KEY,
-        request_timeout=60,
-        max_tokens=500,
-        streaming=False,
+        google_api_key=API_KEY,
     )
 
 
 def create_investor_executor() -> CompiledGraph:
-    openai_model = ChatOpenAI(
+    openai_model = ChatGoogleGenerativeAI(
         model=REASONING_MODEL,
         temperature=0.0,
-        openai_api_base=BASE_URL,
-        openai_api_key=API_KEY,
-        request_timeout=60,
-        max_tokens=4096,
-        streaming=False,
+        google_api_key=API_KEY,
     )
     agent_executor = create_react_agent(
         model=openai_model, tools=create_investor_agent_toolkit()
@@ -91,14 +82,10 @@ def create_investor_executor() -> CompiledGraph:
 
 
 def create_analytics_executor(token_metadata_repo: TokenMetadataRepo) -> CompiledGraph:
-    openai_model = ChatOpenAI(
+    openai_model = ChatGoogleGenerativeAI(
         model=REASONING_MODEL,
         temperature=0.0,
-        openai_api_base=BASE_URL,
-        openai_api_key=API_KEY,
-        request_timeout=60,
-        max_tokens=4096,
-        streaming=False,
+        google_api_key=API_KEY,
     )
     analytics_executor = create_react_agent(
         model=openai_model,

@@ -13,7 +13,6 @@ from onchain.analytics.analytics_tools import (
 
 
 class TestFinancialAnalyticsTools(unittest.TestCase):
-
     def test_get_coingecko_price_history(self):
         response = get_coingecko_price_data(
             token_symbol="BTC",

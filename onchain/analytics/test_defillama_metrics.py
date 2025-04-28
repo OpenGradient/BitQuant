@@ -20,7 +20,6 @@ def format_tvl(value) -> str:
 
 
 class TestDefiLlamaSource(unittest.TestCase):
-
     def test_show_defi_llama_protocols(self):
         """Test the show_defi_llama_protocols tool"""
         print("\n=== Testing show_defi_llama_protocols() ===")

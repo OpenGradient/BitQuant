@@ -633,12 +633,16 @@ def analyze_price_trend(token_symbol: str, num_days: int = 90) -> Dict[str, Any]
                 "short_trend": (
                     "Bullish"
                     if sma7 and sma20 and sma7[-1] > sma20[-1]
-                    else "Bearish" if sma7 and sma20 else "Neutral"
+                    else "Bearish"
+                    if sma7 and sma20
+                    else "Neutral"
                 ),
                 "long_trend": (
                     "Bullish"
                     if sma50 and sma200 and sma50[-1] > sma200[-1]
-                    else "Bearish" if sma50 and sma200 else "Neutral"
+                    else "Bearish"
+                    if sma50 and sma200
+                    else "Neutral"
                 ),
             },
             "technical_indicators": {
@@ -1242,7 +1246,7 @@ def analyze_wallet_portfolio(
         # Drawdown insight
         if max_dd > 0.1:  # Only show if drawdown is significant (>10%)
             insights.append(
-                f"Your maximum drawdown was {max_dd*100:.2f}% over {max_dd_duration} {candle_interval}s. Since then, your portfolio has recovered {recovery_pct:.2f}%."
+                f"Your maximum drawdown was {max_dd * 100:.2f}% over {max_dd_duration} {candle_interval}s. Since then, your portfolio has recovered {recovery_pct:.2f}%."
             )
 
         # Get time periods in user-friendly format
@@ -1268,7 +1272,7 @@ def analyze_wallet_portfolio(
                     "current_value": f"${float(portfolio_values[-1]):.2f}",
                     "total_return": f"{total_return_pct:.2f}%",
                     "annualized_return": (
-                        f"{((1 + total_return_pct/100) ** (365/(num_candles)) - 1) * 100:.2f}%"
+                        f"{((1 + total_return_pct / 100) ** (365 / (num_candles)) - 1) * 100:.2f}%"
                         if candle_interval == CandleInterval.DAY
                         else "N/A"
                     ),
