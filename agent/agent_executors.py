@@ -57,6 +57,7 @@ def create_routing_model() -> BaseChatModel:
         model=ROUTING_MODEL,
         temperature=0.0,
         google_api_key=API_KEY,
+        max_tokens=500,
     )
 
 
@@ -65,6 +66,7 @@ def create_suggestions_model() -> BaseChatModel:
         model=SUGGESTIONS_MODEL,
         temperature=0.3,
         google_api_key=API_KEY,
+        max_tokens=1000,
     )
 
 
@@ -73,6 +75,7 @@ def create_investor_executor() -> CompiledGraph:
         model=REASONING_MODEL,
         temperature=0.0,
         google_api_key=API_KEY,
+        max_tokens=4096,
     )
     agent_executor = create_react_agent(
         model=openai_model, tools=create_investor_agent_toolkit()
@@ -86,6 +89,7 @@ def create_analytics_executor(token_metadata_repo: TokenMetadataRepo) -> Compile
         model=REASONING_MODEL,
         temperature=0.0,
         google_api_key=API_KEY,
+        max_tokens=4096,
     )
     analytics_executor = create_react_agent(
         model=openai_model,
