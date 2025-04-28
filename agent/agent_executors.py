@@ -22,10 +22,10 @@ LOCAL_LLM_BASE_URL = "http://localhost:8000/v1"
 
 GOOGLE_GEMINI_25_MODEL = "google/gemini-2.5-pro-exp-03-25:free"  # Free
 GOOGLE_GEMINI_20_FLASH_MODEL = (
-    "google/gemini-2.0-flash-001"  # $0.1/M input tokens; $0.4/M output tokens
+    "gemini-2.0-flash"  # $0.1/M input tokens; $0.4/M output tokens
 )
 GOOGLE_GEMINI_FLASH_15_8B_MODEL = (
-    "google/gemini-flash-1.5-8b"  # $0.0375/M input tokens; $0.15/M output tokens
+    "gemini-1.5-flash"  # $0.0375/M input tokens; $0.15/M output tokens
 )
 LLAMA_3_1_405B_MODEL = (
     "meta-llama/llama-3.1-405b-instruct"  # $0.8/M input tokens; $0.8/M output tokens
