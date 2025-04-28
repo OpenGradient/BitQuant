@@ -1,5 +1,5 @@
 import unittest
-from langgraph.graph.graph import RunnableConfig
+from langchain_core.runnables.config import RunnableConfig
 
 from onchain.analytics.analytics_tools import (
     get_coingecko_price_data,
