@@ -58,7 +58,6 @@ def create_routing_model() -> ChatOpenAI:
         openai_api_base=BASE_URL,
         openai_api_key=API_KEY,
         request_timeout=60,
-        default_headers={"X-Title": "opengradient-bitquant"},
     )
 
 
@@ -71,7 +70,6 @@ def create_suggestions_model() -> ChatOpenAI:
         request_timeout=60,
         max_tokens=500,
         streaming=False,
-        default_headers={"X-Title": "opengradient-bitquant"},
     )
 
 
@@ -84,7 +82,6 @@ def create_investor_executor() -> CompiledGraph:
         request_timeout=60,
         max_tokens=4096,
         streaming=False,
-        default_headers={"X-Title": "opengradient-bitquant"},
     )
     agent_executor = create_react_agent(
         model=openai_model, tools=create_investor_agent_toolkit()
@@ -102,7 +99,6 @@ def create_analytics_executor(token_metadata_repo: TokenMetadataRepo) -> Compile
         request_timeout=60,
         max_tokens=4096,
         streaming=False,
-        default_headers={"X-Title": "opengradient-bitquant"},
     )
     analytics_executor = create_react_agent(
         model=openai_model,
