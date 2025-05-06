@@ -44,12 +44,6 @@ def validate_firebase_env_vars():
         os.environ.get("FIREBASE_CLIENT_X509_CERT_URL"),
     )
 
-
-# TODO: SECURITY ISSUE - it's better to use .env variable for this.
-# Instead, maybe use AWS secrets manager?
-# cred_obj = firebase_admin.credentials.Certificate(
-#     "/opt/app/secrets/vanna-portal-418018-1e27956b0918.json"
-# )
 def initialize_firebase():
     """Initialize Firebase with credentials from environment variables."""
     try:
