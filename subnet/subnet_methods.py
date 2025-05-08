@@ -12,7 +12,7 @@ import logging
 import json
 import re
 import opengradient as og
-
+from ..server.config import USE_TEE
 from .api_types import QuantQuery, QuantResponse
 
 evaluation_model = None
@@ -121,7 +121,7 @@ def subnet_query(quant_query: QuantQuery) -> QuantResponse:
     Returns:
         A QuantResponse object containing the agent's response, or None if the request failed
     """
-    if os.getenv("USE_OG_TEE", "").lower() == "true":
+    if USE_TEE:
         try:
             og.init(
                 private_key=os.environ["OG_PRIVATE_KEY"],
