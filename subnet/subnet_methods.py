@@ -12,7 +12,6 @@ import logging
 import json
 import re
 import opengradient as og
-from server.config import USE_TEE
 
 from .api_types import QuantQuery, QuantResponse
 
@@ -122,7 +121,7 @@ def subnet_query(quant_query: QuantQuery) -> QuantResponse:
     Returns:
         A QuantResponse object containing the agent's response, or None if the request failed
     """
-    if USE_TEE:
+    if os.getenv("USE_OG_TEE", "").lower() == "true":
         try:
             og.init(
                 private_key=os.environ["OG_PRIVATE_KEY"],
@@ -131,8 +130,8 @@ def subnet_query(quant_query: QuantQuery) -> QuantResponse:
             )
             # Use the query string as prompt
             messages = [{"role": "user", "content": quant_query.query}]
-            model_cid = og.LLM.LLAMA_3_2_3B_INSTRUCT
-            result = og.llm_chat(model_cid=model_cid, messages=messages)
+            model_cid = og.TEE_LLM.META_LLAMA_3_1_70B_INSTRUCT
+            result = og.llm_chat(model_cid=model_cid, messages=messages, inference_mode=og.LlmInferenceMode.TEE)
             answer = result.chat_output["content"]
             quant_response = QuantResponse(
                 response=answer,
