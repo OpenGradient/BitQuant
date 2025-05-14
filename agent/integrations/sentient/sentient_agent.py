@@ -47,10 +47,9 @@ class BitQuantSentientAgent(AbstractAgent):
         await response_handler.complete()
 
 
-def start_sentient_chat_agent(agent: Optional[AbstractAgent] = None, host: str = "0.0.0.0", port: int = 8081):
+def start_sentient_chat_agent(agent: Optional[AbstractAgent] = None):
     """
-    Start the Sentient Agent Framework server with the given agent.
-    If no agent is provided, use BitQuantSentientAgent.
+    Start the Sentient Agent Framework server with the BitQuantSentientAgent.
     """
     if agent is None:
         agent = BitQuantSentientAgent()
@@ -58,6 +57,5 @@ def start_sentient_chat_agent(agent: Optional[AbstractAgent] = None, host: str =
     logger.info("Starting Sentient Agent server")
     server.run()
 
-# Example usage stub (can be moved to a script or test)
 if __name__ == "__main__":
     start_sentient_chat_agent()
