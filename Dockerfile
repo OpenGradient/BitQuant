@@ -35,4 +35,4 @@ USER appuser
 EXPOSE 8000
 
 # Run the application with Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--timeout", "300", "--workers", "12", "--access-logfile", "-", "--log-level", "warning", "main:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--timeout", "300", "--workers", "16", "--access-logfile", "-", "--log-level", "warning", "main:app"]
