@@ -14,10 +14,6 @@ class BitQuantSentientAgent(AbstractAgent):
         """
         Forward the Sentient chat query to the BitQuant production server and stream the response.
         """
-        await response_handler.emit_text_block(
-            "INFO", f"BitQuantSentientAgent received: {query.prompt}"
-        )
-        logging.info(f"BitQuantSentientAgent received: {query.prompt}")
         try:
             conversation_history = []
             for interaction in session.get_interactions():
@@ -43,7 +39,6 @@ class BitQuantSentientAgent(AbstractAgent):
                     "message": query.prompt,
                 },
             }
-            logging.info(f"Outgoing BitQuant API payload: {payload}")
             api_header = os.environ.get("SKIP_TOKEN_AUTH_HEADER")
             api_key = os.environ.get("SKIP_TOKEN_AUTH_KEY")
             headers = {api_header: api_key} if api_header and api_key else {}
@@ -55,11 +50,9 @@ class BitQuantSentientAgent(AbstractAgent):
                 await response_handler.emit_text_block("RESPONSE", response_text)
             except requests.exceptions.HTTPError as e:
                 error_content = resp.content.decode(errors='replace') if resp is not None else str(e)
-                logging.error(f"BitQuant API returned error: {error_content}")
                 await response_handler.emit_text_block("ERROR", f"BitQuant error: {error_content}")
                 return
         except Exception as e:
-            logging.error(f"Error in BitQuantSentientAgent.assist: {e}", exc_info=True)
             await response_handler.emit_text_block("ERROR", f"BitQuant error: {e}")
         await response_handler.complete()
 
