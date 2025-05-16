@@ -42,7 +42,6 @@ class BitQuantSentientAgent(AbstractAgent):
                     "type": "user",
                     "message": query.prompt,
                 },
-                # "agent": "investor_agent",  # TODO: parameterize if you want to support both agent types
             }
             logging.info(f"Outgoing BitQuant API payload: {payload}")
             api_header = os.environ.get("SKIP_TOKEN_AUTH_HEADER")
