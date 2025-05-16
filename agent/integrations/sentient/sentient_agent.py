@@ -35,7 +35,7 @@ class BitQuantSentientAgent(AbstractAgent):
 
             payload = {
                 "context": {
-                    "address": "CQejHbKGsDeALbMgMrdRZK9pXZXU8kACei8k5U1PPukW",
+                    "address": os.environ.get("BITQUANT_SENTIENT_WALLET_ADDRESS"),
                     "conversationHistory": conversation_history,
                 },
                 "message": {
