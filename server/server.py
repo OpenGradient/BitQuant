@@ -370,8 +370,13 @@ def create_flask_app() -> Flask:
         calls BitQuantSentientAgent.assist, and returns the output blocks as JSON.
         """
         data = request.get_json()
-        session = data.get("session")
-        query = data.get("query")
+        session_dict = data.get("session")
+        query_dict = data.get("query")
+
+        # Convert dicts to framework objects
+        from sentient_agent_framework import Session, Query
+        session = Session(**session_dict)
+        query = Query(**query_dict)
 
         class SentientFlaskResponseHandler:
             def __init__(self):
