@@ -54,6 +54,7 @@ from langchain_openai import ChatOpenAI
 from server.invitecode import InviteCodeManager
 from server.activity_tracker import ActivityTracker
 from server.utils import extract_patterns, convert_to_agent_msg
+from server.config import LOCAL_MODE
 from . import service
 from .auth import protected_route
 from agent.integrations.sentient.sentient_agent import BitQuantSentientAgent
@@ -63,14 +64,16 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
 
 # Initialize Datadog
-initialize(
-    api_key=os.environ.get("DD_API_KEY"),
-    app_key=os.environ.get("DD_APP_KEY"),
-    host_name=os.environ.get("DD_HOSTNAME", "localhost"),
-)
+if not LOCAL_MODE:
+    initialize(
+        api_key=os.environ.get("DD_API_KEY"),
+        app_key=os.environ.get("DD_APP_KEY"),
+        host_name=os.environ.get("DD_HOSTNAME", "localhost"),
+    )
 
 # number of messages to send to agents
 NUM_MESSAGES_TO_KEEP = 6
+API_KEY = os.environ.get("WHITELIST_API_KEY")
 
 
 def require_api_key(f):
