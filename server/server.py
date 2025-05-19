@@ -57,6 +57,7 @@ from server.utils import extract_patterns, convert_to_agent_msg
 from . import service
 from .auth import protected_route
 from agent.integrations.sentient.sentient_agent import BitQuantSentientAgent
+from sentient_agent_framework import Session, Query
 import asyncio
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -374,7 +375,6 @@ def create_flask_app() -> Flask:
         query_dict = data.get("query")
 
         # Convert dicts to framework objects
-        from sentient_agent_framework import Session, Query
         session = Session(**session_dict)
         query = Query(**query_dict)
 
