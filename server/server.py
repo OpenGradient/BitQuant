@@ -51,7 +51,6 @@ from agent.tools import (
     create_analytics_agent_toolkit,
 )
 from langchain_openai import ChatOpenAI
-from server.whitelist import TwoLigmaWhitelist
 from server.invitecode import InviteCodeManager
 from server.activity_tracker import ActivityTracker
 from server.utils import extract_patterns, convert_to_agent_msg
@@ -71,9 +70,6 @@ initialize(
 
 # number of messages to send to agents
 NUM_MESSAGES_TO_KEEP = 6
-
-# API key for whitelist management
-API_KEY = os.environ.get("WHITELIST_API_KEY")
 
 
 def require_api_key(f):
@@ -112,12 +108,10 @@ def create_flask_app() -> Flask:
 
     tokens_table = dynamodb.Table("token_metadata_v2")
     feedback_table = dynamodb.Table("twoligma_feedback")
-    whitelist_table = dynamodb.Table("twoligma_whitelist")
     invite_codes_table = dynamodb.Table("twoligma_invite_codes")
     activity_table = dynamodb.Table("twoligma_activity")
 
     # Services
-    whitelist = TwoLigmaWhitelist(whitelist_table)
     activity_tracker = ActivityTracker(activity_table)
     invite_manager = InviteCodeManager(invite_codes_table, activity_tracker)
 
@@ -209,52 +203,18 @@ def create_flask_app() -> Flask:
         address = request.args.get("address")
         if not address:
             return jsonify({"error": "Address parameter is required"}), 400
-        if not whitelist.is_allowed(address):
-            return jsonify({"error": "Address is not whitelisted"}), 400
 
         portfolio = portfolio_fetcher.get_portfolio(address)
         return jsonify(portfolio.model_dump())
 
     @app.route("/api/whitelisted", methods=["GET"])
     def is_whitelisted():
-        address = request.args.get("address")
-        if not address:
-            return jsonify({"error": "Address parameter is required"}), 400
-
-        response = jsonify({"allowed": whitelist.is_allowed(address)})
-        response.headers["Cache-Control"] = (
-            "no-store, no-cache, must-revalidate, max-age=0"
-        )
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
-        return response
-
-    @app.route("/api/whitelist", methods=["GET"])
-    @require_api_key
-    def get_whitelist():
-        response = jsonify({"allowed": whitelist.get_allowed()})
-
-        response.headers["Cache-Control"] = (
-            "no-store, no-cache, must-revalidate, max-age=0"
-        )
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
-        return response
+        return jsonify({"allowed": True})
 
     @app.route("/api/whitelist/add", methods=["POST"])
     @require_api_key
     def add_to_whitelist():
-        try:
-            request_data = request.get_json()
-            if not request_data or "address" not in request_data:
-                return jsonify({"error": "Address is required"}), 400
-
-            if whitelist.add(request_data["address"]):
-                return jsonify({"status": "success"})
-            return jsonify({"error": "Failed to add address"}), 500
-        except Exception as e:
-            logging.error(f"Error adding to whitelist: {e}")
-            return jsonify({"error": "Internal server error"}), 500
+        return jsonify({"status": "success"})
 
     @app.route("/api/tokenlist", methods=["GET"])
     def get_tokenlist():
@@ -270,10 +230,6 @@ def create_flask_app() -> Flask:
         agent_request = AgentChatRequest(**request_data)
 
         statsd.increment("agent.message.received")
-
-        if not whitelist.is_allowed(agent_request.context.address):
-            statsd.increment("agent.message.not_whitelisted")
-            return jsonify({"error": "Address is not whitelisted"}), 400
 
         # Increment message count, return 429 if limit reached
         if not activity_tracker.increment_message_count(
@@ -308,9 +264,6 @@ def create_flask_app() -> Flask:
         request_data = request.get_json()
         agent_request = AgentChatRequest(**request_data)
 
-        if not whitelist.is_allowed(agent_request.context.address):
-            return jsonify({"error": "Address is not whitelisted"}), 400
-
         portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
         suggestions = handle_suggestions_request(
             token_metadata_repo=token_metadata_repo,
@@ -326,9 +279,6 @@ def create_flask_app() -> Flask:
         try:
             request_data = request.get_json()
             feedback_request = FeedbackRequest(**request_data)
-
-            if not whitelist.is_allowed(feedback_request.walletAddress):
-                return jsonify({"error": "Address is not whitelisted"}), 400
 
             timestamp = datetime.now()
             user_timestamp = f"{feedback_request.walletAddress}_{timestamp}"
@@ -364,15 +314,6 @@ def create_flask_app() -> Flask:
 
             creator_address = request_data["address"]
 
-            # Check if creator is whitelisted
-            if not whitelist.is_allowed(creator_address):
-                return (
-                    jsonify(
-                        {"error": "Only whitelisted users can generate invite codes"}
-                    ),
-                    403,
-                )
-
             # Generate invite code
             invite_code = invite_manager.generate_invite_code(creator_address)
             if not invite_code:
@@ -397,17 +338,9 @@ def create_flask_app() -> Flask:
             code = request_data["code"]
             user_address = request_data["address"]
 
-            # Check if user is already whitelisted
-            if whitelist.is_allowed(user_address):
-                return jsonify({"error": "User is already whitelisted"}), 400
-
             # Try to use the invite code
             if not invite_manager.use_invite_code(code, user_address):
                 return jsonify({"error": "Invalid or already used invite code"}), 400
-
-            # Add user to whitelist
-            if not whitelist.add(user_address):
-                return jsonify({"error": "Failed to whitelist user"}), 500
 
             return jsonify({"status": "success"})
         except Exception as e:
