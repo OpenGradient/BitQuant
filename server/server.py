@@ -57,7 +57,6 @@ from server.utils import extract_patterns, convert_to_agent_msg
 from . import service
 from .auth import protected_route
 from agent.integrations.sentient.sentient_agent import BitQuantSentientAgent
-from sentient_agent_framework import Session, Query
 import asyncio
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -374,9 +373,31 @@ def create_flask_app() -> Flask:
         session_dict = data.get("session")
         query_dict = data.get("query")
 
-        # Convert dicts to framework objects
-        session = Session(**session_dict)
-        query = Query(**query_dict)
+        # Inline minimal session and query classes for this endpoint
+        class SentientAssistSession:
+            def __init__(self, processor_id, activity_id, request_id, interactions):
+                self.processor_id = processor_id
+                self.activity_id = activity_id
+                self.request_id = request_id
+                self.interactions = interactions or []
+            def get_interactions(self):
+                return self.interactions
+
+        class SentientAssistQuery:
+            def __init__(self, id, prompt):
+                self.id = id
+                self.prompt = prompt
+
+        session = SentientAssistSession(
+            processor_id=session_dict.get("processor_id"),
+            activity_id=session_dict.get("activity_id"),
+            request_id=session_dict.get("request_id"),
+            interactions=session_dict.get("interactions", []),
+        )
+        query = SentientAssistQuery(
+            id=query_dict.get("id"),
+            prompt=query_dict.get("prompt"),
+        )
 
         class SentientFlaskResponseHandler:
             def __init__(self):
