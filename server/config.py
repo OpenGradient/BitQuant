@@ -17,3 +17,5 @@ USE_TEE = os.getenv("USE_OG_TEE", "").lower() == "true"
 DAILY_LIMIT_BYPASS_WALLETS = [
     "7FVPurQDkbj6g9dm5B52oCUr7JxqRpoYQcNitKaWVSgS",  # miner
 ]
+
+LOCAL_MODE = os.getenv("LOCAL_MODE", "false").lower() == "true"
