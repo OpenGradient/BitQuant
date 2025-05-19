@@ -40,11 +40,7 @@ EXPOSE 8000
 CMD ["gunicorn", \
      "--bind", "0.0.0.0:8000", \
      "--timeout", "300", \
-     "--workers", "4", \
-     "--threads", "4", \
-     "--worker-class", "gthread", \
-     "--max-requests", "1000", \
-     "--max-requests-jitter", "50", \
+     "--workers", "22", \
      "--access-logfile", "-", \
      "--log-level", "warning", \
      "main:app"]
