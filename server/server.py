@@ -373,7 +373,6 @@ def create_flask_app() -> Flask:
         session_dict = data.get("session")
         query_dict = data.get("query")
 
-        # Inline minimal session and query classes for this endpoint
         class SentientAssistSession:
             def __init__(self, processor_id, activity_id, request_id, interactions):
                 self.processor_id = processor_id
