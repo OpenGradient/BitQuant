@@ -9,6 +9,7 @@ gunicorn==21.2.0
 requests>=2.32.0
 dotenv>=0.9.9
 flask-cors==5.0.0
+sentient-agent-framework==0.3.0
 DeFiLlama>=2.0.0
 langchain-openai>=0.3.7
 binance-connector>=3.12.0
