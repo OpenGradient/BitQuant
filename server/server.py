@@ -57,7 +57,8 @@ from server.activity_tracker import ActivityTracker
 from server.utils import extract_patterns, convert_to_agent_msg
 from . import service
 from .auth import protected_route
-
+from agent.integrations.sentient.sentient_agent import BitQuantSentientAgent
+import asyncio
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
@@ -434,6 +435,34 @@ def create_flask_app() -> Flask:
         except Exception as e:
             logging.error(f"Error getting activity stats: {e}")
             return jsonify({"error": "Internal server error"}), 500
+
+    @app.route("/api/sentient/assist", methods=["POST"])
+    @protected_route
+    def sentient_assist():
+        """
+        Proxy endpoint for Sentient Agent. Accepts JSON with 'session' and 'query',
+        calls BitQuantSentientAgent.assist, and returns the output blocks as JSON.
+        """
+        data = request.get_json()
+        session = data.get("session")
+        query = data.get("query")
+
+        class SentientFlaskResponseHandler:
+            def __init__(self):
+                self.blocks = []
+            async def emit_text_block(self, label, text):
+                self.blocks.append({"label": label, "text": text})
+            async def complete(self):
+                pass
+
+        agent = BitQuantSentientAgent()
+        handler = SentientFlaskResponseHandler()
+        try:
+            asyncio.run(agent.assist(session, query, handler))
+            return jsonify({"blocks": handler.blocks})
+        except Exception as e:
+            logging.exception("Error in sentient_assist endpoint")
+            return jsonify({"error": str(e)}), 500
 
     return app
 
