@@ -355,13 +355,6 @@ def create_flask_app() -> Flask:
             if not address:
                 return jsonify({"error": "Address parameter is required"}), 400
 
-            # Check if user is whitelisted
-            if not whitelist.is_allowed(address):
-                return (
-                    jsonify({"error": "Only whitelisted users can view invite stats"}),
-                    403,
-                )
-
             stats = activity_tracker.get_activity_stats(address)
             return jsonify(stats)
         except Exception as e:
