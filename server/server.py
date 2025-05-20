@@ -370,8 +370,33 @@ def create_flask_app() -> Flask:
         calls BitQuantSentientAgent.assist, and returns the output blocks as JSON.
         """
         data = request.get_json()
-        session = data.get("session")
-        query = data.get("query")
+        session_dict = data.get("session")
+        query_dict = data.get("query")
+
+        class SentientAssistSession:
+            def __init__(self, processor_id, activity_id, request_id, interactions):
+                self.processor_id = processor_id
+                self.activity_id = activity_id
+                self.request_id = request_id
+                self.interactions = interactions or []
+            def get_interactions(self):
+                return self.interactions
+
+        class SentientAssistQuery:
+            def __init__(self, id, prompt):
+                self.id = id
+                self.prompt = prompt
+
+        session = SentientAssistSession(
+            processor_id=session_dict.get("processor_id"),
+            activity_id=session_dict.get("activity_id"),
+            request_id=session_dict.get("request_id"),
+            interactions=session_dict.get("interactions", []),
+        )
+        query = SentientAssistQuery(
+            id=query_dict.get("id"),
+            prompt=query_dict.get("prompt"),
+        )
 
         class SentientFlaskResponseHandler:
             def __init__(self):
