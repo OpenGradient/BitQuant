@@ -40,7 +40,7 @@ EXPOSE 8000
 CMD ["gunicorn", \
      "--bind", "0.0.0.0:8000", \
      "--timeout", "300", \
-     "--workers", "22", \
+     "--workers", "10", \
      "--access-logfile", "-", \
      "--log-level", "warning", \
      "main:app"]
