@@ -259,7 +259,7 @@ def get_coin_suggestions(token_symbol: str, token_id: str) -> Optional[str]:
     return None
 
 
-@tool()
+@tool(description="Retrieve snapshot OHLC (Open, High, Low, Close) price data for a token over the specified number of days.")
 def get_coingecko_current_price(
     token_symbol: str, vs_currency: str = "usd", days: int = 1
 ) -> Dict[str, Any]:
@@ -491,7 +491,7 @@ def get_coingecko_price_data(
         }
 
 
-@tool()
+@tool(description="Analyzes price trend for a token including moving averages, volatility metrics, and technical indicators.")
 @track_tool_usage("analyze_price_trend")
 def analyze_price_trend(token_symbol: str, num_days: int = 90) -> Dict[str, Any]:
     """
@@ -734,7 +734,7 @@ def get_analysis_summary(sma7, sma20, sma50, sma200, bollinger_bands):
     return " ".join(summary)
 
 
-@tool()
+@tool(description="Compare performance of multiple crypto assets with simplified insights for average investors.")
 def compare_assets(
     token_symbols: List[str], candle_interval: CandleInterval, num_candles: int
 ) -> Dict[str, Any]:
@@ -1044,7 +1044,7 @@ def compare_assets(
         }
 
 
-@tool()
+@tool(description="Calculates the maximum drawdown for a cryptocurrency using CoinGecko price data.")
 def max_drawdown_for_token(
     token_symbol: str,
     candle_interval: CandleInterval = CandleInterval.DAY,
@@ -1106,7 +1106,7 @@ def max_drawdown_for_token(
         }
 
 
-@tool()
+@tool(description="Provides a comprehensive analysis of the user's connected wallet portfolio.")
 def analyze_wallet_portfolio(
     candle_interval: CandleInterval = CandleInterval.DAY,
     num_candles: int = 90,
@@ -1399,7 +1399,7 @@ def analyze_wallet_portfolio(
         }
 
 
-@tool()
+@tool(description="Calculates the volatility (standard deviation of returns) of the user's connected wallet portfolio.")
 def portfolio_volatility(
     candle_interval: CandleInterval = CandleInterval.DAY,
     num_candles: int = 90,
