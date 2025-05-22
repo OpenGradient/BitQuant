@@ -1,7 +1,7 @@
 from boto3.resources.base import ServiceResource
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Optional
+from cachetools import cached, TTLCache
 
 from server.config import MINER_TOKEN, DAILY_LIMIT_BYPASS_WALLETS
 
@@ -100,6 +100,7 @@ class ActivityTracker:
             },
         )
 
+    @cached(cache=TTLCache(maxsize=100_000, ttl=30))
     def get_activity_stats(self, user_address: str) -> ActivityStats:
         """
         Get the message count and successful invites count for a user.
