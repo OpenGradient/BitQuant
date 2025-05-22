@@ -28,12 +28,15 @@ from onchain.tokens.trending import (
 from onchain.pools.protocol import ProtocolRegistry
 
 
-@tool(description="Retrieves Solana pools matching the specified criteria that the user can invest in.")
+@tool
 @track_tool_usage("retrieve_solana_pools")
 def retrieve_solana_pools(
     tokens: List[str] = None,
     config: RunnableConfig = None,
 ) -> List[Pool]:
+    """
+    Retrieves Solana pools matching the specified criteria that the user can invest in.
+    """
     configurable = config["configurable"]
     user_tokens: List[WalletTokenHolding] = configurable["tokens"]
     protocol_registry: ProtocolRegistry = configurable["protocol_registry"]
