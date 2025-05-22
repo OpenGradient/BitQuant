@@ -30,9 +30,9 @@ class TokenMetadataRepo:
     DEXSCREENER_API_URL = "https://api.dexscreener.com/tokens/v1/%s/%s"
     DEXSCREENER_SEARCH_API_URL = "https://api.dexscreener.com/latest/dex/search"
 
-    NOT_FOUND_CACHE_TTL = 3600 * 24  # 24 hours in seconds
+    NOT_FOUND_CACHE_TTL = 10_000 * 24  # 24 hours in seconds
 
-    METADATA_CACHE_SIZE = 50_000  # Maximum number of metadata entries to cache
+    METADATA_CACHE_SIZE = 100_000  # Maximum number of metadata entries to cache
     METADATA_CACHE_TTL = 15 * 60  # 15 minutes in seconds
 
     DEXSCREENER_CALLS_PER_MINUTE = 200

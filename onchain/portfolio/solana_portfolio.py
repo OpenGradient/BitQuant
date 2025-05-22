@@ -24,7 +24,7 @@ class PortfolioFetcher:
         await self.http_client.close()
         await self.token_metadata_repo.close()
 
-    @cached(ttl=300, maxsize=10_000)
+    @cached(ttl=300, maxsize=100_000)
     async def get_portfolio(self, wallet_address: str) -> Portfolio:
         """Get the complete portfolio of token holdings for a wallet address."""
         token_accounts = await self._get_token_accounts(wallet_address)
