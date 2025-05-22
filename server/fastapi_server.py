@@ -1,12 +1,11 @@
-from typing import List, Any, Tuple, Dict
+from typing import List, Any, Dict
 import os
 import boto3.dynamodb
 import boto3.dynamodb.table
 import boto3.dynamodb.types
-from fastapi import FastAPI, Request, HTTPException, Depends, Header, Response
+from fastapi import FastAPI, Request, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from langgraph.graph.graph import CompiledGraph
 from langchain_core.runnables.config import RunnableConfig
@@ -14,11 +13,9 @@ import json
 import traceback
 import boto3
 from datetime import datetime
-from functools import wraps
 from datadog import initialize, statsd
 import logging
 import requests
-from typing import Optional
 
 import boto3.data
 from onchain.pools.protocol import ProtocolRegistry
@@ -30,7 +27,6 @@ from onchain.portfolio.solana_portfolio import PortfolioFetcher
 from api.api_types import (
     AgentChatRequest,
     AgentMessage,
-    Message,
     AgentType,
     Portfolio,
     FeedbackRequest,
@@ -54,10 +50,9 @@ from agent.tools import (
     create_analytics_agent_toolkit,
 )
 from langchain_openai import ChatOpenAI
-from server.whitelist import TwoLigmaWhitelist
 from server.invitecode import InviteCodeManager
 from server.activity_tracker import ActivityTracker
-from server.utils import extract_patterns, convert_to_agent_msg
+from server.utils import extract_patterns, convert_to_agent_message_history
 from . import service
 from .auth import get_current_user, FirebaseIDTokenData
 
@@ -105,12 +100,10 @@ def create_fastapi_app() -> FastAPI:
 
     tokens_table = dynamodb.Table("token_metadata_v2")
     feedback_table = dynamodb.Table("twoligma_feedback")
-    whitelist_table = dynamodb.Table("twoligma_whitelist")
     invite_codes_table = dynamodb.Table("twoligma_invite_codes")
     activity_table = dynamodb.Table("twoligma_activity")
 
     # Services
-    whitelist = TwoLigmaWhitelist(whitelist_table)
     activity_tracker = ActivityTracker(activity_table)
     invite_manager = InviteCodeManager(invite_codes_table, activity_tracker)
 
@@ -217,47 +210,9 @@ def create_fastapi_app() -> FastAPI:
     ):
         if not address:
             raise HTTPException(status_code=400, detail="Address parameter is required")
-        if not whitelist.is_allowed(address):
-            raise HTTPException(status_code=400, detail="Address is not whitelisted")
 
         portfolio = await portfolio_fetcher.get_portfolio(address)
         return portfolio.model_dump()
-
-    @app.get("/api/whitelisted")
-    async def is_whitelisted(address: str):
-        if not address:
-            raise HTTPException(status_code=400, detail="Address parameter is required")
-
-        response = JSONResponse(content={"allowed": whitelist.is_allowed(address)})
-        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
-        return response
-
-    @app.get("/api/whitelist")
-    async def get_whitelist(api_key: str = Depends(require_api_key)):
-        response = JSONResponse(content={"allowed": whitelist.get_allowed()})
-        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
-        return response
-
-    @app.post("/api/whitelist/add")
-    async def add_to_whitelist(
-        request: Request,
-        api_key: str = Depends(require_api_key),
-    ):
-        try:
-            request_data = await request.json()
-            if not request_data or "address" not in request_data:
-                raise HTTPException(status_code=400, detail="Address is required")
-
-            if whitelist.add(request_data["address"]):
-                return {"status": "success"}
-            raise HTTPException(status_code=500, detail="Failed to add address")
-        except Exception as e:
-            logging.error(f"Error adding to whitelist: {e}")
-            raise HTTPException(status_code=500, detail="Internal server error")
 
     @app.get("/api/tokenlist")
     async def get_tokenlist():
@@ -275,10 +230,6 @@ def create_fastapi_app() -> FastAPI:
         agent_request = AgentChatRequest(**request_data)
 
         statsd.increment("agent.message.received")
-
-        if not whitelist.is_allowed(agent_request.context.address):
-            statsd.increment("agent.message.not_whitelisted")
-            raise HTTPException(status_code=400, detail="Address is not whitelisted")
 
         # Increment message count, return 429 if limit reached
         if not activity_tracker.increment_message_count(
@@ -313,9 +264,6 @@ def create_fastapi_app() -> FastAPI:
         request_data = await request.json()
         agent_request = AgentChatRequest(**request_data)
 
-        if not whitelist.is_allowed(agent_request.context.address):
-            raise HTTPException(status_code=400, detail="Address is not whitelisted")
-
         portfolio = await portfolio_fetcher.get_portfolio(agent_request.context.address)
         suggestions = await handle_suggestions_request(
             token_metadata_repo=token_metadata_repo,
@@ -333,9 +281,6 @@ def create_fastapi_app() -> FastAPI:
         try:
             request_data = await request.json()
             feedback_request = FeedbackRequest(**request_data)
-
-            if not whitelist.is_allowed(feedback_request.walletAddress):
-                raise HTTPException(status_code=400, detail="Address is not whitelisted")
 
             timestamp = datetime.now()
             user_timestamp = f"{feedback_request.walletAddress}_{timestamp}"
@@ -373,13 +318,6 @@ def create_fastapi_app() -> FastAPI:
 
             creator_address = request_data["address"]
 
-            # Check if creator is whitelisted
-            if not whitelist.is_allowed(creator_address):
-                raise HTTPException(
-                    status_code=403,
-                    detail="Only whitelisted users can generate invite codes",
-                )
-
             # Generate invite code
             invite_code = invite_manager.generate_invite_code(creator_address)
             if not invite_code:
@@ -404,19 +342,11 @@ def create_fastapi_app() -> FastAPI:
             code = request_data["code"]
             user_address = request_data["address"]
 
-            # Check if user is already whitelisted
-            if whitelist.is_allowed(user_address):
-                raise HTTPException(status_code=400, detail="User is already whitelisted")
-
             # Try to use the invite code
             if not invite_manager.use_invite_code(code, user_address):
                 raise HTTPException(
                     status_code=400, detail="Invalid or already used invite code"
                 )
-
-            # Add user to whitelist
-            if not whitelist.add(user_address):
-                raise HTTPException(status_code=500, detail="Failed to whitelist user")
 
             return {"status": "success"}
         except Exception as e:
@@ -431,13 +361,6 @@ def create_fastapi_app() -> FastAPI:
         try:
             if not address:
                 raise HTTPException(status_code=400, detail="Address parameter is required")
-
-            # Check if user is whitelisted
-            if not whitelist.is_allowed(address):
-                raise HTTPException(
-                    status_code=403,
-                    detail="Only whitelisted users can view invite stats",
-                )
 
             stats = activity_tracker.get_activity_stats(address)
             return stats
