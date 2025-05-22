@@ -25,9 +25,9 @@ class TestPortfolio(unittest.TestCase):
 
     def test_get_portfolio(self):
         # Binance wallet
-        holdings = asyncio.run(self.portfolio.get_portfolio(
-            "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
-        ))
+        holdings = asyncio.run(
+            self.portfolio.get_portfolio("9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM")
+        )
         print(holdings)
 
         self.assertGreater(len(holdings.holdings), 0)

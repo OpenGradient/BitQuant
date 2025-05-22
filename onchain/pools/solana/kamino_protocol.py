@@ -88,7 +88,11 @@ class KaminoProtocol(Protocol):
         return kamino_pools
 
     async def _fetch_metrics(
-        self, reserve_pubkey: str, start_date: datetime, end_date: datetime, frequency: str
+        self,
+        reserve_pubkey: str,
+        start_date: datetime,
+        end_date: datetime,
+        frequency: str,
     ) -> List[Dict[str, Any]]:
         """
         Fetch metrics data for a given reserve pubkey and time range
@@ -158,7 +162,9 @@ class KaminoProtocol(Protocol):
         # Return average APR value (x100 to convert to percentage)
         return statistics.mean(apr_values) * 100
 
-    async def _calculate_apr_metrics(self, reserve_pubkey: str) -> Dict[str, Optional[float]]:
+    async def _calculate_apr_metrics(
+        self, reserve_pubkey: str
+    ) -> Dict[str, Optional[float]]:
         """
         Calculate APR metrics for a given reserve pubkey for the last day, week, and month
         using a single API call.

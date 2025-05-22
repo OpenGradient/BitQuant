@@ -2,7 +2,7 @@ from typing import Optional
 import secrets
 import logging
 from datetime import datetime
-from boto3.resources.base import ServiceResource
+import aioboto3
 from datadog import statsd
 
 from server.activity_tracker import ActivityTracker
@@ -16,15 +16,19 @@ class InviteCodeManager:
     # How many unused codes a user can have
     MAX_UNUSED_CODES = 100
 
-    def __init__(self, table: ServiceResource, activity_tracker: ActivityTracker):
+    def __init__(
+        self,
+        table: aioboto3.resources.base.ServiceResource,
+        activity_tracker: ActivityTracker,
+    ):
         self.table = table
         self.activity_tracker = activity_tracker
 
-    def generate_invite_code(self, creator_address: str) -> Optional[str]:
+    async def generate_invite_code(self, creator_address: str) -> Optional[str]:
         """Generate a new invite code for a whitelisted user."""
         try:
             # Check current number of unused codes
-            response = self.table.query(
+            response = await self.table.query(
                 IndexName="creator_address-index",
                 KeyConditionExpression="creator_address = :addr",
                 FilterExpression="#used = :used",
@@ -43,7 +47,7 @@ class InviteCodeManager:
             invite_code = secrets.token_urlsafe(10)
 
             # Save to DynamoDB
-            self.table.put_item(
+            await self.table.put_item(
                 Item={
                     "code": invite_code,
                     "creator_address": creator_address,
@@ -60,11 +64,11 @@ class InviteCodeManager:
             logger.error(f"Error generating invite code: {e}")
             return None
 
-    def use_invite_code(self, code: str, user_address: str) -> bool:
+    async def use_invite_code(self, code: str, user_address: str) -> bool:
         """Use an invite code to whitelist a new user."""
         try:
             # Get the invite code
-            response = self.table.get_item(Key={"code": code})
+            response = await self.table.get_item(Key={"code": code})
             if "Item" not in response:
                 return False
 
@@ -75,7 +79,7 @@ class InviteCodeManager:
                 return False
 
             # Update the invite code as used
-            self.table.update_item(
+            await self.table.update_item(
                 Key={"code": code},
                 UpdateExpression="SET #used = :used, used_by = :used_by, used_at = :used_at",
                 ExpressionAttributeNames={"#used": "used"},
@@ -87,7 +91,7 @@ class InviteCodeManager:
             )
 
             # Increment creator's successful invites count
-            self.activity_tracker.increment_successful_invites(
+            await self.activity_tracker.increment_successful_invites(
                 invite["creator_address"]
             )
 
@@ -97,11 +101,11 @@ class InviteCodeManager:
             logger.error(f"Error using invite code: {e}")
             return False
 
-    def get_invite_stats(self, address: str) -> dict:
+    async def get_invite_stats(self, address: str) -> dict:
         """Get invite statistics for a user."""
         try:
             # Get all codes created by the user
-            response = self.table.query(
+            response = await self.table.query(
                 IndexName="creator_address-index",
                 KeyConditionExpression="creator_address = :addr",
                 ExpressionAttributeValues={":addr": address},

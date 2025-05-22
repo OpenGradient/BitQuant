@@ -70,11 +70,14 @@ class TokenMetadataRepo:
         self, token: str, chain: Optional[str]
     ) -> Optional[TokenMetadata]:
         """Search for a token by name or symbol on DexScreener."""
-        async with self._session.get(self.DEXSCREENER_SEARCH_API_URL, params={"q": token}) as response:
+        async with self._session.get(
+            self.DEXSCREENER_SEARCH_API_URL, params={"q": token}
+        ) as response:
             if response.status != 200:
                 if response.status == 429:
                     raise RateLimitException(
-                        f"Rate limit exceeded: {response.status} {await response.text()}", 60
+                        f"Rate limit exceeded: {response.status} {await response.text()}",
+                        60,
                     )
                 else:
                     raise Exception(
@@ -206,11 +209,14 @@ class TokenMetadataRepo:
         self, chain: str, token_address: str
     ) -> Optional[TokenMetadata]:
         """Fetch token metadata from DexScreener API with rate limiting."""
-        async with self._session.get(self.DEXSCREENER_API_URL % (chain, token_address)) as response:
+        async with self._session.get(
+            self.DEXSCREENER_API_URL % (chain, token_address)
+        ) as response:
             if response.status != 200:
                 if response.status == 429:
                     raise RateLimitException(
-                        f"Rate limit exceeded: {response.status} {await response.text()}", 60
+                        f"Rate limit exceeded: {response.status} {await response.text()}",
+                        60,
                     )
                 else:
                     logging.error(

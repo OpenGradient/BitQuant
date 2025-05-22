@@ -25,9 +25,11 @@ class TestMetadata(unittest.TestCase):
         print(f"Search results: {tokens}")
 
     def test_get_token_metadata(self):
-        metadata = asyncio.run(self.repo.get_token_metadata(
-            "9Rhbn9G5poLvgnFzuYBtJgbzmiipNra35QpnUek9virt", "solana"
-        ))
+        metadata = asyncio.run(
+            self.repo.get_token_metadata(
+                "9Rhbn9G5poLvgnFzuYBtJgbzmiipNra35QpnUek9virt", "solana"
+            )
+        )
         print(f"Token metadata: {metadata}")
 
     def test_search_token_on_dexscreener(self):

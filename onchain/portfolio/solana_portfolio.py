@@ -47,7 +47,9 @@ class PortfolioFetcher:
                 continue
 
             # Get token metadata
-            metadata = await self.token_metadata_repo.get_token_metadata(address, "solana")
+            metadata = await self.token_metadata_repo.get_token_metadata(
+                address, "solana"
+            )
             if metadata is None:
                 continue
 
@@ -70,11 +72,13 @@ class PortfolioFetcher:
         portfolio_value = sum(holding.total_value_usd or 0 for holding in holdings)
         return Portfolio(holdings=holdings, total_value_usd=portfolio_value)
 
-    async def _get_sol_holding(self, wallet_address: str) -> Optional[WalletTokenHolding]:
+    async def _get_sol_holding(
+        self, wallet_address: str
+    ) -> Optional[WalletTokenHolding]:
         """Get the native SOL holding for a wallet address if any exists."""
-        sol_balance = (await self.http_client.get_balance(
-            Pubkey.from_string(wallet_address)
-        )).value
+        sol_balance = (
+            await self.http_client.get_balance(Pubkey.from_string(wallet_address))
+        ).value
         if sol_balance == 0:
             return None
 

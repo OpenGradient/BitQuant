@@ -72,6 +72,7 @@ NUM_MESSAGES_TO_KEEP = 6
 # API key for whitelist management
 API_KEY = os.environ.get("WHITELIST_API_KEY")
 
+
 def create_fastapi_app() -> FastAPI:
     """Create and configure the FastAPI application with routes."""
     app = FastAPI()
@@ -232,14 +233,16 @@ def create_fastapi_app() -> FastAPI:
         statsd.increment("agent.message.received")
 
         # Increment message count, return 429 if limit reached
-        if not activity_tracker.increment_message_count(
+        if not await activity_tracker.increment_message_count(
             agent_request.context.address, agent_request.context.miner_token
         ):
             statsd.increment("agent.message.daily_limit_reached")
             raise HTTPException(status_code=429, detail="Daily message limit reached")
 
         try:
-            portfolio = await portfolio_fetcher.get_portfolio(agent_request.context.address)
+            portfolio = await portfolio_fetcher.get_portfolio(
+                agent_request.context.address
+            )
             response = await handle_agent_chat_request(
                 token_metadata_repo=token_metadata_repo,
                 protocol_registry=protocol_registry,
@@ -250,7 +253,9 @@ def create_fastapi_app() -> FastAPI:
                 router_model=router_model,
             )
 
-            return response.model_dump() if hasattr(response, "model_dump") else response
+            return (
+                response.model_dump() if hasattr(response, "model_dump") else response
+            )
         except Exception as e:
             logging.error(f"Error processing agent request: {e}")
             statsd.increment("agent.message.server_error")
@@ -321,7 +326,9 @@ def create_fastapi_app() -> FastAPI:
             # Generate invite code
             invite_code = invite_manager.generate_invite_code(creator_address)
             if not invite_code:
-                raise HTTPException(status_code=500, detail="Failed to generate invite code")
+                raise HTTPException(
+                    status_code=500, detail="Failed to generate invite code"
+                )
 
             return {"invite_code": invite_code}
         except Exception as e:
@@ -337,7 +344,9 @@ def create_fastapi_app() -> FastAPI:
                 or "code" not in request_data
                 or "address" not in request_data
             ):
-                raise HTTPException(status_code=400, detail="Code and address are required")
+                raise HTTPException(
+                    status_code=400, detail="Code and address are required"
+                )
 
             code = request_data["code"]
             user_address = request_data["address"]
@@ -360,15 +369,18 @@ def create_fastapi_app() -> FastAPI:
     ):
         try:
             if not address:
-                raise HTTPException(status_code=400, detail="Address parameter is required")
+                raise HTTPException(
+                    status_code=400, detail="Address parameter is required"
+                )
 
-            stats = activity_tracker.get_activity_stats(address)
+            stats = await activity_tracker.get_activity_stats(address)
             return stats
         except Exception as e:
             logging.error(f"Error getting activity stats: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    return app 
+    return app
+
 
 async def handle_agent_chat_request(
     protocol_registry: ProtocolRegistry,
@@ -626,4 +638,4 @@ async def run_analytics_agent(
     except Exception as e:
         logging.error(f"Error running analytics agent: {e}")
         statsd.increment("agent.failure", tags=["agent_type:analytics"])
-        raise 
+        raise
