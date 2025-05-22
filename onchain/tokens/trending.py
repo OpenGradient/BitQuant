@@ -177,7 +177,7 @@ def evaluate_token_risk(
     return risk_analysis
 
 
-@cached(cache=TTLCache(maxsize=1000, ttl=60 * 10))
+@cached(cache=TTLCache(maxsize=100_000, ttl=60 * 20))
 def get_token_info_from_coingecko(
     token_address: str, chain: str
 ) -> Tuple[TokenMetadata, Optional[str]]:
@@ -207,7 +207,7 @@ def get_token_info_from_coingecko(
     return data["data"], None
 
 
-@cached(cache=TTLCache(maxsize=100, ttl=60 * 10))
+@cached(cache=TTLCache(maxsize=100_000, ttl=60 * 20))
 def get_trending_tokens_from_coingecko(chain: str) -> List[TokenMetadata]:
     headers = {
         "accept": "application/json",
