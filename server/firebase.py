@@ -44,7 +44,6 @@ def validate_firebase_env_vars():
         os.environ.get("FIREBASE_CLIENT_X509_CERT_URL"),
     )
 
-
 def initialize_firebase():
     """Initialize Firebase with credentials from environment variables."""
     try:

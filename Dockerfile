@@ -25,8 +25,6 @@ COPY .env .
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV FLASK_APP=main.py
-ENV PYTHONOPTIMIZE=2
-ENV PYTHONDONTWRITEBYTECODE=1
 
 # Create non-root user for security
 RUN useradd -m appuser && \
@@ -37,10 +35,4 @@ USER appuser
 EXPOSE 8000
 
 # Run the application with Gunicorn
-CMD ["gunicorn", \
-     "--bind", "0.0.0.0:8000", \
-     "--timeout", "300", \
-     "--workers", "10", \
-     "--access-logfile", "-", \
-     "--log-level", "warning", \
-     "main:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--timeout", "300", "--workers", "6", "--access-logfile", "-", "--log-level", "warning", "main:app"]

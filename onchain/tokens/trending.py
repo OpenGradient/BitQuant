@@ -30,7 +30,7 @@ CHAIN_REMAPPINGS = {
 }
 
 
-@tool(description="Get the top holders of a token on the given chain.")
+@tool
 @track_tool_usage("get_top_token_holders")
 def get_top_token_holders(
     token_id: str,
@@ -94,7 +94,7 @@ def get_top_token_holders_from_coingecko(
     return formatted_holders, None
 
 
-@tool(description="Retrieve the latest trending tokens on the given chain from DEX data.")
+@tool
 @track_tool_usage("get_trending_tokens")
 def get_trending_tokens(
     chain: str = "solana",
@@ -106,7 +106,7 @@ def get_trending_tokens(
     return f"""Trending tokens: {trending_tokens}. In your answer, include the ID of each token you mention in the following format: ```token:<insert token_id>```, and the name and symbol too."""
 
 
-@tool(description="Evaluate the risk of a token on the given chain, especially for memecoins. Token ID is in the format <chain>:<address>.")
+@tool
 @track_tool_usage("evaluate_token_risk")
 def evaluate_token_risk(
     token_id: str,
@@ -177,7 +177,7 @@ def evaluate_token_risk(
     return risk_analysis
 
 
-@cached(cache=TTLCache(maxsize=100_000, ttl=60 * 20))
+@cached(cache=TTLCache(maxsize=1000, ttl=60 * 10))
 def get_token_info_from_coingecko(
     token_address: str, chain: str
 ) -> Tuple[TokenMetadata, Optional[str]]:
@@ -207,7 +207,7 @@ def get_token_info_from_coingecko(
     return data["data"], None
 
 
-@cached(cache=TTLCache(maxsize=100_000, ttl=60 * 20))
+@cached(cache=TTLCache(maxsize=100, ttl=60 * 10))
 def get_trending_tokens_from_coingecko(chain: str) -> List[TokenMetadata]:
     headers = {
         "accept": "application/json",
