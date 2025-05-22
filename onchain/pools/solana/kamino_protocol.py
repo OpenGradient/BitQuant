@@ -18,7 +18,6 @@ class KaminoProtocol(Protocol):
 
     PROTOCOL_NAME = "kamino"
     BASE_URL = "https://api.kamino.finance"
-    _session: Optional[aiohttp.ClientSession] = None
 
     def __init__(
         self,
@@ -36,28 +35,18 @@ class KaminoProtocol(Protocol):
         self.cluster = cluster
         self.program_id = program_id
         self.market_pubkey = market_pubkey
+        self._session = aiohttp.ClientSession()
 
     @property
     def name(self) -> str:
         return self.PROTOCOL_NAME
 
-    async def _get_session(self):
-        if self._session is None:
-            self._session = aiohttp.ClientSession()
-        return self._session
-
-    async def close(self):
-        if self._session:
-            await self._session.close()
-            self._session = None
-
     async def get_pools(self, token_metadata_repo: TokenMetadataRepo) -> List[Pool]:
         """
         Fetch pools from Kamino API and convert to the internal Pool model
         """
-        session = await self._get_session()
         url = f"{self.BASE_URL}/v1/markets/{self.market_pubkey}/reserves"
-        async with session.get(url) as response:
+        async with self._session.get(url) as response:
             response.raise_for_status()
             data = await response.json()
 
@@ -104,14 +93,13 @@ class KaminoProtocol(Protocol):
         """
         Fetch metrics data for a given reserve pubkey and time range
         """
-        session = await self._get_session()
         url = f"{self.BASE_URL}/v1/reserves/{reserve_pubkey}/metrics"
         params = {
             "start_date": start_date.isoformat(),
             "end_date": end_date.isoformat(),
             "frequency": frequency,
         }
-        async with session.get(url, params=params) as response:
+        async with self._session.get(url, params=params) as response:
             response.raise_for_status()
             return await response.json()
 

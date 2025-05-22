@@ -23,12 +23,6 @@ class TestPortfolio(unittest.TestCase):
         self.token_metadata_repo = TokenMetadataRepo(tokens_table)
         self.portfolio = PortfolioFetcher(self.token_metadata_repo)
 
-    async def asyncSetUp(self):
-        await self.token_metadata_repo._get_session()
-
-    async def asyncTearDown(self):
-        await self.portfolio.close()
-
     def test_get_portfolio(self):
         # Binance wallet
         holdings = asyncio.run(self.portfolio.get_portfolio(

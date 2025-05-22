@@ -19,7 +19,7 @@ class OrcaProtocol(Protocol):
     BASE_URL = "https://api.orca.so/v2"
 
     chain_id: str
-    _session: Optional[aiohttp.ClientSession] = None
+    _session: aiohttp.ClientSession
 
     def __init__(self, chain_id: str = "solana"):
         """
@@ -34,24 +34,13 @@ class OrcaProtocol(Protocol):
     def name(self) -> str:
         return self.PROTOCOL_NAME
 
-    async def _get_session(self):
-        if self._session is None:
-            self._session = aiohttp.ClientSession()
-        return self._session
-
-    async def close(self):
-        if self._session:
-            await self._session.close()
-            self._session = None
-
     async def get_pools(self, token_metadata_repo: TokenMetadataRepo) -> List[Pool]:
         """
         Fetch pools from Orca API and convert to the internal Pool model
         """
         # Make API request
-        session = await self._get_session()
         url = f"{self.BASE_URL}/{self.chain_id}/pools"
-        async with session.get(url) as response:
+        async with self._session.get(url) as response:
             response.raise_for_status()  # Raise exception for non-200 responses
             data = await response.json()
 

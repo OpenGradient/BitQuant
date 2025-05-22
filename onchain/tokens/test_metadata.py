@@ -20,12 +20,6 @@ class TestMetadata(unittest.TestCase):
         self.tokens_table = self.dynamodb.Table("token_metadata_v2")
         self.repo = TokenMetadataRepo(self.tokens_table)
 
-    async def asyncSetUp(self):
-        await self.repo._get_session()
-
-    async def asyncTearDown(self):
-        await self.repo.close()
-
     def test_search_token(self):
         tokens = asyncio.run(self.repo.search_token("fartcoin", None))
         print(f"Search results: {tokens}")

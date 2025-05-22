@@ -10,7 +10,6 @@ class SaveProtocol(Protocol):
     PROTOCOL_NAME = "save"
     BASE_URL = "https://api.solend.fi/v1/"
     MAIN_MARKET_ADDRESS = "4UpD2fh7xH3VP9QQaXtsS1YY3bxzWhtfpks7FatyKvdY"
-    _session: Optional[aiohttp.ClientSession] = None
 
     def __init__(self, chain_id: str = "solana"):
         """
@@ -20,15 +19,11 @@ class SaveProtocol(Protocol):
             chain_id: The chain ID to use (default: "solana")
         """
         self.chain_id = chain_id
+        self._session = aiohttp.ClientSession()
 
     @property
     def name(self) -> str:
         return self.PROTOCOL_NAME
-
-    async def _get_session(self):
-        if self._session is None:
-            self._session = aiohttp.ClientSession()
-        return self._session
 
     async def close(self):
         if self._session:
@@ -36,9 +31,8 @@ class SaveProtocol(Protocol):
             self._session = None
 
     async def get_pools(self, token_metadata_repo: TokenMetadataRepo) -> List[Pool]:
-        session = await self._get_session()
         url = f"{self.BASE_URL}reserves?ids={self.MAIN_MARKET_ADDRESS}&scope=all"
-        async with session.get(url) as response:
+        async with self._session.get(url) as response:
             response.raise_for_status()  # Raise exception for non-200 responses
             data = await response.json()
 

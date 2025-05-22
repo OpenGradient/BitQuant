@@ -226,9 +226,3 @@ class ProtocolRegistry:
 
         # Return pools that match the requested IDs
         return [pool for pool in all_pools if pool.id in pool_ids]
-
-    async def close(self):
-        """Clean up resources used by all protocols."""
-        for protocol in self.protocols.values():
-            await protocol.close()
-        await self.token_metadata_repo.close()
