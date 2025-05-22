@@ -20,7 +20,7 @@ class PortfolioFetcher:
         self.token_metadata_repo = token_metadata_repo
         self.http_client = Client(self.RPC_URL)
 
-    @cachetools.func.ttl_cache(maxsize=10_000, ttl=300)
+    @cachetools.func.ttl_cache(maxsize=100_000, ttl=300)
     def get_portfolio(self, wallet_address: str) -> Portfolio:
         """Get the complete portfolio of token holdings for a wallet address."""
         token_accounts = self.get_token_accounts(wallet_address)

@@ -259,12 +259,32 @@ def get_coin_suggestions(token_symbol: str, token_id: str) -> Optional[str]:
     return None
 
 
-@tool()
+@tool(description="Retrieve snapshot OHLC (Open, High, Low, Close) price data for a token over the specified number of days.")
 def get_coingecko_current_price(
     token_symbol: str, vs_currency: str = "usd", days: int = 1
 ) -> Dict[str, Any]:
     """
-    Retrieve snapshot OHLC price data for a token over the specified number of days.
+    Retrieve snapshot OHLC (Open, High, Low, Close) price data for a token over the specified number of days.
+
+    Args:
+        token_symbol (str): The symbol or name of the token to fetch data for (e.g., 'btc', 'ethereum')
+        vs_currency (str, optional): The currency to compare against. Defaults to 'usd'
+        days (int, optional): Number of days of data to retrieve. Valid values are 1, 7, 14, 30, 90, 180, 365, 'max'. Defaults to 1
+
+    Returns:
+        Dict[str, Any]: A dictionary containing:
+            - token_symbol: The input token symbol
+            - vs_currency: The comparison currency
+            - days: Number of days requested
+            - num_candles: Number of candles in the response
+            - data: List of OHLC data points [timestamp, open, high, low, close]
+            - columns: Column names for the data points
+            - readable_dates: Start and end dates in human-readable format
+            - warning: Optional warning message if token resolution was approximate
+            - error: Error message if the request failed
+
+    Raises:
+        Exception: If the API request fails after retries
     """
     try:
         token_id, error_message = get_coingecko_id(token_symbol)
@@ -471,12 +491,29 @@ def get_coingecko_price_data(
         }
 
 
-@tool()
+@tool(description="Analyzes price trend for a token including moving averages, volatility metrics, and technical indicators.")
 @track_tool_usage("analyze_price_trend")
 def analyze_price_trend(token_symbol: str, num_days: int = 90) -> Dict[str, Any]:
     """
-    Analyzes price trend for a token including moving averages, volatility metrics,
-    and enhanced technical indicators over the specified time period.
+    Analyzes price trend for a token including moving averages, volatility metrics, and technical indicators.
+
+    Args:
+        token_symbol (str): The symbol or name of the token to analyze (e.g., 'btc', 'ethereum')
+        num_days (int, optional): Number of days of historical data to analyze. Defaults to 90
+
+    Returns:
+        Dict[str, Any]: A dictionary containing:
+            - token_symbol: The input token symbol
+            - current_price: Latest price of the token
+            - price_range: Min, max, open, and close prices over the period
+            - moving_averages: Various moving averages (SMA7, SMA20, SMA50, SMA200) and trend indicators
+            - technical_indicators: Bollinger Bands and Fibonacci retracement levels
+            - token_metrics: Current price and volatility metrics
+            - analysis_summary: Text summary of key findings
+            - error: Error message if the analysis failed
+
+    Raises:
+        Exception: If the price data cannot be retrieved or analyzed
     """
     try:
         # Get the price history first
@@ -697,12 +734,31 @@ def get_analysis_summary(sma7, sma20, sma50, sma200, bollinger_bands):
     return " ".join(summary)
 
 
-@tool()
+@tool(description="Compare performance of multiple crypto assets with simplified insights for average investors.")
 def compare_assets(
     token_symbols: List[str], candle_interval: CandleInterval, num_candles: int
 ) -> Dict[str, Any]:
     """
     Compare performance of multiple crypto assets with simplified insights for average investors.
+
+    Args:
+        token_symbols (List[str]): List of token symbols to compare (e.g., ['btc', 'eth', 'sol'])
+        candle_interval (CandleInterval): Time interval for candles (DAY or HOUR)
+        num_candles (int): Number of candles to analyze
+
+    Returns:
+        Dict[str, Any]: A dictionary containing:
+            - individual_tokens: Analysis results for each token
+            - comparative_analysis: Rankings and comparisons between tokens
+            - investment_insights: Actionable insights for investors
+            - period: Human-readable analysis period
+            - error_count: Number of tokens that failed to analyze
+            - total_tokens: Total number of tokens requested
+            - successful_tokens: Number of successfully analyzed tokens
+            - error: Error message if the comparison failed
+
+    Raises:
+        Exception: If the price data cannot be retrieved or compared
     """
     # Generate a request ID for this comparison operation
     comparison_id = f"compare_{datetime.now(UTC).strftime('%H%M%S')}"
@@ -988,14 +1044,31 @@ def compare_assets(
         }
 
 
-@tool()
+@tool(description="Calculates the maximum drawdown for a cryptocurrency using CoinGecko price data.")
 def max_drawdown_for_token(
     token_symbol: str,
     candle_interval: CandleInterval = CandleInterval.DAY,
     num_candles: int = 90,
 ) -> Dict[str, Any]:
     """
-    Calculates the maximum drawdown for a cryptocurrency using CoinGecko price data
+    Calculates the maximum drawdown for a cryptocurrency using CoinGecko price data.
+
+    Args:
+        token_symbol (str): The symbol or name of the token to analyze (e.g., 'btc', 'ethereum')
+        candle_interval (CandleInterval, optional): Time interval for candles. Defaults to CandleInterval.DAY
+        num_candles (int, optional): Number of candles to analyze. Defaults to 90
+
+    Returns:
+        Dict[str, Any]: A dictionary containing:
+            - token_symbol: The input token symbol
+            - period: Analysis period in human-readable format
+            - max_drawdown: Maximum drawdown as a decimal (e.g., 0.25 for 25%)
+            - max_drawdown_percent: Maximum drawdown as a percentage string
+            - explanation: Brief explanation of what maximum drawdown means
+            - error: Error message if the calculation failed
+
+    Raises:
+        Exception: If the price data cannot be retrieved or analyzed
     """
     try:
         # Get price data from CoinGecko
@@ -1033,7 +1106,7 @@ def max_drawdown_for_token(
         }
 
 
-@tool()
+@tool(description="Provides a comprehensive analysis of the user's connected wallet portfolio.")
 def analyze_wallet_portfolio(
     candle_interval: CandleInterval = CandleInterval.DAY,
     num_candles: int = 90,
@@ -1041,6 +1114,25 @@ def analyze_wallet_portfolio(
 ) -> Dict[str, Any]:
     """
     Provides a comprehensive analysis of the user's connected wallet portfolio.
+
+    Args:
+        candle_interval (CandleInterval, optional): Time interval for candles. Defaults to CandleInterval.DAY
+        num_candles (int, optional): Number of candles to analyze. Defaults to 90
+
+    Returns:
+        Dict[str, Any]: A dictionary containing:
+            - portfolio_summary: Overall portfolio metrics including:
+                - total_value: Current total portfolio value
+                - asset_count: Number of assets in portfolio
+                - period_analyzed: Analysis period in human-readable format
+                - performance: Various performance metrics
+                - risk_assessment: Risk metrics and scores
+                - asset_allocation: Detailed breakdown of each asset
+            - personalized_insights: List of actionable insights
+            - error: Error message if the analysis failed
+
+    Raises:
+        Exception: If the portfolio data cannot be retrieved or analyzed
     """
     try:
         tokens: List[WalletTokenHolding] = config["configurable"]["tokens"]
@@ -1307,14 +1399,32 @@ def analyze_wallet_portfolio(
         }
 
 
-@tool()
+@tool(description="Calculates the volatility (standard deviation of returns) of the user's connected wallet portfolio.")
 def portfolio_volatility(
     candle_interval: CandleInterval = CandleInterval.DAY,
     num_candles: int = 90,
     config: RunnableConfig = None,
 ) -> Dict[str, Any]:
     """
-    Calculates the volatility (standard deviation of returns) of the user's connected wallet portfolio over the specified time period.
+    Calculates the volatility (standard deviation of returns) of the user's connected wallet portfolio.
+
+    Args:
+        candle_interval (CandleInterval, optional): Time interval for candles. Defaults to CandleInterval.DAY
+        num_candles (int, optional): Number of candles to analyze. Defaults to 90
+
+    Returns:
+        Dict[str, Any]: A dictionary containing:
+            - assets: List of assets in the portfolio
+            - portfolio_volatility: Daily volatility as a decimal
+            - annualized_volatility: Annualized volatility as a decimal
+            - annualized_volatility_percent: Annualized volatility as a percentage string
+            - returns_mean: Mean daily returns
+            - risk_analysis: Brief explanation of volatility interpretation
+            - period: Analysis period in human-readable format
+            - error: Error message if the calculation failed
+
+    Raises:
+        Exception: If the portfolio data cannot be retrieved or analyzed
     """
     try:
         tokens: List[WalletTokenHolding] = config["configurable"]["tokens"]
