@@ -1,13 +1,16 @@
 from dataclasses import dataclass
 import botocore.exceptions
-import requests
+import aiohttp
 from typing import Optional, List
 import logging
 import botocore
-from cachetools import TTLCache, LRUCache, cached
+from cachetools import TTLCache, LRUCache
 from ratelimit import limits, sleep_and_retry
 from ratelimit.exception import RateLimitException
 import time
+from aiocache import cached
+import aioboto3
+import asyncio
 
 
 @dataclass
@@ -42,13 +45,20 @@ class TokenMetadataRepo:
             maxsize=self.METADATA_CACHE_SIZE, ttl=self.NOT_FOUND_CACHE_TTL
         )
         self._metadata_cache = LRUCache(maxsize=self.METADATA_CACHE_SIZE)
+        self._session = None
 
-    ##
-    ## Search token
-    ##
+    async def _get_session(self):
+        if self._session is None:
+            self._session = aiohttp.ClientSession()
+        return self._session
 
-    @cached(cache=TTLCache(maxsize=100_000, ttl=60 * 60))
-    def search_token(
+    async def close(self):
+        if self._session:
+            await self._session.close()
+            self._session = None
+
+    @cached(ttl=60 * 60, maxsize=100_000)
+    async def search_token(
         self, token: str, chain: Optional[str] = None
     ) -> Optional[TokenMetadata]:
         """Search for a token by name or symbol."""
@@ -57,48 +67,45 @@ class TokenMetadataRepo:
 
         if chain is not None:
             # Check if token is a valid address
-            token_metadata = self.get_token_metadata(token, chain)
+            token_metadata = await self.get_token_metadata(token, chain)
             if token_metadata:
                 return token_metadata
 
         # If not, search by name or symbol
-        return self._search_token_on_dexscreener(token, chain)
+        return await self._search_token_on_dexscreener(token, chain)
 
     @sleep_and_retry
     @limits(calls=DEXSCREENER_SEARCH_CALLS_PER_MINUTE, period=DEXSCREENER_PERIOD)
-    def _search_token_on_dexscreener(
+    async def _search_token_on_dexscreener(
         self, token: str, chain: Optional[str]
     ) -> Optional[TokenMetadata]:
         """Search for a token by name or symbol on DexScreener."""
-        response = requests.get(self.DEXSCREENER_SEARCH_API_URL, params={"q": token})
-        if response.status_code != 200:
-            if response.status_code == 429:
-                raise RateLimitException(
-                    f"Rate limit exceeded: {response.status_code} {response.text}", 60
-                )
-            else:
-                raise Exception(
-                    f"Failed to search token on dexscreener: {response.status_code}: {response.text}"
-                )
+        session = await self._get_session()
+        async with session.get(self.DEXSCREENER_SEARCH_API_URL, params={"q": token}) as response:
+            if response.status != 200:
+                if response.status == 429:
+                    raise RateLimitException(
+                        f"Rate limit exceeded: {response.status} {await response.text()}", 60
+                    )
+                else:
+                    raise Exception(
+                        f"Failed to search token on dexscreener: {response.status}: {await response.text()}"
+                    )
 
-        pairs = response.json()["pairs"]
+            data = await response.json()
+            pairs = data["pairs"]
 
-        # Filter by chain if specified
-        if chain:
-            pairs = [pair for pair in pairs if pair["chainId"] == chain]
-        if len(pairs) == 0:
-            # Maybe return error message
-            return None
+            # Filter by chain if specified
+            if chain:
+                pairs = [pair for pair in pairs if pair["chainId"] == chain]
+            if len(pairs) == 0:
+                return None
 
-        token_address = pairs[0]["baseToken"]["address"]
-        token_chain = pairs[0]["chainId"]
-        return self.get_token_metadata(token_address, token_chain)
+            token_address = pairs[0]["baseToken"]["address"]
+            token_chain = pairs[0]["chainId"]
+            return await self.get_token_metadata(token_address, token_chain)
 
-    ##
-    ## Get token metadata
-    ##
-
-    def get_token_metadata(
+    async def get_token_metadata(
         self, token_address: str, chain: str
     ) -> Optional[TokenMetadata]:
         # Check local not found cache first
@@ -109,7 +116,7 @@ class TokenMetadataRepo:
         if (chain, token_address) in self._metadata_cache:
             metadata = self._metadata_cache[(chain, token_address)]
         else:
-            metadata = self._get_from_dynamodb(chain, token_address)
+            metadata = await self._get_from_dynamodb(chain, token_address)
 
         if (
             metadata is not None
@@ -119,22 +126,22 @@ class TokenMetadataRepo:
             return metadata
 
         # If not in DynamoDB or has expired, fetch from DexScreener
-        metadata = self._fetch_metadata_from_dexscreener(chain, token_address)
+        metadata = await self._fetch_metadata_from_dexscreener(chain, token_address)
         if metadata:
-            self._store_metadata(metadata)
+            await self._store_metadata(metadata)
             self._metadata_cache[(chain, token_address)] = metadata
         else:
-            self._store_not_found(chain, token_address)
+            await self._store_not_found(chain, token_address)
             self._not_found_cache[(chain, token_address)] = True
 
         return metadata
 
-    def _get_from_dynamodb(
+    async def _get_from_dynamodb(
         self, chain: str, token_address: str
     ) -> Optional[TokenMetadata]:
         """Retrieve token metadata from DynamoDB."""
         try:
-            response = self._tokens_table.get_item(
+            response = await self._tokens_table.get_item(
                 Key={"id": f"{chain}:{token_address}"}
             )
 
@@ -167,7 +174,7 @@ class TokenMetadataRepo:
             logging.error(f"Error retrieving token metadata from DynamoDB: {error}")
             raise error
 
-    def _store_metadata(self, metadata: TokenMetadata) -> None:
+    async def _store_metadata(self, metadata: TokenMetadata) -> None:
         """Store token metadata in DynamoDB."""
         item = {
             "id": f"{metadata.chain}:{metadata.address}",
@@ -188,12 +195,12 @@ class TokenMetadataRepo:
         if metadata.market_cap_usd:
             item["market_cap_usd"] = int(metadata.market_cap_usd)
 
-        self._tokens_table.put_item(Item=item)
+        await self._tokens_table.put_item(Item=item)
         logging.info(
             f"Stored metadata for token: {metadata.address} on chain: {metadata.chain}"
         )
 
-    def _store_not_found(self, chain: str, token_address: str) -> None:
+    async def _store_not_found(self, chain: str, token_address: str) -> None:
         """Store a marker indicating that token metadata was not found."""
         item = {
             "id": f"{chain}:{token_address}",
@@ -202,39 +209,40 @@ class TokenMetadataRepo:
             "not_found": True,
             "timestamp": int(time.time()),
         }
-        self._tokens_table.put_item(Item=item)
+        await self._tokens_table.put_item(Item=item)
 
     @sleep_and_retry
     @limits(calls=DEXSCREENER_CALLS_PER_MINUTE, period=DEXSCREENER_PERIOD)
-    def _fetch_metadata_from_dexscreener(
+    async def _fetch_metadata_from_dexscreener(
         self, chain: str, token_address: str
     ) -> Optional[TokenMetadata]:
         """Fetch token metadata from DexScreener API with rate limiting."""
-        response = requests.get(self.DEXSCREENER_API_URL % (chain, token_address))
-        if response.status_code != 200:
-            if response.status_code == 429:
-                raise RateLimitException(
-                    f"Rate limit exceeded: {response.status_code} {response.text}", 60
-                )
-            else:
-                logging.error(
-                    f"Failed to fetch metadata from dexscreener: {response.status_code} {response.text}"
-                )
+        session = await self._get_session()
+        async with session.get(self.DEXSCREENER_API_URL % (chain, token_address)) as response:
+            if response.status != 200:
+                if response.status == 429:
+                    raise RateLimitException(
+                        f"Rate limit exceeded: {response.status} {await response.text()}", 60
+                    )
+                else:
+                    logging.error(
+                        f"Failed to fetch metadata from dexscreener: {response.status} {await response.text()}"
+                    )
+                    return None
+
+            metadata = await response.json()
+            if len(metadata) == 0:
                 return None
 
-        metadata = response.json()
-        if len(metadata) == 0:
-            return None
-
-        metadata = metadata[0]
-        return TokenMetadata(
-            chain=chain,
-            address=metadata["baseToken"]["address"],
-            name=metadata["baseToken"]["name"],
-            symbol=metadata["baseToken"]["symbol"],
-            image_url=metadata["info"]["imageUrl"] if "info" in metadata else None,
-            price=metadata["priceUsd"],
-            dex_pool_address=metadata.get("pairAddress"),
-            market_cap_usd=metadata.get("marketCap"),
-            timestamp=int(time.time()),
-        )
+            metadata = metadata[0]
+            return TokenMetadata(
+                chain=chain,
+                address=metadata["baseToken"]["address"],
+                name=metadata["baseToken"]["name"],
+                symbol=metadata["baseToken"]["symbol"],
+                image_url=metadata["info"]["imageUrl"] if "info" in metadata else None,
+                price=metadata["priceUsd"],
+                dex_pool_address=metadata.get("pairAddress"),
+                market_cap_usd=metadata.get("marketCap"),
+                timestamp=int(time.time()),
+            )

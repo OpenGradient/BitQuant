@@ -3,6 +3,7 @@ from typing import List, Dict, Optional
 import logging
 import time
 import threading
+import asyncio
 
 from api.api_types import Pool, PoolQuery, PoolType
 from onchain.tokens.metadata import TokenMetadataRepo
@@ -10,7 +11,7 @@ from onchain.tokens.metadata import TokenMetadataRepo
 
 class Protocol(ABC):
     @abstractmethod
-    def get_pools(self, token_metadata_repo: TokenMetadataRepo) -> List[Pool]:
+    async def get_pools(self, token_metadata_repo: TokenMetadataRepo) -> List[Pool]:
         """Return all pools supported by the protocol."""
         pass
 
@@ -18,6 +19,10 @@ class Protocol(ABC):
     @abstractmethod
     def name(self) -> str:
         """Get the protocol name."""
+        pass
+
+    async def close(self):
+        """Clean up any resources used by the protocol."""
         pass
 
 
@@ -48,7 +53,7 @@ class ProtocolRegistry:
         self.protocols[protocol_name] = protocol
         self.logger.info(f"Registered protocol: {protocol_name}")
 
-    def refresh_pools(self, protocol_name: Optional[str] = None) -> None:
+    async def refresh_pools(self, protocol_name: Optional[str] = None) -> None:
         """Refresh pools for a specific protocol or all protocols"""
         if protocol_name:
             if protocol_name not in self.protocols:
@@ -61,7 +66,7 @@ class ProtocolRegistry:
         for name, protocol in protocols_to_refresh.items():
             try:
                 self.logger.info(f"Refreshing pools for {name}")
-                pools = protocol.get_pools(self.token_metadata_repo)
+                pools = await protocol.get_pools(self.token_metadata_repo)
                 self.pools_cache[name] = pools
                 self.last_refresh[name] = time.time()
                 self.logger.info(f"Refreshed {len(pools)} pools for {name}")
@@ -79,7 +84,7 @@ class ProtocolRegistry:
                 current_time - last_refresh_time > self.refresh_interval
                 or name not in self.pools_cache
             ):
-                self.refresh_pools(name)
+                asyncio.run(self.refresh_pools(name))
 
     def get_pools(self, query: PoolQuery) -> List[Pool]:
         """
@@ -151,7 +156,7 @@ class ProtocolRegistry:
 
         # Do initial refresh
         try:
-            self.refresh_pools()
+            asyncio.run(self.refresh_pools())
         except Exception as e:
             self.logger.error(f"Error in initial pool refresh: {str(e)}")
 
@@ -171,7 +176,7 @@ class ProtocolRegistry:
             # Refresh pools
             self.logger.info("Starting scheduled pool refresh")
             try:
-                self.refresh_pools()
+                asyncio.run(self.refresh_pools())
                 self.logger.info("Scheduled pool refresh completed successfully")
             except Exception as e:
                 self.logger.error(f"Error in scheduled pool refresh: {str(e)}")
@@ -185,7 +190,7 @@ class ProtocolRegistry:
 
         # Perform initial refresh if not already done
         if not self.pools_cache:
-            self.refresh_pools()
+            asyncio.run(self.refresh_pools())
 
         # Start background refresh thread if not already running
         if self._refresh_thread is None or not self._refresh_thread.is_alive():
@@ -221,3 +226,9 @@ class ProtocolRegistry:
 
         # Return pools that match the requested IDs
         return [pool for pool in all_pools if pool.id in pool_ids]
+
+    async def close(self):
+        """Clean up resources used by all protocols."""
+        for protocol in self.protocols.values():
+            await protocol.close()
+        await self.token_metadata_repo.close()

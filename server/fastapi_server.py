@@ -220,7 +220,7 @@ def create_fastapi_app() -> FastAPI:
         if not whitelist.is_allowed(address):
             raise HTTPException(status_code=400, detail="Address is not whitelisted")
 
-        portfolio = portfolio_fetcher.get_portfolio(address)
+        portfolio = await portfolio_fetcher.get_portfolio(address)
         return portfolio.model_dump()
 
     @app.get("/api/whitelisted")
@@ -288,7 +288,7 @@ def create_fastapi_app() -> FastAPI:
             raise HTTPException(status_code=429, detail="Daily message limit reached")
 
         try:
-            portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
+            portfolio = await portfolio_fetcher.get_portfolio(agent_request.context.address)
             response = await handle_agent_chat_request(
                 token_metadata_repo=token_metadata_repo,
                 protocol_registry=protocol_registry,
@@ -316,7 +316,7 @@ def create_fastapi_app() -> FastAPI:
         if not whitelist.is_allowed(agent_request.context.address):
             raise HTTPException(status_code=400, detail="Address is not whitelisted")
 
-        portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
+        portfolio = await portfolio_fetcher.get_portfolio(agent_request.context.address)
         suggestions = await handle_suggestions_request(
             token_metadata_repo=token_metadata_repo,
             request=agent_request,

@@ -16,6 +16,7 @@ from functools import wraps
 from datadog import initialize, statsd
 import logging
 import requests
+import asyncio
 
 import boto3.data
 from onchain.pools.protocol import ProtocolRegistry
@@ -212,7 +213,7 @@ def create_flask_app() -> Flask:
         if not whitelist.is_allowed(address):
             return jsonify({"error": "Address is not whitelisted"}), 400
 
-        portfolio = portfolio_fetcher.get_portfolio(address)
+        portfolio = asyncio.run(portfolio_fetcher.get_portfolio(address))
         return jsonify(portfolio.model_dump())
 
     @app.route("/api/whitelisted", methods=["GET"])
@@ -283,7 +284,7 @@ def create_flask_app() -> Flask:
             return jsonify({"error": "Daily message limit reached"}), 429
 
         try:
-            portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
+            portfolio = asyncio.run(portfolio_fetcher.get_portfolio(agent_request.context.address))
             response = handle_agent_chat_request(
                 token_metadata_repo=token_metadata_repo,
                 protocol_registry=protocol_registry,
@@ -311,7 +312,7 @@ def create_flask_app() -> Flask:
         if not whitelist.is_allowed(agent_request.context.address):
             return jsonify({"error": "Address is not whitelisted"}), 400
 
-        portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
+        portfolio = asyncio.run(portfolio_fetcher.get_portfolio(agent_request.context.address))
         suggestions = handle_suggestions_request(
             token_metadata_repo=token_metadata_repo,
             request=agent_request,
@@ -519,9 +520,9 @@ def handle_investor_chat_request(
     )
 
     # Run investor agent
-    investor_result = run_main_agent(
+    investor_result = asyncio.run(run_main_agent(
         investor_agent, investor_messages, agent_config, protocol_registry
-    )
+    ))
 
     return AgentMessage(
         message=investor_result["content"],

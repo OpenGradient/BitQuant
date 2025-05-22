@@ -1,6 +1,5 @@
-from typing import List, Dict, Any
-
-import requests
+from typing import List, Dict, Any, Optional
+import aiohttp
 
 from api.api_types import Pool, Token, Chain, PoolType
 from onchain.pools.protocol import Protocol
@@ -11,6 +10,7 @@ class SaveProtocol(Protocol):
     PROTOCOL_NAME = "save"
     BASE_URL = "https://api.solend.fi/v1/"
     MAIN_MARKET_ADDRESS = "4UpD2fh7xH3VP9QQaXtsS1YY3bxzWhtfpks7FatyKvdY"
+    _session: Optional[aiohttp.ClientSession] = None
 
     def __init__(self, chain_id: str = "solana"):
         """
@@ -25,14 +25,24 @@ class SaveProtocol(Protocol):
     def name(self) -> str:
         return self.PROTOCOL_NAME
 
-    def get_pools(self, token_metadata_repo: TokenMetadataRepo) -> List[Pool]:
+    async def _get_session(self):
+        if self._session is None:
+            self._session = aiohttp.ClientSession()
+        return self._session
+
+    async def close(self):
+        if self._session:
+            await self._session.close()
+            self._session = None
+
+    async def get_pools(self, token_metadata_repo: TokenMetadataRepo) -> List[Pool]:
+        session = await self._get_session()
         url = f"{self.BASE_URL}reserves?ids={self.MAIN_MARKET_ADDRESS}&scope=all"
-        response = requests.get(url)
-        response.raise_for_status()  # Raise exception for non-200 responses
+        async with session.get(url) as response:
+            response.raise_for_status()  # Raise exception for non-200 responses
+            data = await response.json()
 
-        data = response.json()
         pools = self._convert_to_pools(data["results"], token_metadata_repo)
-
         return sorted(pools, key=lambda p: int(p.TVL), reverse=True)
 
     def _convert_to_pools(

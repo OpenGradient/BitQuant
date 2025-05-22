@@ -2,7 +2,7 @@ from typing import List, Optional, Dict, Any
 from enum import IntEnum
 
 from pydantic import BaseModel
-import requests
+import aiohttp
 
 from api.api_types import Pool, Token, Chain, PoolType
 from onchain.pools.protocol import Protocol
@@ -19,6 +19,7 @@ class OrcaProtocol(Protocol):
     BASE_URL = "https://api.orca.so/v2"
 
     chain_id: str
+    _session: Optional[aiohttp.ClientSession] = None
 
     def __init__(self, chain_id: str = "solana"):
         """
@@ -33,17 +34,28 @@ class OrcaProtocol(Protocol):
     def name(self) -> str:
         return self.PROTOCOL_NAME
 
-    def get_pools(self, token_metadata_repo: TokenMetadataRepo) -> List[Pool]:
+    async def _get_session(self):
+        if self._session is None:
+            self._session = aiohttp.ClientSession()
+        return self._session
+
+    async def close(self):
+        if self._session:
+            await self._session.close()
+            self._session = None
+
+    async def get_pools(self, token_metadata_repo: TokenMetadataRepo) -> List[Pool]:
         """
         Fetch pools from Orca API and convert to the internal Pool model
         """
         # Make API request
+        session = await self._get_session()
         url = f"{self.BASE_URL}/{self.chain_id}/pools"
-        response = requests.get(url)
-        response.raise_for_status()  # Raise exception for non-200 responses
+        async with session.get(url) as response:
+            response.raise_for_status()  # Raise exception for non-200 responses
+            data = await response.json()
 
         # Parse response
-        data = response.json()
         return self._convert_to_pools(data["data"])
 
     def _convert_to_pools(self, orca_pools: List[Dict[str, Any]]) -> List[Pool]:

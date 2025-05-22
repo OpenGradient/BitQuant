@@ -1,8 +1,8 @@
 from typing import List, Optional
 import os
-import cachetools.func
+from aiocache import cached
 
-from solana.rpc.api import Client
+from solana.rpc.async_api import AsyncClient
 from solana.rpc.types import TokenAccountOpts, Pubkey
 from solders.rpc.responses import RpcKeyedAccountJsonParsed
 
@@ -18,16 +18,20 @@ class PortfolioFetcher:
 
     def __init__(self, token_metadata_repo: TokenMetadataRepo):
         self.token_metadata_repo = token_metadata_repo
-        self.http_client = Client(self.RPC_URL)
+        self.http_client = AsyncClient(self.RPC_URL)
 
-    @cachetools.func.ttl_cache(maxsize=10_000, ttl=300)
-    def get_portfolio(self, wallet_address: str) -> Portfolio:
+    async def close(self):
+        await self.http_client.close()
+        await self.token_metadata_repo.close()
+
+    @cached(ttl=300, maxsize=10_000)
+    async def get_portfolio(self, wallet_address: str) -> Portfolio:
         """Get the complete portfolio of token holdings for a wallet address."""
-        token_accounts = self.get_token_accounts(wallet_address)
+        token_accounts = await self._get_token_accounts(wallet_address)
         holdings: List[WalletTokenHolding] = []
 
         # Get native SOL holding if any
-        sol_holding = self._get_sol_holding(wallet_address)
+        sol_holding = await self._get_sol_holding(wallet_address)
         if sol_holding:
             holdings.append(sol_holding)
 
@@ -43,7 +47,7 @@ class PortfolioFetcher:
                 continue
 
             # Get token metadata
-            metadata = self.token_metadata_repo.get_token_metadata(address, "solana")
+            metadata = await self.token_metadata_repo.get_token_metadata(address, "solana")
             if metadata is None:
                 continue
 
@@ -66,16 +70,16 @@ class PortfolioFetcher:
         portfolio_value = sum(holding.total_value_usd or 0 for holding in holdings)
         return Portfolio(holdings=holdings, total_value_usd=portfolio_value)
 
-    def _get_sol_holding(self, wallet_address: str) -> Optional[WalletTokenHolding]:
+    async def _get_sol_holding(self, wallet_address: str) -> Optional[WalletTokenHolding]:
         """Get the native SOL holding for a wallet address if any exists."""
-        sol_balance = self.http_client.get_balance(
+        sol_balance = (await self.http_client.get_balance(
             Pubkey.from_string(wallet_address)
-        ).value
+        )).value
         if sol_balance == 0:
             return None
 
         sol_amount = sol_balance / 1e9  # Convert lamports to SOL
-        sol_metadata = self.token_metadata_repo.get_token_metadata(
+        sol_metadata = await self.token_metadata_repo.get_token_metadata(
             PortfolioFetcher.SOL_MINT, "solana"
         )
         if sol_metadata and sol_metadata.price:
@@ -91,12 +95,13 @@ class PortfolioFetcher:
             total_value_usd=sol_value_usd,
         )
 
-    def get_token_accounts(
+    async def _get_token_accounts(
         self, wallet_address: str
     ) -> List[RpcKeyedAccountJsonParsed]:
         """Get all token accounts owned by a wallet address."""
         # Get all token accounts owned by the wallet
-        return self.http_client.get_token_accounts_by_owner_json_parsed(
+        response = await self.http_client.get_token_accounts_by_owner_json_parsed(
             owner=Pubkey.from_string(wallet_address),
             opts=TokenAccountOpts(program_id=self.TOKEN_PROGRAM_ID),
-        ).value
+        )
+        return response.value

@@ -1,6 +1,6 @@
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
-import requests
+import aiohttp
 from datetime import datetime, timedelta, UTC
 import statistics
 
@@ -18,6 +18,7 @@ class KaminoProtocol(Protocol):
 
     PROTOCOL_NAME = "kamino"
     BASE_URL = "https://api.kamino.finance"
+    _session: Optional[aiohttp.ClientSession] = None
 
     def __init__(
         self,
@@ -40,95 +41,79 @@ class KaminoProtocol(Protocol):
     def name(self) -> str:
         return self.PROTOCOL_NAME
 
-    def get_pools(self, token_metadata_repo: TokenMetadataRepo) -> List[Pool]:
+    async def _get_session(self):
+        if self._session is None:
+            self._session = aiohttp.ClientSession()
+        return self._session
+
+    async def close(self):
+        if self._session:
+            await self._session.close()
+            self._session = None
+
+    async def get_pools(self, token_metadata_repo: TokenMetadataRepo) -> List[Pool]:
         """
-        Fetch lending pools from Kamino API and convert to the internal Pool model
+        Fetch pools from Kamino API and convert to the internal Pool model
         """
-        markets = ["7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF"]
+        session = await self._get_session()
+        url = f"{self.BASE_URL}/v1/markets/{self.market_pubkey}/reserves"
+        async with session.get(url) as response:
+            response.raise_for_status()
+            data = await response.json()
+
+        reserves = data.get("reserves", [])
         kamino_pools = []
 
-        for market in markets:
-            headers = {
-                "User-Agent": "Mozilla/5.0 (compatible; OpenGradient/1.0)",
-                "Accept": "application/json",
-                "Accept-Language": "en-US,en;q=0.5",
-            }
-            response = requests.get(
-                f"https://api.kamino.finance/kamino-market/{market}/reserves/metrics?env=mainnet-beta",
-                headers=headers,
+        for r in reserves:
+            id = r.get("reserve")
+
+            # No names available from data
+            token = Token(
+                address=r.get("liquidityTokenMint", ""),
+                name="",
+                symbol=r.get("liquidityToken", ""),
             )
 
-            try:
-                reserves = response.json()
-            except Exception as e:
-                print(
-                    f"Could not return pool response as JSON: {e} for response: {response}"
-                )
-                continue
+            # Calculate TVL in USD
+            tvl_usd = float(r.get("totalSupplyUsd"))
 
-            for r in reserves:
-                id = r.get("reserve")
+            # Calculate APR based on historical data
+            apr_dict = await self._calculate_apr_metrics(reserve_pubkey=id)
 
-                # No names available from data
-                token = Token(
-                    address=r.get("liquidityTokenMint", ""),
-                    name="",
-                    symbol=r.get("liquidityToken", ""),
-                )
+            pool = Pool(
+                id=id,
+                chain=Chain.SOLANA,
+                protocol=self.name,
+                tokens=[token],
+                type=PoolType.LENDING,
+                TVL=str(tvl_usd),
+                APRLastDay=apr_dict.get("APRLastDay"),
+                APRLastWeek=apr_dict.get("APRLastWeek", None),
+                APRLastMonth=apr_dict.get("APRLastMonth", None),
+                isStableCoin=token.name in stablecoin_symbols,
+                impermanentLossRisk=False,
+            )
 
-                # Calculate TVL in USD
-                # TODO (Kyle): Confirm if this is the right calculation (maybe just use totalSupplyUsd?)
-                tvl_usd = float(r.get("totalSupplyUsd"))
-
-                # Calculate APR based on historical data
-                apr_dict = self._calculate_apr_metrics(reserve_pubkey=id)
-
-                pool = Pool(
-                    id=id,
-                    chain=Chain.SOLANA,
-                    protocol=self.name,
-                    tokens=[token],
-                    type=PoolType.LENDING,
-                    TVL=str(tvl_usd),
-                    APRLastDay=apr_dict.get("APRLastDay"),
-                    APRLastWeek=apr_dict.get("APRLastWeek", None),
-                    APRLastMonth=apr_dict.get("APRLastMonth", None),
-                    isStableCoin=token.name in stablecoin_symbols,
-                    impermanentLossRisk=False,
-                )
-
-                kamino_pools.append(pool)
+            kamino_pools.append(pool)
 
         return kamino_pools
 
-    def _fetch_metrics(
-        self,
-        reserve_pubkey: str,
-        start_date: str,
-        end_date: str,
-        frequency: str = "hour",
-    ) -> list:
-        """Function to fetch metrics data for a specific time range."""
-        headers = {
-            "User-Agent": "Mozilla/5.0 (compatible; OpenGradient/1.0)",
-            "Accept": "application/json",
-            "Accept-Language": "en-US,en;q=0.5",
+    async def _fetch_metrics(
+        self, reserve_pubkey: str, start_date: datetime, end_date: datetime, frequency: str
+    ) -> List[Dict[str, Any]]:
+        """
+        Fetch metrics data for a given reserve pubkey and time range
+        """
+        session = await self._get_session()
+        url = f"{self.BASE_URL}/v1/reserves/{reserve_pubkey}/metrics"
+        params = {
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+            "frequency": frequency,
         }
-        url = (
-            f"https://api.kamino.finance/kamino-market/{self.market_pubkey}/reserves/{reserve_pubkey}/metrics/history"
-            f"?env={self.cluster}&start={start_date}&end={end_date}&frequency={frequency}"
-        )
-
-        response = requests.get(url, headers=headers)
-        if response.status_code != 200:
-            print(f"Error fetching data: {response.status_code}")
-            return []
-
-        try:
-            return response.json()
-        except Exception as e:
-            print(f"Error returning response in JSON format: {e}")
-            return []
+        async with session.get(url, params=params) as response:
+            response.raise_for_status()
+            return await response.json()
 
     def _calculate_apr_from_data(
         self, metrics_data: list, start_timestamp: datetime, end_timestamp: datetime
@@ -185,7 +170,7 @@ class KaminoProtocol(Protocol):
         # Return average APR value (x100 to convert to percentage)
         return statistics.mean(apr_values) * 100
 
-    def _calculate_apr_metrics(self, reserve_pubkey: str) -> Dict[str, Optional[float]]:
+    async def _calculate_apr_metrics(self, reserve_pubkey: str) -> Dict[str, Optional[float]]:
         """
         Calculate APR metrics for a given reserve pubkey for the last day, week, and month
         using a single API call.
@@ -210,8 +195,8 @@ class KaminoProtocol(Protocol):
         month_start_date = one_month_ago.strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
         # Fetch a month's worth of data with hourly frequency
-        metrics_data = self._fetch_metrics(
-            reserve_pubkey, month_start_date, end_date, "hour"
+        metrics_data = await self._fetch_metrics(
+            reserve_pubkey, one_month_ago, now, "hour"
         )
 
         # Calculate APR for last day, week, and month using the same dataset

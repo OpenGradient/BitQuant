@@ -2,6 +2,7 @@ import unittest
 import os
 import boto3
 import dotenv
+import asyncio
 
 from onchain.tokens.metadata import TokenMetadataRepo
 
@@ -19,18 +20,24 @@ class TestMetadata(unittest.TestCase):
         self.tokens_table = self.dynamodb.Table("token_metadata_v2")
         self.repo = TokenMetadataRepo(self.tokens_table)
 
+    async def asyncSetUp(self):
+        await self.repo._get_session()
+
+    async def asyncTearDown(self):
+        await self.repo.close()
+
     def test_search_token(self):
-        tokens = self.repo.search_token("fartcoin", None)
+        tokens = asyncio.run(self.repo.search_token("fartcoin", None))
         print(f"Search results: {tokens}")
 
     def test_get_token_metadata(self):
-        metadata = self.repo.get_token_metadata(
+        metadata = asyncio.run(self.repo.get_token_metadata(
             "9Rhbn9G5poLvgnFzuYBtJgbzmiipNra35QpnUek9virt", "solana"
-        )
+        ))
         print(f"Token metadata: {metadata}")
 
     def test_search_token_on_dexscreener(self):
-        tokens = self.repo.search_token("Fartcoin", "Solana")
+        tokens = asyncio.run(self.repo.search_token("Fartcoin", "Solana"))
 
         self.assertIsNotNone(tokens)
         print(f"Search results: {tokens}")
