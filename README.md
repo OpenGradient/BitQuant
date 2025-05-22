@@ -18,7 +18,7 @@ BitQuant is an open-source AI agent framework for building AI Quant agents for q
 
 Behind the scenes there are 2 agents with distinct responsibilities:
 - `analytics agent`: responsible for crypto analytics, such as price trends, risks, trending tokens etc
-- `investment agent`: currently responsible for helping users select a lending/amm pool to maximize returns on their tokens on Solana
+- `investment agent`: currently responsible for helping users select a lenging/amm pool to maximize returns on their tokens on Solana
 
 Inside `server.py` there is a router prompt that decides which agent the user's query should go to.
 
