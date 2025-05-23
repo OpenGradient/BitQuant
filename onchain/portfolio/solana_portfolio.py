@@ -1,7 +1,7 @@
 from typing import List, Optional
 import os
-from aiocache import cached
 
+from async_lru import alru_cache
 from solana.rpc.async_api import AsyncClient
 from solana.rpc.types import TokenAccountOpts, Pubkey
 from solders.rpc.responses import RpcKeyedAccountJsonParsed
@@ -24,7 +24,7 @@ class PortfolioFetcher:
         await self.http_client.close()
         await self.token_metadata_repo.close()
 
-    @cached(ttl=300, maxsize=100_000)
+    @alru_cache(maxsize=100_000, ttl=300)
     async def get_portfolio(self, wallet_address: str) -> Portfolio:
         """Get the complete portfolio of token holdings for a wallet address."""
         token_accounts = await self._get_token_accounts(wallet_address)

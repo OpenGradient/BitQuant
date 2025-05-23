@@ -1,23 +1,19 @@
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Tuple
 import os
-import boto3.dynamodb
-import boto3.dynamodb.table
-import boto3.dynamodb.types
+import json
+import traceback
+import logging
+
 from fastapi import FastAPI, Request, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import ValidationError
 from langgraph.graph.graph import CompiledGraph
 from langchain_core.runnables.config import RunnableConfig
-import json
-import traceback
-import boto3
-from datetime import datetime
 from datadog import initialize, statsd
-import logging
-import requests
+import aioboto3
+import aiohttp
 
-import boto3.data
 from onchain.pools.protocol import ProtocolRegistry
 from onchain.pools.solana.orca_protocol import OrcaProtocol
 from onchain.pools.solana.save_protocol import SaveProtocol
@@ -29,7 +25,7 @@ from api.api_types import (
     AgentMessage,
     AgentType,
     Portfolio,
-    FeedbackRequest,
+    Message,
     TokenMetadata,
     SolanaVerifyRequest,
 )
@@ -52,9 +48,10 @@ from agent.tools import (
 from langchain_openai import ChatOpenAI
 from server.invitecode import InviteCodeManager
 from server.activity_tracker import ActivityTracker
-from server.utils import extract_patterns, convert_to_agent_message_history
+from server.utils import extract_patterns, convert_to_agent_msg
+from server.dynamodb_helpers import get_dynamodb_table
 from . import service
-from .auth import get_current_user, FirebaseIDTokenData
+from .auth import FirebaseIDTokenData, get_current_user
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
@@ -73,7 +70,7 @@ NUM_MESSAGES_TO_KEEP = 6
 API_KEY = os.environ.get("WHITELIST_API_KEY")
 
 
-def create_fastapi_app() -> FastAPI:
+async def create_fastapi_app() -> FastAPI:
     """Create and configure the FastAPI application with routes."""
     app = FastAPI()
 
@@ -91,26 +88,42 @@ def create_fastapi_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Initialize DynamoDB
-    dynamodb = boto3.resource(
-        "dynamodb",
-        region_name=os.environ.get("AWS_REGION"),
+    # Initialize DynamoDB session
+    session: aioboto3.Session = aioboto3.Session(
         aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
         aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
+        region_name=os.environ.get("AWS_REGION"),
     )
 
-    tokens_table = dynamodb.Table("token_metadata_v2")
-    feedback_table = dynamodb.Table("twoligma_feedback")
-    invite_codes_table = dynamodb.Table("twoligma_invite_codes")
-    activity_table = dynamodb.Table("twoligma_activity")
+    # Get DynamoDB tables using helper functions
+    async def get_tokens_table():
+        async with get_dynamodb_table("token_metadata_v2", session) as table:
+            return table
 
-    # Services
-    activity_tracker = ActivityTracker(activity_table)
-    invite_manager = InviteCodeManager(invite_codes_table, activity_tracker)
+    async def get_invite_codes_table():
+        async with get_dynamodb_table("twoligma_invite_codes", session) as table:
+            return table
 
-    # Token data
-    token_metadata_repo = TokenMetadataRepo(tokens_table)
+    async def get_activity_table():
+        async with get_dynamodb_table("twoligma_activity", session) as table:
+            return table
+
+    # Initialize services with their dependencies
+    activity_tracker = ActivityTracker(get_activity_table)
+    invite_manager = InviteCodeManager(get_invite_codes_table, activity_tracker)
+    token_metadata_repo = TokenMetadataRepo(get_tokens_table)
     portfolio_fetcher = PortfolioFetcher(token_metadata_repo)
+
+    # Store services in app state for access in routes
+    app.state.session = session
+    app.state.activity_tracker = activity_tracker
+    app.state.invite_manager = invite_manager
+    app.state.token_metadata_repo = token_metadata_repo
+    app.state.portfolio_fetcher = portfolio_fetcher
+
+    @app.on_event("shutdown")
+    async def shutdown_event():
+        await session.close()
 
     # Initialize agents
     router_model = create_routing_model()
@@ -124,6 +137,13 @@ def create_fastapi_app() -> FastAPI:
     protocol_registry.register_protocol(SaveProtocol())
     protocol_registry.register_protocol(KaminoProtocol())
     protocol_registry.initialize()
+
+    # Store agents in app state
+    app.state.router_model = router_model
+    app.state.suggestions_model = suggestions_model
+    app.state.analytics_agent = analytics_agent
+    app.state.investor_agent = investor_agent
+    app.state.protocol_registry = protocol_registry
 
     # Exception handlers
     @app.exception_handler(ValidationError)
@@ -170,16 +190,16 @@ def create_fastapi_app() -> FastAPI:
             if not token:
                 raise HTTPException(status_code=400, detail="Missing token")
 
-            # Make the request to Cloudflare Turnstile
-            response = requests.post(
-                "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-                data={"secret": secret_key, "response": token},
-                headers={"content-type": "application/x-www-form-urlencoded"},
-            )
-
-            result = response.json()
-            status_code = 200 if result.get("success") else 400
-            return JSONResponse(content=result, status_code=status_code)
+            # Make the request to Cloudflare Turnstile using aiohttp
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+                    data={"secret": secret_key, "response": token},
+                    headers={"content-type": "application/x-www-form-urlencoded"},
+                ) as response:
+                    result = await response.json()
+                    status_code = 200 if result.get("success") else 400
+                    return JSONResponse(content=result, status_code=status_code)
 
         except Exception as e:
             logging.error(f"Error verifying Cloudflare Turnstile token: {e}")
@@ -277,39 +297,6 @@ def create_fastapi_app() -> FastAPI:
             suggestions_model=suggestions_model,
         )
         return {"suggestions": suggestions}
-
-    @app.post("/api/feedback")
-    async def submit_feedback(
-        request: Request,
-        user: FirebaseIDTokenData = Depends(get_current_user),
-    ):
-        try:
-            request_data = await request.json()
-            feedback_request = FeedbackRequest(**request_data)
-
-            timestamp = datetime.now()
-            user_timestamp = f"{feedback_request.walletAddress}_{timestamp}"
-
-            # Convert conversation history to string
-            conversation_history_str = json.dumps(feedback_request.conversationHistory)
-
-            feedback_item = {
-                "id": user_timestamp,
-                "wallet_address": feedback_request.walletAddress,
-                "feedback": feedback_request.feedback,
-                "share_history": feedback_request.shareHistory,
-                "conversation_history": conversation_history_str,
-            }
-
-            feedback_table.put_item(Item=feedback_item)
-            return {"status": "success"}
-
-        except ValidationError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-        except Exception as e:
-            logging.error(f"Error submitting feedback: {str(e)}")
-            logging.error(f"Traceback: {traceback.format_exc()}")
-            raise HTTPException(status_code=500, detail="Internal server error")
 
     @app.post("/api/invite/generate")
     async def generate_invite_code(
@@ -550,6 +537,30 @@ async def run_main_agent(
         logging.error(f"Error running main agent: {e}")
         statsd.increment("agent.failure", tags=["agent_type:main"])
         raise
+
+
+def convert_to_agent_message_history(messages: List[Message]) -> List[Tuple[str, str]]:
+    # Get the last NUM_MESSAGES_TO_KEEP messages
+    recent_messages = messages[-NUM_MESSAGES_TO_KEEP:]
+
+    # Convert all messages except the last one with truncation
+    converted_messages = [
+        convert_to_agent_msg(m, truncate=True) for m in recent_messages[:-1]
+    ]
+
+    # Convert the last message without truncation
+    if recent_messages:
+        converted_messages.append(
+            convert_to_agent_msg(recent_messages[-1], truncate=False)
+        )
+
+    for _, message in converted_messages:
+        if not message:
+            logging.error(
+                f"Empty message.\nOriginal: {messages}\nConverted: {converted_messages}"
+            )
+
+    return converted_messages
 
 
 async def handle_analytics_chat_request(
