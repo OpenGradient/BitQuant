@@ -100,18 +100,21 @@ def create_fastapi_app() -> FastAPI:
         async def _get_table():
             async with get_dynamodb_table("token_metadata_v2", session) as table:
                 return table
+
         return _get_table
 
     def get_invite_codes_table():
         async def _get_table():
             async with get_dynamodb_table("twoligma_invite_codes", session) as table:
                 return table
+
         return _get_table
 
     def get_activity_table():
         async def _get_table():
             async with get_dynamodb_table("twoligma_activity", session) as table:
                 return table
+
         return _get_table
 
     # Initialize services with their dependencies

@@ -95,7 +95,9 @@ class SaveProtocol(Protocol):
             tvl_usd = (tvl_tokens / (10**token_decimals)) * market_price
 
             # Get token information from the token list
-            token_info = await token_metadata_repo.get_token_metadata(token_address, "solana")
+            token_info = await token_metadata_repo.get_token_metadata(
+                token_address, "solana"
+            )
             if token_info is None:
                 continue
 

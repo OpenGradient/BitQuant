@@ -158,7 +158,7 @@ class ProtocolRegistry:
         if self._initialized:
             return
 
-        # Start background refresh task 
+        # Start background refresh task
         self._refresh_task = asyncio.create_task(self._background_refresh())
         self.logger.info("Started background refresh task")
 
