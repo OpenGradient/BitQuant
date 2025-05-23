@@ -1,12 +1,10 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from cachetools import cached, TTLCache
-import aioboto3
-from boto3.dynamodb.table import TableResource
-from typing import Callable, Awaitable
+from typing import Callable
 
 from server.config import MINER_TOKEN, DAILY_LIMIT_BYPASS_WALLETS
-
+from server.dynamodb_helpers import TableContext
 
 @dataclass
 class ActivityStats:
@@ -33,7 +31,7 @@ class ActivityTracker:
     A class for tracking points for users.
     """
 
-    def __init__(self, get_table: Callable[[], Awaitable[TableResource]]):
+    def __init__(self, get_table: Callable[[], TableContext]):
         """
         Initialize the PointsTracker with a function that returns an async DynamoDB table.
         """

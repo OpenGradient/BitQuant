@@ -1,44 +1,29 @@
-from typing import Optional, Any
 import aioboto3
-from contextlib import asynccontextmanager
+import os
 
+class DatabaseManager:
+    def __init__(self):
+        self.session: aioboto3.Session = aioboto3.Session(
+            aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
+            region_name=os.environ.get("AWS_REGION"),
+        )
+    
+    def get_table_context(self, table_name: str):
+        return TableContext(self.session, table_name)
 
-@asynccontextmanager
-async def get_dynamodb_table(
-    table_name: str, session: Optional[aioboto3.Session] = None
-):
-    """
-    Context manager for getting a DynamoDB table.
+    def table_context_factory(self, table_name: str):
+        return lambda: self.get_table_context(table_name)
 
-    Args:
-        table_name: Name of the DynamoDB table
-        session: Optional aioboto3.Session. If not provided, a new session will be created.
-
-    Yields:
-        DynamoDB table resource
-    """
-    if session is None:
-        session = aioboto3.Session()
-
-    async with session.resource("dynamodb") as dynamodb:
-        table = await dynamodb.Table(table_name)
-        yield table
-
-
-async def get_table(table_name: str, session: Optional[aioboto3.Session] = None):
-    """
-    Get a DynamoDB table without using a context manager.
-    Note: You are responsible for managing the session lifecycle when using this function.
-
-    Args:
-        table_name: Name of the DynamoDB table
-        session: Optional aioboto3.Session. If not provided, a new session will be created.
-
-    Returns:
-        DynamoDB table resource
-    """
-    if session is None:
-        session = aioboto3.Session()
-
-    dynamodb = await session.resource("dynamodb")
-    return await dynamodb.Table(table_name)
+class TableContext:
+    def __init__(self, session, table_name):
+        self.session = session
+        self.table_name = table_name
+    
+    async def __aenter__(self):
+        self.dynamodb = self.session.resource('dynamodb')
+        self.resource = await self.dynamodb.__aenter__()
+        return await self.resource.Table(self.table_name)
+    
+    async def __aexit__(self, *args):
+        await self.dynamodb.__aexit__(*args)

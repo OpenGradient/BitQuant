@@ -2,11 +2,10 @@ from typing import Optional, Callable, Awaitable
 import secrets
 import logging
 from datetime import datetime
-import aioboto3
 from datadog import statsd
-from boto3.dynamodb.table import TableResource
 
 from server.activity_tracker import ActivityTracker
+from server.dynamodb_helpers import TableContext
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +18,7 @@ class InviteCodeManager:
 
     def __init__(
         self,
-        get_table: Callable[[], Awaitable[TableResource]],
+        get_table: Callable[[], TableContext],
         activity_tracker: ActivityTracker,
     ):
         self.get_table = get_table

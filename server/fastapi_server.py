@@ -49,7 +49,7 @@ from langchain_openai import ChatOpenAI
 from server.invitecode import InviteCodeManager
 from server.activity_tracker import ActivityTracker
 from server.utils import extract_patterns, convert_to_agent_msg
-from server.dynamodb_helpers import get_dynamodb_table
+from server.dynamodb_helpers import DatabaseManager
 from . import service
 from .auth import FirebaseIDTokenData, get_current_user
 
@@ -89,42 +89,15 @@ def create_fastapi_app() -> FastAPI:
     )
 
     # Initialize DynamoDB session
-    session: aioboto3.Session = aioboto3.Session(
-        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
-        region_name=os.environ.get("AWS_REGION"),
-    )
-
-    # Get DynamoDB tables using helper functions
-    def get_tokens_table():
-        async def _get_table():
-            async with get_dynamodb_table("token_metadata_v2", session) as table:
-                return table
-
-        return _get_table
-
-    def get_invite_codes_table():
-        async def _get_table():
-            async with get_dynamodb_table("twoligma_invite_codes", session) as table:
-                return table
-
-        return _get_table
-
-    def get_activity_table():
-        async def _get_table():
-            async with get_dynamodb_table("twoligma_activity", session) as table:
-                return table
-
-        return _get_table
+    database_manager = DatabaseManager()
 
     # Initialize services with their dependencies
-    activity_tracker = ActivityTracker(get_activity_table)
-    invite_manager = InviteCodeManager(get_invite_codes_table, activity_tracker)
-    token_metadata_repo = TokenMetadataRepo(get_tokens_table)
+    activity_tracker = ActivityTracker(database_manager.table_context_factory("twoligma_activity"))
+    invite_manager = InviteCodeManager(database_manager.table_context_factory("twoligma_invite_codes"), activity_tracker)
+    token_metadata_repo = TokenMetadataRepo(database_manager.table_context_factory("token_metadata_v2"))
     portfolio_fetcher = PortfolioFetcher(token_metadata_repo)
 
     # Store services in app state for access in routes
-    app.state.session = session
     app.state.activity_tracker = activity_tracker
     app.state.invite_manager = invite_manager
     app.state.token_metadata_repo = token_metadata_repo
@@ -132,7 +105,7 @@ def create_fastapi_app() -> FastAPI:
 
     @app.on_event("shutdown")
     async def shutdown_event():
-        await session.close()
+        await database_manager.session.close()
         await token_metadata_repo.close()
         await portfolio_fetcher.close()
         await protocol_registry.shutdown()
