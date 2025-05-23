@@ -139,7 +139,6 @@ def create_fastapi_app() -> FastAPI:
     protocol_registry.register_protocol(OrcaProtocol())
     protocol_registry.register_protocol(SaveProtocol())
     protocol_registry.register_protocol(KaminoProtocol())
-    protocol_registry.initialize()
 
     # Store agents in app state
     app.state.router_model = router_model
@@ -147,6 +146,10 @@ def create_fastapi_app() -> FastAPI:
     app.state.analytics_agent = analytics_agent
     app.state.investor_agent = investor_agent
     app.state.protocol_registry = protocol_registry
+
+    @app.on_event("startup")
+    async def startup_event():
+        await protocol_registry.initialize()
 
     # Exception handlers
     @app.exception_handler(ValidationError)
