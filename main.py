@@ -28,7 +28,7 @@ protocols = [
 ]
 
 # Create the FastAPI app
-app = asyncio.run(create_fastapi_app())
+app = create_fastapi_app()
 
 
 # Add health check endpoint
@@ -43,11 +43,4 @@ if __name__ == "__main__":
     logging.info(f"Using current directory: {current_dir}")
     logging.info(f"Python path: {sys.path}")
 
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=8000,
-        log_level="info",
-        workers=4,
-        worker_class="uvicorn.workers.UvicornWorker",
-    )
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, log_level="info", workers=1)

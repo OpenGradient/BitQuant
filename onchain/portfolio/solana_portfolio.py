@@ -22,7 +22,6 @@ class PortfolioFetcher:
 
     async def close(self):
         await self.http_client.close()
-        await self.token_metadata_repo.close()
 
     @alru_cache(maxsize=100_000, ttl=300)
     async def get_portfolio(self, wallet_address: str) -> Portfolio:

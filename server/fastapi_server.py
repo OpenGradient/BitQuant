@@ -70,7 +70,7 @@ NUM_MESSAGES_TO_KEEP = 6
 API_KEY = os.environ.get("WHITELIST_API_KEY")
 
 
-async def create_fastapi_app() -> FastAPI:
+def create_fastapi_app() -> FastAPI:
     """Create and configure the FastAPI application with routes."""
     app = FastAPI()
 
@@ -124,6 +124,9 @@ async def create_fastapi_app() -> FastAPI:
     @app.on_event("shutdown")
     async def shutdown_event():
         await session.close()
+        await token_metadata_repo.close()
+        await portfolio_fetcher.close()
+        await protocol_registry.shutdown()
 
     # Initialize agents
     router_model = create_routing_model()

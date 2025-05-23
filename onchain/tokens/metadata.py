@@ -42,13 +42,19 @@ class TokenMetadataRepo:
             maxsize=self.METADATA_CACHE_SIZE, ttl=self.NOT_FOUND_CACHE_TTL
         )
         self._metadata_cache = LRUCache(maxsize=self.METADATA_CACHE_SIZE)
-        self._session = aiohttp.ClientSession()
+        self._session = None
         self._search_rate_limiter = AsyncLimiter(
             self.DEXSCREENER_SEARCH_CALLS_PER_MINUTE, self.DEXSCREENER_PERIOD
         )
         self._metadata_rate_limiter = AsyncLimiter(
             self.DEXSCREENER_CALLS_PER_MINUTE, self.DEXSCREENER_PERIOD
         )
+
+    @property
+    async def session(self) -> aiohttp.ClientSession:
+        if self._session is None:
+            self._session = aiohttp.ClientSession()
+        return self._session
 
     @alru_cache(maxsize=100_000, ttl=60 * 60)
     async def search_token(
@@ -72,7 +78,8 @@ class TokenMetadataRepo:
     ) -> Optional[TokenMetadata]:
         """Search for a token by name or symbol on DexScreener."""
         async with self._search_rate_limiter:
-            async with self._session.get(
+            session = await self.session
+            async with session.get(
                 self.DEXSCREENER_SEARCH_API_URL, params={"q": token}
             ) as response:
                 if response.status != 200:
@@ -214,7 +221,8 @@ class TokenMetadataRepo:
     ) -> Optional[TokenMetadata]:
         """Fetch token metadata from DexScreener API with rate limiting."""
         async with self._metadata_rate_limiter:
-            async with self._session.get(
+            session = await self.session
+            async with session.get(
                 self.DEXSCREENER_API_URL % (chain, token_address)
             ) as response:
                 if response.status != 200:
