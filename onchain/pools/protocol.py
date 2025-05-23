@@ -31,8 +31,8 @@ class ProtocolRegistry:
     pools_cache: Dict[str, List[Pool]] = {}
     last_refresh: Dict[str, float] = {}
     refresh_interval = 10 * 60  # Refresh every 10 mins
-    _initialized = False
     _refresh_task: Optional[asyncio.Task] = None
+    _initialized = False
 
     def __init__(self, token_metadata_repo: TokenMetadataRepo):
         self.logger = logging.getLogger("ProtocolRegistry")
@@ -158,17 +158,9 @@ class ProtocolRegistry:
         if self._initialized:
             return
 
-        for protocol in self.protocols.values():
-            await protocol.initialize()
-
-        # Perform initial refresh if not already done
-        if not self.pools_cache:
-            await self.refresh_pools()
-
-        # Start background refresh task if not already running
-        if self._refresh_task is None or self._refresh_task.done():
-            self._refresh_task = asyncio.create_task(self._background_refresh())
-            self.logger.info("Started background refresh task")
+        # Start background refresh task 
+        self._refresh_task = asyncio.create_task(self._background_refresh())
+        self.logger.info("Started background refresh task")
 
         self._initialized = True
 
