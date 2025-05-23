@@ -24,7 +24,6 @@ COPY .env .
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
-ENV FLASK_APP=main.py
 
 # Create non-root user for security
 RUN useradd -m appuser && \
@@ -34,5 +33,5 @@ USER appuser
 # Expose port
 EXPOSE 8000
 
-# Run the application with Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--timeout", "300", "--workers", "8", "--access-logfile", "-", "--log-level", "warning", "main:app"]
+# Run the application with Uvicorn
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "--log-level", "warning"]

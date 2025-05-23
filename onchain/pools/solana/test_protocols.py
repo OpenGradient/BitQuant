@@ -2,6 +2,7 @@ import unittest
 import json
 import boto3
 import os
+import asyncio
 
 from onchain.pools.solana.orca_protocol import OrcaProtocol
 from onchain.pools.solana.save_protocol import SaveProtocol
@@ -21,23 +22,29 @@ class TestProtocols(unittest.TestCase):
         tokens_table = dynamodb.Table("token_metadata_v2")
         self.token_metadata_repo = TokenMetadataRepo(tokens_table)
 
+    async def asyncSetUp(self):
+        await self.token_metadata_repo._get_session()
+
+    async def asyncTearDown(self):
+        await self.token_metadata_repo.close()
+
     def test_save(self):
         save = SaveProtocol()
-        pools = save.get_pools(self.token_metadata_repo)
+        pools = asyncio.run(save.get_pools(self.token_metadata_repo))
 
         self.assertGreater(len(pools), 5)
         print(f"Save protocols: {len(pools)}")
 
     def test_orca(self):
         orca = OrcaProtocol()
-        pools = orca.get_pools(self.token_metadata_repo)
+        pools = asyncio.run(orca.get_pools(self.token_metadata_repo))
 
         self.assertGreater(len(pools), 5)
         print(f"Orca protocols: {len(pools)}")
 
     def test_kamino(self):
         kamino = KaminoProtocol()
-        pools = kamino.get_pools(self.token_metadata_repo)
+        pools = asyncio.run(kamino.get_pools(self.token_metadata_repo))
 
         self.assertGreater(len(pools), 5)
         print(f"Kamino protocols: {len(pools)}")

@@ -1,6 +1,5 @@
-from typing import List, Dict, Any
-
-import requests
+from typing import List, Dict, Any, Optional
+import aiohttp
 
 from api.api_types import Pool, Token, Chain, PoolType
 from onchain.pools.protocol import Protocol
@@ -20,22 +19,35 @@ class SaveProtocol(Protocol):
             chain_id: The chain ID to use (default: "solana")
         """
         self.chain_id = chain_id
+        self._session: Optional[aiohttp.ClientSession] = None
 
     @property
     def name(self) -> str:
         return self.PROTOCOL_NAME
 
-    def get_pools(self, token_metadata_repo: TokenMetadataRepo) -> List[Pool]:
+    @property
+    async def session(self) -> aiohttp.ClientSession:
+        if self._session is None:
+            self._session = aiohttp.ClientSession()
+        return self._session
+
+    async def close(self):
+        """Close the protocol's session."""
+        if self._session:
+            await self._session.close()
+            self._session = None
+
+    async def get_pools(self, token_metadata_repo: TokenMetadataRepo) -> List[Pool]:
         url = f"{self.BASE_URL}reserves?ids={self.MAIN_MARKET_ADDRESS}&scope=all"
-        response = requests.get(url)
-        response.raise_for_status()  # Raise exception for non-200 responses
+        session = await self.session
+        async with session.get(url) as response:
+            response.raise_for_status()  # Raise exception for non-200 responses
+            data = await response.json()
 
-        data = response.json()
-        pools = self._convert_to_pools(data["results"], token_metadata_repo)
-
+        pools = await self._convert_to_pools(data["results"], token_metadata_repo)
         return sorted(pools, key=lambda p: int(p.TVL), reverse=True)
 
-    def _convert_to_pools(
+    async def _convert_to_pools(
         self, save_pools: List[Dict[str, Any]], token_metadata_repo: TokenMetadataRepo
     ) -> List[Pool]:
         result = []
@@ -83,7 +95,9 @@ class SaveProtocol(Protocol):
             tvl_usd = (tvl_tokens / (10**token_decimals)) * market_price
 
             # Get token information from the token list
-            token_info = token_metadata_repo.get_token_metadata(token_address, "solana")
+            token_info = await token_metadata_repo.get_token_metadata(
+                token_address, "solana"
+            )
             if token_info is None:
                 continue
 

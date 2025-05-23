@@ -1,7 +1,7 @@
 from pydantic import BaseModel
-from functools import wraps
-from typing import Callable, TypeVar, cast
-from flask import abort, request, jsonify, g
+from typing import Annotated
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import logging
 
 from .firebase import auth
@@ -32,50 +32,43 @@ def _verify_firebase_id_token(token: str) -> FirebaseIDTokenData:
         auth.RevokedIdTokenError,
     ) as e:
         logging.exception(msg=e, stack_info=True)
-        abort(401)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
+        )
     except auth.UserDisabledError as e:
         logging.exception(msg=e, stack_info=True)
-        abort(404)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User disabled"
+        )
     except (ValueError, auth.CertificateFetchError, auth.FirebaseError) as e:
         logging.exception(msg=e, stack_info=True)
-        abort(500)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error",
+        )
 
 
-T = TypeVar("T")
+security = HTTPBearer()
 
 
-def protected_route(f: Callable[..., T]) -> Callable[..., T]:
+async def get_current_user(
+    request: Request,
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+) -> FirebaseIDTokenData:
     """
-    Decorator to require Firebase authentication for Flask routes.
-    Stores user data in Flask's `g` object as `g.user`.
+    FastAPI dependency that verifies Firebase authentication.
+    Returns the user data if authentication is successful.
 
     Usage:
-    ```
-    @app.route('/protected')
-    @auth_required
-    def protected_route():
-        return f"Hello, {g.user.uid}" # g.user is the FirebaseIDTokenData pydantic model
+    ```python
+    @app.get("/protected")
+    async def protected_route(current_user: FirebaseIDTokenData = Depends(get_current_user)):
+        return f"Hello, {current_user.uid}"
     ```
     """
+    if SKIP_TOKEN_AUTH_HEADER and SKIP_TOKEN_AUTH_KEY:
+        skip_auth_header = request.headers.get(SKIP_TOKEN_AUTH_HEADER)
+        if skip_auth_header and skip_auth_header == SKIP_TOKEN_AUTH_KEY:
+            return FirebaseIDTokenData(uid="test_user")
 
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if SKIP_TOKEN_AUTH_HEADER and SKIP_TOKEN_AUTH_KEY:
-            skip_auth_header = request.headers.get(SKIP_TOKEN_AUTH_HEADER)
-            if skip_auth_header and skip_auth_header == SKIP_TOKEN_AUTH_KEY:
-                return f(*args, **kwargs)
-
-        auth_header = request.headers.get("Authorization")
-        if not auth_header or not auth_header.startswith("Bearer "):
-            return jsonify({"error": "Authorization header required"}), 401
-
-        user_data = _verify_firebase_id_token(auth_header[7:])
-
-        if not user_data:
-            return jsonify({"error": "Invalid or expired token"}), 401
-
-        g.user = user_data
-
-        return f(*args, **kwargs)
-
-    return cast(Callable[..., T], decorated_function)
+    return _verify_firebase_id_token(credentials.credentials)
