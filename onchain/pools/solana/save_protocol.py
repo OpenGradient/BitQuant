@@ -55,10 +55,10 @@ class SaveProtocol(Protocol):
             response.raise_for_status()  # Raise exception for non-200 responses
             data = await response.json()
 
-        pools = self._convert_to_pools(data["results"], token_metadata_repo)
+        pools = await self._convert_to_pools(data["results"], token_metadata_repo)
         return sorted(pools, key=lambda p: int(p.TVL), reverse=True)
 
-    def _convert_to_pools(
+    async def _convert_to_pools(
         self, save_pools: List[Dict[str, Any]], token_metadata_repo: TokenMetadataRepo
     ) -> List[Pool]:
         result = []
@@ -106,7 +106,7 @@ class SaveProtocol(Protocol):
             tvl_usd = (tvl_tokens / (10**token_decimals)) * market_price
 
             # Get token information from the token list
-            token_info = token_metadata_repo.get_token_metadata(token_address, "solana")
+            token_info = await token_metadata_repo.get_token_metadata(token_address, "solana")
             if token_info is None:
                 continue
 

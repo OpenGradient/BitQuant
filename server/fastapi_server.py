@@ -96,17 +96,23 @@ def create_fastapi_app() -> FastAPI:
     )
 
     # Get DynamoDB tables using helper functions
-    async def get_tokens_table():
-        async with get_dynamodb_table("token_metadata_v2", session) as table:
-            return table
+    def get_tokens_table():
+        async def _get_table():
+            async with get_dynamodb_table("token_metadata_v2", session) as table:
+                return table
+        return _get_table
 
-    async def get_invite_codes_table():
-        async with get_dynamodb_table("twoligma_invite_codes", session) as table:
-            return table
+    def get_invite_codes_table():
+        async def _get_table():
+            async with get_dynamodb_table("twoligma_invite_codes", session) as table:
+                return table
+        return _get_table
 
-    async def get_activity_table():
-        async with get_dynamodb_table("twoligma_activity", session) as table:
-            return table
+    def get_activity_table():
+        async def _get_table():
+            async with get_dynamodb_table("twoligma_activity", session) as table:
+                return table
+        return _get_table
 
     # Initialize services with their dependencies
     activity_tracker = ActivityTracker(get_activity_table)
