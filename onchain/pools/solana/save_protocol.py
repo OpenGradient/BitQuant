@@ -20,7 +20,6 @@ class SaveProtocol(Protocol):
         """
         self.chain_id = chain_id
         self._session: Optional[aiohttp.ClientSession] = None
-        self._initialized: bool = False
 
     @property
     def name(self) -> str:
@@ -32,23 +31,13 @@ class SaveProtocol(Protocol):
             self._session = aiohttp.ClientSession()
         return self._session
 
-    async def initialize(self) -> None:
-        """Initialize the protocol's session."""
-        if not self._initialized:
-            self._session = aiohttp.ClientSession()
-            self._initialized = True
-
     async def close(self):
         """Close the protocol's session."""
         if self._session:
             await self._session.close()
             self._session = None
-            self._initialized = False
 
     async def get_pools(self, token_metadata_repo: TokenMetadataRepo) -> List[Pool]:
-        if not self._initialized:
-            await self.initialize()
-
         url = f"{self.BASE_URL}reserves?ids={self.MAIN_MARKET_ADDRESS}&scope=all"
         session = await self.session
         async with session.get(url) as response:
