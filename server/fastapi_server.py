@@ -105,10 +105,10 @@ def create_fastapi_app() -> FastAPI:
 
     @app.on_event("shutdown")
     async def shutdown_event():
-        await database_manager.session.close()
+        await protocol_registry.shutdown()
         await token_metadata_repo.close()
         await portfolio_fetcher.close()
-        await protocol_registry.shutdown()
+        await database_manager.session.close()
 
     # Initialize agents
     router_model = create_routing_model()
