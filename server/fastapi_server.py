@@ -307,7 +307,7 @@ def create_fastapi_app() -> FastAPI:
             creator_address = request_data["address"]
 
             # Generate invite code
-            invite_code = invite_manager.generate_invite_code(creator_address)
+            invite_code = await invite_manager.generate_invite_code(creator_address)
             if not invite_code:
                 raise HTTPException(
                     status_code=500, detail="Failed to generate invite code"
