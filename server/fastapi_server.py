@@ -335,7 +335,7 @@ def create_fastapi_app() -> FastAPI:
             user_address = request_data["address"]
 
             # Try to use the invite code
-            if not invite_manager.use_invite_code(code, user_address):
+            if not await invite_manager.use_invite_code(code, user_address):
                 raise HTTPException(
                     status_code=400, detail="Invalid or already used invite code"
                 )
