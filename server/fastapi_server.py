@@ -220,6 +220,10 @@ def create_fastapi_app() -> FastAPI:
     async def healthcheck():
         return {"status": "ok"}
 
+    @app.get("/api/whitelisted")
+    async def is_whitelisted():
+        return {"allowed": True}
+
     @app.get("/api/portfolio")
     async def get_portfolio(
         address: str,
