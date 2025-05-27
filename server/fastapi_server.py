@@ -3,6 +3,7 @@ import os
 import json
 import traceback
 import logging
+import asyncio
 
 from fastapi import FastAPI, Request, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -92,9 +93,16 @@ def create_fastapi_app() -> FastAPI:
     database_manager = DatabaseManager()
 
     # Initialize services with their dependencies
-    activity_tracker = ActivityTracker(database_manager.table_context_factory("twoligma_activity"))
-    invite_manager = InviteCodeManager(database_manager.table_context_factory("twoligma_invite_codes"), activity_tracker)
-    token_metadata_repo = TokenMetadataRepo(database_manager.table_context_factory("token_metadata_v2"))
+    activity_tracker = ActivityTracker(
+        database_manager.table_context_factory("twoligma_activity")
+    )
+    invite_manager = InviteCodeManager(
+        database_manager.table_context_factory("twoligma_invite_codes"),
+        activity_tracker,
+    )
+    token_metadata_repo = TokenMetadataRepo(
+        database_manager.table_context_factory("token_metadata_v2")
+    )
     portfolio_fetcher = PortfolioFetcher(token_metadata_repo)
 
     # Store services in app state for access in routes
@@ -604,7 +612,8 @@ async def run_analytics_agent(
         last_message = result["messages"][-1]
         cleaned_text, token_ids = extract_patterns(last_message.content, "token")
 
-        token_metadata = [
+        # Create list of async tasks for token metadata search
+        token_metadata_tasks = [
             token_metadata_repo.search_token(
                 parts[1] if len(parts) > 1 else parts[0],  # token part
                 parts[0] if len(parts) > 1 else None,  # chain part, None if no colon
@@ -612,6 +621,10 @@ async def run_analytics_agent(
             for token_id in token_ids
             for parts in [token_id.split(":", 1)]
         ]
+
+        # Wait for all token metadata searches to complete
+        token_metadata = await asyncio.gather(*token_metadata_tasks)
+
         api_token_metadata = [
             TokenMetadata(
                 address=token.address,

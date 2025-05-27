@@ -6,6 +6,7 @@ from typing import Callable
 from server.config import MINER_TOKEN, DAILY_LIMIT_BYPASS_WALLETS
 from server.dynamodb_helpers import TableContext
 
+
 @dataclass
 class ActivityStats:
     """
