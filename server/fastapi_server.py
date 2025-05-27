@@ -12,7 +12,6 @@ from pydantic import ValidationError
 from langgraph.graph.graph import CompiledGraph
 from langchain_core.runnables.config import RunnableConfig
 from datadog import initialize, statsd
-import aioboto3
 import aiohttp
 
 from onchain.pools.protocol import ProtocolRegistry
@@ -51,6 +50,8 @@ from server.invitecode import InviteCodeManager
 from server.activity_tracker import ActivityTracker
 from server.utils import extract_patterns, convert_to_agent_msg
 from server.dynamodb_helpers import DatabaseManager
+from agent.integrations.sentient.sentient_agent import BitQuantSentientAgent
+
 from . import service
 from .auth import FirebaseIDTokenData, get_current_user
 
@@ -365,6 +366,65 @@ def create_fastapi_app() -> FastAPI:
         except Exception as e:
             logging.error(f"Error getting activity stats: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
+
+    @app.post("/api/sentient/assist")
+    async def sentient_assist(
+        request: Request,
+        user: FirebaseIDTokenData = Depends(get_current_user),
+    ):
+        """
+        Proxy endpoint for Sentient Agent. Accepts JSON with 'session' and 'query',
+        calls BitQuantSentientAgent.assist, and returns the output blocks as JSON.
+        """
+        try:
+            data = await request.json()
+            session_dict = data.get("session")
+            query_dict = data.get("query")
+
+            class SentientAssistSession:
+                def __init__(self, processor_id, activity_id, request_id, interactions):
+                    self.processor_id = processor_id
+                    self.activity_id = activity_id
+                    self.request_id = request_id
+                    self.interactions = interactions or []
+
+                def get_interactions(self):
+                    return self.interactions
+
+            class SentientAssistQuery:
+                def __init__(self, id, prompt):
+                    self.id = id
+                    self.prompt = prompt
+
+            session = SentientAssistSession(
+                processor_id=session_dict.get("processor_id"),
+                activity_id=session_dict.get("activity_id"),
+                request_id=session_dict.get("request_id"),
+                interactions=session_dict.get("interactions", []),
+            )
+            query = SentientAssistQuery(
+                id=query_dict.get("id"),
+                prompt=query_dict.get("prompt"),
+            )
+
+            class SentientFlaskResponseHandler:
+                def __init__(self):
+                    self.blocks = []
+
+                async def emit_text_block(self, label, text):
+                    self.blocks.append({"label": label, "text": text})
+
+                async def complete(self):
+                    pass
+
+            agent = BitQuantSentientAgent()
+            handler = SentientFlaskResponseHandler()
+
+            await agent.assist(session, query, handler)
+            return JSONResponse(content={"blocks": handler.blocks})
+        except Exception as e:
+            logging.exception("Error in sentient_assist endpoint")
+            return JSONResponse(status_code=500, content={"error": str(e)})
 
     return app
 
