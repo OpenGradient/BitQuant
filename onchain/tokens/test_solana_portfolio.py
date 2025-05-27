@@ -1,6 +1,7 @@
 import unittest
 import os
 import boto3
+import asyncio
 
 from onchain.portfolio.solana_portfolio import PortfolioFetcher
 from onchain.tokens.metadata import TokenMetadataRepo
@@ -10,7 +11,7 @@ dotenv.load_dotenv()
 
 
 class TestPortfolio(unittest.TestCase):
-    def test_get_portfolio(self):
+    def setUp(self):
         dynamodb = boto3.resource(
             "dynamodb",
             region_name=os.environ.get("AWS_REGION"),
@@ -19,13 +20,14 @@ class TestPortfolio(unittest.TestCase):
         )
 
         tokens_table = dynamodb.Table("token_metadata_v2")
-        token_metadata_repo = TokenMetadataRepo(tokens_table)
-        portfolio = PortfolioFetcher(token_metadata_repo)
+        self.token_metadata_repo = TokenMetadataRepo(tokens_table)
+        self.portfolio = PortfolioFetcher(self.token_metadata_repo)
 
+    def test_get_portfolio(self):
         # Binance wallet
-        holdings = portfolio.get_portfolio(
-            "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM"
+        holdings = asyncio.run(
+            self.portfolio.get_portfolio("9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM")
         )
         print(holdings)
 
-        self.assertGreater(len(holdings), 0)
+        self.assertGreater(len(holdings.holdings), 0)

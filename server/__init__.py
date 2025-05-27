@@ -1,1 +1,1 @@
-from server.server import create_flask_app
+from server.fastapi_server import create_fastapi_app

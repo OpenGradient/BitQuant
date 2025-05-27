@@ -1,26 +1,19 @@
-from typing import List, Any, Tuple, Dict
+from typing import List, Any, Dict, Tuple
 import os
-import boto3.dynamodb
-import boto3.dynamodb.table
-import boto3.dynamodb.types
-from fastapi import FastAPI, Request, HTTPException, Depends, Header, Response
+import json
+import traceback
+import logging
+
+from fastapi import FastAPI, Request, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from langgraph.graph.graph import CompiledGraph
 from langchain_core.runnables.config import RunnableConfig
-import json
-import traceback
-import boto3
-from datetime import datetime
-from functools import wraps
 from datadog import initialize, statsd
-import logging
-import requests
-from typing import Optional
+import aioboto3
+import aiohttp
 
-import boto3.data
 from onchain.pools.protocol import ProtocolRegistry
 from onchain.pools.solana.orca_protocol import OrcaProtocol
 from onchain.pools.solana.save_protocol import SaveProtocol
@@ -30,10 +23,9 @@ from onchain.portfolio.solana_portfolio import PortfolioFetcher
 from api.api_types import (
     AgentChatRequest,
     AgentMessage,
-    Message,
     AgentType,
     Portfolio,
-    FeedbackRequest,
+    Message,
     TokenMetadata,
     SolanaVerifyRequest,
 )
@@ -54,12 +46,12 @@ from agent.tools import (
     create_analytics_agent_toolkit,
 )
 from langchain_openai import ChatOpenAI
-from server.whitelist import TwoLigmaWhitelist
 from server.invitecode import InviteCodeManager
 from server.activity_tracker import ActivityTracker
 from server.utils import extract_patterns, convert_to_agent_msg
+from server.dynamodb_helpers import DatabaseManager
 from . import service
-from .auth import get_current_user, FirebaseIDTokenData
+from .auth import FirebaseIDTokenData, get_current_user
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(ROOT_DIR, "static")
@@ -76,6 +68,7 @@ NUM_MESSAGES_TO_KEEP = 6
 
 # API key for whitelist management
 API_KEY = os.environ.get("WHITELIST_API_KEY")
+
 
 def create_fastapi_app() -> FastAPI:
     """Create and configure the FastAPI application with routes."""
@@ -95,28 +88,27 @@ def create_fastapi_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Initialize DynamoDB
-    dynamodb = boto3.resource(
-        "dynamodb",
-        region_name=os.environ.get("AWS_REGION"),
-        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
-    )
+    # Initialize DynamoDB session
+    database_manager = DatabaseManager()
 
-    tokens_table = dynamodb.Table("token_metadata_v2")
-    feedback_table = dynamodb.Table("twoligma_feedback")
-    whitelist_table = dynamodb.Table("twoligma_whitelist")
-    invite_codes_table = dynamodb.Table("twoligma_invite_codes")
-    activity_table = dynamodb.Table("twoligma_activity")
-
-    # Services
-    whitelist = TwoLigmaWhitelist(whitelist_table)
-    activity_tracker = ActivityTracker(activity_table)
-    invite_manager = InviteCodeManager(invite_codes_table, activity_tracker)
-
-    # Token data
-    token_metadata_repo = TokenMetadataRepo(tokens_table)
+    # Initialize services with their dependencies
+    activity_tracker = ActivityTracker(database_manager.table_context_factory("twoligma_activity"))
+    invite_manager = InviteCodeManager(database_manager.table_context_factory("twoligma_invite_codes"), activity_tracker)
+    token_metadata_repo = TokenMetadataRepo(database_manager.table_context_factory("token_metadata_v2"))
     portfolio_fetcher = PortfolioFetcher(token_metadata_repo)
+
+    # Store services in app state for access in routes
+    app.state.activity_tracker = activity_tracker
+    app.state.invite_manager = invite_manager
+    app.state.token_metadata_repo = token_metadata_repo
+    app.state.portfolio_fetcher = portfolio_fetcher
+
+    @app.on_event("shutdown")
+    async def shutdown_event():
+        await protocol_registry.shutdown()
+        await token_metadata_repo.close()
+        await portfolio_fetcher.close()
+        await database_manager.session.close()
 
     # Initialize agents
     router_model = create_routing_model()
@@ -129,7 +121,17 @@ def create_fastapi_app() -> FastAPI:
     protocol_registry.register_protocol(OrcaProtocol())
     protocol_registry.register_protocol(SaveProtocol())
     protocol_registry.register_protocol(KaminoProtocol())
-    protocol_registry.initialize()
+
+    # Store agents in app state
+    app.state.router_model = router_model
+    app.state.suggestions_model = suggestions_model
+    app.state.analytics_agent = analytics_agent
+    app.state.investor_agent = investor_agent
+    app.state.protocol_registry = protocol_registry
+
+    @app.on_event("startup")
+    async def startup_event():
+        await protocol_registry.initialize()
 
     # Exception handlers
     @app.exception_handler(ValidationError)
@@ -176,16 +178,16 @@ def create_fastapi_app() -> FastAPI:
             if not token:
                 raise HTTPException(status_code=400, detail="Missing token")
 
-            # Make the request to Cloudflare Turnstile
-            response = requests.post(
-                "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-                data={"secret": secret_key, "response": token},
-                headers={"content-type": "application/x-www-form-urlencoded"},
-            )
-
-            result = response.json()
-            status_code = 200 if result.get("success") else 400
-            return JSONResponse(content=result, status_code=status_code)
+            # Make the request to Cloudflare Turnstile using aiohttp
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+                    data={"secret": secret_key, "response": token},
+                    headers={"content-type": "application/x-www-form-urlencoded"},
+                ) as response:
+                    result = await response.json()
+                    status_code = 200 if result.get("success") else 400
+                    return JSONResponse(content=result, status_code=status_code)
 
         except Exception as e:
             logging.error(f"Error verifying Cloudflare Turnstile token: {e}")
@@ -217,47 +219,9 @@ def create_fastapi_app() -> FastAPI:
     ):
         if not address:
             raise HTTPException(status_code=400, detail="Address parameter is required")
-        if not whitelist.is_allowed(address):
-            raise HTTPException(status_code=400, detail="Address is not whitelisted")
 
-        portfolio = portfolio_fetcher.get_portfolio(address)
+        portfolio = await portfolio_fetcher.get_portfolio(address)
         return portfolio.model_dump()
-
-    @app.get("/api/whitelisted")
-    async def is_whitelisted(address: str):
-        if not address:
-            raise HTTPException(status_code=400, detail="Address parameter is required")
-
-        response = JSONResponse(content={"allowed": whitelist.is_allowed(address)})
-        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
-        return response
-
-    @app.get("/api/whitelist")
-    async def get_whitelist(api_key: str = Depends(require_api_key)):
-        response = JSONResponse(content={"allowed": whitelist.get_allowed()})
-        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
-        return response
-
-    @app.post("/api/whitelist/add")
-    async def add_to_whitelist(
-        request: Request,
-        api_key: str = Depends(require_api_key),
-    ):
-        try:
-            request_data = await request.json()
-            if not request_data or "address" not in request_data:
-                raise HTTPException(status_code=400, detail="Address is required")
-
-            if whitelist.add(request_data["address"]):
-                return {"status": "success"}
-            raise HTTPException(status_code=500, detail="Failed to add address")
-        except Exception as e:
-            logging.error(f"Error adding to whitelist: {e}")
-            raise HTTPException(status_code=500, detail="Internal server error")
 
     @app.get("/api/tokenlist")
     async def get_tokenlist():
@@ -276,19 +240,17 @@ def create_fastapi_app() -> FastAPI:
 
         statsd.increment("agent.message.received")
 
-        if not whitelist.is_allowed(agent_request.context.address):
-            statsd.increment("agent.message.not_whitelisted")
-            raise HTTPException(status_code=400, detail="Address is not whitelisted")
-
         # Increment message count, return 429 if limit reached
-        if not activity_tracker.increment_message_count(
+        if not await activity_tracker.increment_message_count(
             agent_request.context.address, agent_request.context.miner_token
         ):
             statsd.increment("agent.message.daily_limit_reached")
             raise HTTPException(status_code=429, detail="Daily message limit reached")
 
         try:
-            portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
+            portfolio = await portfolio_fetcher.get_portfolio(
+                agent_request.context.address
+            )
             response = await handle_agent_chat_request(
                 token_metadata_repo=token_metadata_repo,
                 protocol_registry=protocol_registry,
@@ -299,7 +261,9 @@ def create_fastapi_app() -> FastAPI:
                 router_model=router_model,
             )
 
-            return response.model_dump() if hasattr(response, "model_dump") else response
+            return (
+                response.model_dump() if hasattr(response, "model_dump") else response
+            )
         except Exception as e:
             logging.error(f"Error processing agent request: {e}")
             statsd.increment("agent.message.server_error")
@@ -313,10 +277,7 @@ def create_fastapi_app() -> FastAPI:
         request_data = await request.json()
         agent_request = AgentChatRequest(**request_data)
 
-        if not whitelist.is_allowed(agent_request.context.address):
-            raise HTTPException(status_code=400, detail="Address is not whitelisted")
-
-        portfolio = portfolio_fetcher.get_portfolio(agent_request.context.address)
+        portfolio = await portfolio_fetcher.get_portfolio(agent_request.context.address)
         suggestions = await handle_suggestions_request(
             token_metadata_repo=token_metadata_repo,
             request=agent_request,
@@ -324,42 +285,6 @@ def create_fastapi_app() -> FastAPI:
             suggestions_model=suggestions_model,
         )
         return {"suggestions": suggestions}
-
-    @app.post("/api/feedback")
-    async def submit_feedback(
-        request: Request,
-        user: FirebaseIDTokenData = Depends(get_current_user),
-    ):
-        try:
-            request_data = await request.json()
-            feedback_request = FeedbackRequest(**request_data)
-
-            if not whitelist.is_allowed(feedback_request.walletAddress):
-                raise HTTPException(status_code=400, detail="Address is not whitelisted")
-
-            timestamp = datetime.now()
-            user_timestamp = f"{feedback_request.walletAddress}_{timestamp}"
-
-            # Convert conversation history to string
-            conversation_history_str = json.dumps(feedback_request.conversationHistory)
-
-            feedback_item = {
-                "id": user_timestamp,
-                "wallet_address": feedback_request.walletAddress,
-                "feedback": feedback_request.feedback,
-                "share_history": feedback_request.shareHistory,
-                "conversation_history": conversation_history_str,
-            }
-
-            feedback_table.put_item(Item=feedback_item)
-            return {"status": "success"}
-
-        except ValidationError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-        except Exception as e:
-            logging.error(f"Error submitting feedback: {str(e)}")
-            logging.error(f"Traceback: {traceback.format_exc()}")
-            raise HTTPException(status_code=500, detail="Internal server error")
 
     @app.post("/api/invite/generate")
     async def generate_invite_code(
@@ -373,17 +298,12 @@ def create_fastapi_app() -> FastAPI:
 
             creator_address = request_data["address"]
 
-            # Check if creator is whitelisted
-            if not whitelist.is_allowed(creator_address):
-                raise HTTPException(
-                    status_code=403,
-                    detail="Only whitelisted users can generate invite codes",
-                )
-
             # Generate invite code
             invite_code = invite_manager.generate_invite_code(creator_address)
             if not invite_code:
-                raise HTTPException(status_code=500, detail="Failed to generate invite code")
+                raise HTTPException(
+                    status_code=500, detail="Failed to generate invite code"
+                )
 
             return {"invite_code": invite_code}
         except Exception as e:
@@ -399,24 +319,18 @@ def create_fastapi_app() -> FastAPI:
                 or "code" not in request_data
                 or "address" not in request_data
             ):
-                raise HTTPException(status_code=400, detail="Code and address are required")
+                raise HTTPException(
+                    status_code=400, detail="Code and address are required"
+                )
 
             code = request_data["code"]
             user_address = request_data["address"]
-
-            # Check if user is already whitelisted
-            if whitelist.is_allowed(user_address):
-                raise HTTPException(status_code=400, detail="User is already whitelisted")
 
             # Try to use the invite code
             if not invite_manager.use_invite_code(code, user_address):
                 raise HTTPException(
                     status_code=400, detail="Invalid or already used invite code"
                 )
-
-            # Add user to whitelist
-            if not whitelist.add(user_address):
-                raise HTTPException(status_code=500, detail="Failed to whitelist user")
 
             return {"status": "success"}
         except Exception as e:
@@ -430,22 +344,18 @@ def create_fastapi_app() -> FastAPI:
     ):
         try:
             if not address:
-                raise HTTPException(status_code=400, detail="Address parameter is required")
-
-            # Check if user is whitelisted
-            if not whitelist.is_allowed(address):
                 raise HTTPException(
-                    status_code=403,
-                    detail="Only whitelisted users can view invite stats",
+                    status_code=400, detail="Address parameter is required"
                 )
 
-            stats = activity_tracker.get_activity_stats(address)
+            stats = await activity_tracker.get_activity_stats(address)
             return stats
         except Exception as e:
             logging.error(f"Error getting activity stats: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    return app 
+    return app
+
 
 async def handle_agent_chat_request(
     protocol_registry: ProtocolRegistry,
@@ -617,6 +527,30 @@ async def run_main_agent(
         raise
 
 
+def convert_to_agent_message_history(messages: List[Message]) -> List[Tuple[str, str]]:
+    # Get the last NUM_MESSAGES_TO_KEEP messages
+    recent_messages = messages[-NUM_MESSAGES_TO_KEEP:]
+
+    # Convert all messages except the last one with truncation
+    converted_messages = [
+        convert_to_agent_msg(m, truncate=True) for m in recent_messages[:-1]
+    ]
+
+    # Convert the last message without truncation
+    if recent_messages:
+        converted_messages.append(
+            convert_to_agent_msg(recent_messages[-1], truncate=False)
+        )
+
+    for _, message in converted_messages:
+        if not message:
+            logging.error(
+                f"Empty message.\nOriginal: {messages}\nConverted: {converted_messages}"
+            )
+
+    return converted_messages
+
+
 async def handle_analytics_chat_request(
     request: AgentChatRequest,
     token_metadata_repo: TokenMetadataRepo,
@@ -703,4 +637,4 @@ async def run_analytics_agent(
     except Exception as e:
         logging.error(f"Error running analytics agent: {e}")
         statsd.increment("agent.failure", tags=["agent_type:analytics"])
-        raise 
+        raise

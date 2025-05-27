@@ -1,8 +1,9 @@
 import logging
 import os
 import sys
+import asyncio
 from dotenv import load_dotenv
-from flask import jsonify
+import uvicorn
 
 # Load environment variables before all imports (DO NOT MOVE)
 load_dotenv()
@@ -13,7 +14,7 @@ if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
 # Now import the server module
-from server import create_flask_app
+from server.fastapi_server import create_fastapi_app
 
 from onchain.pools.solana.orca_protocol import OrcaProtocol
 from onchain.pools.solana.save_protocol import SaveProtocol
@@ -26,14 +27,14 @@ protocols = [
     KaminoProtocol.PROTOCOL_NAME,
 ]
 
-# Create flask app
-app = create_flask_app()
+# Create the FastAPI app
+app = create_fastapi_app()
 
 
-# Add a health check endpoint
-@app.route("/health", methods=["GET"])
-def health_check():
-    return jsonify({"status": "ok", "service": "quant-agent-server"})
+# Add health check endpoint
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "service": "quant-agent-server", "protocols": protocols}
 
 
 if __name__ == "__main__":
@@ -42,4 +43,4 @@ if __name__ == "__main__":
     logging.info(f"Using current directory: {current_dir}")
     logging.info(f"Python path: {sys.path}")
 
-    app.run(debug=False)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, log_level="info", workers=1)
