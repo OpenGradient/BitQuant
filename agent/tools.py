@@ -66,11 +66,11 @@ def create_analytics_agent_toolkit(
 ) -> List[BaseTool]:
     @tool
     @track_tool_usage("search_token")
-    def search_token(
+    async def search_token(
         token: str, chain: Optional[str] = None
     ) -> Optional[TokenMetadata]:
         """Search for a token by name or symbol. Returns metadata for the first token found."""
-        token: Optional[TokenMetadata] = token_metadata_repo.search_token(token, chain)
+        token: Optional[TokenMetadata] = await token_metadata_repo.search_token(token, chain)
         if not token:
             return "No token found."
 
