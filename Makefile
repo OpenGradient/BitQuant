@@ -28,7 +28,7 @@ chat:
 	python3.13 testclient/client.py
 
 sample:
-	curl -XPOST http://127.0.0.1:5000/api/agent/run \
+	curl -XPOST http://127.0.0.1:8000/api/agent/run \
 	  -H "Content-Type: application/json" \
 	  -d @sample-payload.json | jq
 

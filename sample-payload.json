@@ -1,0 +1,10 @@
+{
+    "context": {
+        "address": "0x1234567890123456789012345678901234567890",
+        "conversationHistory": [],
+    },
+    "message": {
+        "type": "user",
+        "message": "What is the price of BTC?"
+    }
+}
