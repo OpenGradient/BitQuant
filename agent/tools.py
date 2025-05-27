@@ -30,7 +30,7 @@ from onchain.pools.protocol import ProtocolRegistry
 
 @tool
 @track_tool_usage("retrieve_solana_pools")
-def retrieve_solana_pools(
+async def retrieve_solana_pools(
     tokens: List[str] = None,
     config: RunnableConfig = None,
 ) -> List[Pool]:
@@ -48,7 +48,7 @@ def retrieve_solana_pools(
         user_tokens=user_tokens,
     )
 
-    pools = protocol_registry.get_pools(query)
+    pools = await protocol_registry.get_pools(query)
     if len(pools) == 0:
         return "No pools found."
 
