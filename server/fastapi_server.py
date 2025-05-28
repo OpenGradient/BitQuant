@@ -4,6 +4,7 @@ import json
 import traceback
 import logging
 import asyncio
+import time
 
 from fastapi import FastAPI, Request, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -89,6 +90,17 @@ def create_fastapi_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Add latency tracking middleware
+    @app.middleware("http")
+    async def track_latency(request: Request, call_next):
+        start_time = time.time()
+        response = await call_next(request)
+        duration = time.time() - start_time
+        statsd.histogram(
+            "endpoint.latency", duration, tags=[f"endpoint:{request.url.path}"]
+        )
+        return response
 
     # Initialize DynamoDB session
     database_manager = DatabaseManager()
