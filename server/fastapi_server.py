@@ -97,9 +97,7 @@ def create_fastapi_app() -> FastAPI:
         start_time = time.time()
         response = await call_next(request)
         duration = time.time() - start_time
-        statsd.histogram(
-            "endpoint.latency", duration, tags=[f"endpoint:{request.url.path}"]
-        )
+        statsd.histogram("endpoint.latency", duration, tags=["endpoint:all"])
         return response
 
     # Initialize DynamoDB session
