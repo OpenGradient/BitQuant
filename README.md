@@ -1,5 +1,8 @@
 # BitQuant by OpenGradient
 
+![bitquant_architecture](https://github.com/user-attachments/assets/9e8b29eb-4328-4721-a65e-a017003f9802)
+
+
 BitQuant is an open-source AI agent framework for building AI Quant agents for quantitative DeFi including ML-powered analytics, trading, portfolio management, and more all through a natural language interface. It exposes a REST API that turns user inputs like "deposit 20k" or "optimize my portfolio" into concrete DeFi actions.
 
 ## Structure
