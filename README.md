@@ -143,7 +143,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 - Try Bitquant at [bitquant.io](https://www.bitquant.io/)
 - OpenGradient Documentation: [OpenGradient Docs](https://docs.opengradient.ai/)
 - Join the discussion: [GitHub Discussions](https://github.com/OpenGradient/BitQuant/discussions)
-- Support:[BitQuant Discord](https://discord.com/channels/1132794141403791483/1377340212576911410)
+- Support: [BitQuant Discord](https://discord.com/channels/1132794141403791483/1377340212576911410)
 
 ---
 
