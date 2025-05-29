@@ -3,7 +3,6 @@
 </p>
 
 <p align="center">
-  <a href="./LICENSE"><img src="https://img.shields.io/github/license/OpenGradient/BitQuant" alt="License"></a>
   <a href="https://github.com/OpenGradient/BitQuant/stargazers"><img src="https://img.shields.io/github/stars/OpenGradient/BitQuant?style=social" alt="GitHub stars"></a>
   <a href="https://www.bitquant.io/"><img src="https://img.shields.io/badge/Try%20BitQuant-bitquant.io-blue?logo=chrome-browser" alt="Try BitQuant"></a>
   <a href="https://docs.opengradient.ai/"><img src="https://img.shields.io/badge/Documentation-OpenGradient%20Docs-orange?logo=readthedocs" alt="Documentation"></a>
