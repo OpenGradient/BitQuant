@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://placehold.co/900x200?text=BitQuant+by+OpenGradient" alt="BitQuant Banner"/>
+  <img src="https://raw.githubusercontent.com/OpenGradient/public_images/refs/heads/main/bitquant_readme_banner.png" alt="BitQuant Banner"/>
 </p>
 
 <p align="center">
@@ -7,6 +7,8 @@
   <a href="LICENSE"><img src="https://img.shields.io/github/license/OpenGradient/BitQuant" alt="License"></a>
   <a href="https://pypi.org/project/bitquant/"><img src="https://img.shields.io/pypi/v/bitquant.svg" alt="PyPI version"></a>
   <a href="https://github.com/OpenGradient/BitQuant/stargazers"><img src="https://img.shields.io/github/stars/OpenGradient/BitQuant?style=social" alt="GitHub stars"></a>
+  <a href="https://www.bitquant.io/"><img src="https://img.shields.io/badge/Live%20Demo-bitquant.io-blue?logo=firefox-browser" alt="Live Demo"></a>
+  <a href="https://docs.opengradient.ai/"><img src="https://img.shields.io/badge/Documentation-OpenGradient%20Docs-orange?logo=readthedocs" alt="Documentation"></a>
 </p>
 
 ---
@@ -43,6 +45,10 @@
 - ⚡ Fast setup and extensible codebase
 
 ## 🏗️ Architecture
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/OpenGradient/public_images/refs/heads/main/bitquant_architecture.png" alt="BitQuant Architecture Diagram" width="700"/>
+</p>
 
 ```
 agent/      # Agent logic and tool definitions
@@ -87,6 +93,12 @@ make install
    make sample
    ```
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/OpenGradient/public_images/refs/heads/main/bitquant_example_image_2.png" alt="BitQuant Example Query" width="700"/>
+</p>
+
+You can also try BitQuant instantly on the <a href="https://www.bitquant.io/">production server</a>.
+
 ## 🛠️ Configuration
 
 - All configuration is handled via the `.env` file, which you can generate from `.env.example`.
@@ -130,7 +142,10 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ## 💬 Contact
 
 - Powered by [OpenGradient](https://opengradient.ai)
--- Join the discussion: [GitHub Discussions](https://github.com/OpenGradient/BitQuant/discussions)
+- Try Bitquant at [bitquant.io](https://www.bitquant.io/)
+- OpenGradient Documentation: [OpenGradient Docs](https://docs.opengradient.ai/)
+- Join the discussion: [GitHub Discussions](https://github.com/OpenGradient/BitQuant/discussions)
+- Support:[BitQuant Discord](https://discord.com/channels/1132794141403791483/1377340212576911410)
 
 ---
 
