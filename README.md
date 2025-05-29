@@ -123,6 +123,43 @@ Here are some example queries you can try with BitQuant:
 
 ---
 
+## 🧑‍💻 Types of Agents You Can Build
+
+BitQuant is designed to support a wide range of quantitative and DeFi-focused AI agents. Out of the box, the framework includes:
+
+### 1. Analytics Agent
+- **Purpose:** Provides deep analytics on portfolios, tokens, protocols, and market trends.
+- **Capabilities:**
+  - Analyze portfolio volatility, drawdowns, and diversification
+  - Evaluate token and protocol risks
+  - Track TVL, yield, and performance metrics
+  - Identify trends and generate actionable market insights
+- **Example Use Cases:**
+  - "Analyze my portfolio’s risk profile."
+  - "Show TVL trends for Solana DeFi protocols."
+
+### 2. Investor Agent
+- **Purpose:** Helps users find and act on yield opportunities and optimize DeFi strategies.
+- **Capabilities:**
+  - Recommend optimal pools and lending opportunities
+  - Compare APRs, TVL, and risk across protocols
+  - Guide users through liquidity provision, lending, and yield farming
+- **Example Use Cases:**
+  - "Which pools offer the best stablecoin yields?"
+  - "Compare Kamino and Orca for USDC/SOL."
+
+### 3. Custom Agents
+- **Purpose:** The framework is extensible—developers can build agents for:
+  - Automated trading strategies
+  - On-chain data monitoring and alerting
+  - NFT analytics
+  - Cross-chain portfolio management
+  - Any custom DeFi or analytics workflow
+
+> **Tip:** Agents are modular and can be combined, routed, or extended to suit your specific use case. See the `agent/` directory and templates for examples and customization.
+
+---
+
 ## 🛠️ Configuration
 
 - All configuration is handled via the `.env` file, which you can generate from `.env.example`.
