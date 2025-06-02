@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Annotated
+from typing import Annotated, Optional
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import logging
@@ -48,12 +48,13 @@ def _verify_firebase_id_token(token: str) -> FirebaseIDTokenData:
         )
 
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
+
 
 
 async def get_current_user(
     request: Request,
-    credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> FirebaseIDTokenData:
     """
     FastAPI dependency that verifies Firebase authentication.
@@ -71,4 +72,6 @@ async def get_current_user(
         if skip_auth_header and skip_auth_header == SKIP_TOKEN_AUTH_KEY:
             return FirebaseIDTokenData(uid="test_user")
 
+    if not credentials:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authenticated")
     return _verify_firebase_id_token(credentials.credentials)
