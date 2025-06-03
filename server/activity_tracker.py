@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from cachetools import cached, TTLCache
-from typing import Callable
+from typing import Callable, Dict
 
 from server.config import MINER_TOKEN, DAILY_LIMIT_BYPASS_WALLETS
 from server.dynamodb_helpers import TableContext
@@ -37,6 +36,8 @@ class ActivityTracker:
         Initialize the PointsTracker with a function that returns an async DynamoDB table.
         """
         self.get_table = get_table
+        self._stats_cache: Dict[str, tuple[float, ActivityStats]] = {}
+        self._cache_ttl = 30  # Cache TTL in seconds
 
     async def increment_message_count(
         self, user_address: str, miner_token: str = None
@@ -103,12 +104,19 @@ class ActivityTracker:
                 },
             )
 
-    @cached(cache=TTLCache(maxsize=100_000, ttl=30))
     async def get_activity_stats(self, user_address: str) -> ActivityStats:
         """
         Get the message count and successful invites count for a user.
         Returns ActivityStats with 0 for both counts if the user doesn't exist.
         """
+        # Check cache first
+        current_time = datetime.now(timezone.utc).timestamp()
+        cached_data = self._stats_cache.get(user_address)
+        if cached_data:
+            cache_time, stats = cached_data
+            if current_time - cache_time < self._cache_ttl:
+                return stats
+
         try:
             async with self.get_table() as table:
                 # First get the user's stats
@@ -135,7 +143,7 @@ class ActivityTracker:
                 else:
                     daily_message_limit = PointsConfig.DAILY_MESSAGE_LIMIT
 
-                return ActivityStats(
+                stats = ActivityStats(
                     message_count=message_count,
                     successful_invites=successful_invites,
                     points=points,
@@ -143,6 +151,10 @@ class ActivityTracker:
                     daily_message_limit=daily_message_limit,
                     rank=-1,
                 )
+
+                # Update cache
+                self._stats_cache[user_address] = (current_time, stats)
+                return stats
         except Exception:
             return ActivityStats(
                 message_count=0,
