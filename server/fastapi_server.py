@@ -470,6 +470,15 @@ async def handle_agent_chat_request(
     router_response = await router_model.ainvoke(router_prompt)
     selected_agent = router_response.content.strip().lower()
 
+    # Extract agent type from response if it contains additional text
+    if "investor_agent" in selected_agent:
+        selected_agent = "investor_agent"
+    elif "analytics_agent" in selected_agent:
+        selected_agent = "analytics_agent"
+    else:
+        # Default to analytics agent if no clear choice
+        selected_agent = "analytics_agent"
+
     if selected_agent == AgentType.ANALYTICS:
         return await handle_analytics_chat_request(
             request, token_metadata_repo, portfolio, analytics_agent
