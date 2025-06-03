@@ -95,10 +95,12 @@ def create_fastapi_app() -> FastAPI:
     @app.middleware("http")
     async def track_latency(request: Request, call_next):
         start_time = time.time()
-        response = await call_next(request)
-        duration = time.time() - start_time
-        statsd.histogram("endpoint.latency", duration, tags=["endpoint:all"])
-        return response
+        try:
+            response = await call_next(request)
+            return response
+        finally:
+            duration = time.time() - start_time
+            statsd.histogram("endpoint.latency", duration, tags=["endpoint:all"])
 
     # Initialize DynamoDB session
     database_manager = DatabaseManager()
