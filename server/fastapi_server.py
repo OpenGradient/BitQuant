@@ -376,7 +376,7 @@ def create_fastapi_app() -> FastAPI:
             stats = await activity_tracker.get_activity_stats(address)
             return stats
         except Exception as e:
-            logging.error(f"Error getting activity stats: {e}")
+            logging.error(f"Error getting activity stats: {e}\nTraceback:\n{traceback.format_exc()}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
     @app.post("/api/sentient/assist")
