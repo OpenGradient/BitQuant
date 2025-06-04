@@ -114,7 +114,7 @@ def evaluate_token_risk(
 ) -> dict:
     """Evaluate the risk of a token on the given chain, especially for memecoins. Token ID is in the format <chain>:<address>."""
     if ":" not in token_id:
-        raise ValueError("Token ID must be in the format <chain>:<address>")
+        return "ERROR: Token ID must be in the format <chain>:<address>"
 
     chain, address = token_id.split(":", 1)
     chain = chain.lower()
