@@ -26,19 +26,18 @@ def track_tool_usage(tool_name: str):
                 statsd.histogram("tool.execution.duration", duration, tags=tags)
 
                 return result
-            except Exception as e:
+            except Exception:
                 duration = time.time() - start_time
 
                 # Track failed tool usage
                 tags = [
                     f"tool_name:{tool_name}",
-                    f"error_type:{type(e).__name__}",
                 ]
                 statsd.increment("tool.errors.count", tags=tags)
                 statsd.histogram("tool.execution.duration", duration, tags=tags)
 
-                logging.error(
-                    f"Error in tool: {tool_name} with input {args} and kwargs {kwargs}: {e}"
+                logging.exception(
+                    f"Error in tool: {tool_name} with input {args} and kwargs {kwargs}"
                 )
                 return f"ERROR: Failed to execute tool {tool_name}."
 
