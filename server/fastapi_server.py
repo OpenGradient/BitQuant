@@ -52,6 +52,7 @@ from server.activity_tracker import ActivityTracker
 from server.utils import extract_patterns, convert_to_agent_msg
 from server.dynamodb_helpers import DatabaseManager
 from agent.integrations.sentient.sentient_agent import BitQuantSentientAgent
+from server.middleware import DatadogMetricsMiddleware
 
 from . import service
 from .auth import FirebaseIDTokenData, get_current_user
@@ -91,16 +92,8 @@ def create_fastapi_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Add latency tracking middleware
-    @app.middleware("http")
-    async def track_latency(request: Request, call_next):
-        start_time = time.time()
-        try:
-            response = await call_next(request)
-            return response
-        finally:
-            duration = time.time() - start_time
-            statsd.histogram("endpoint.latency", duration, tags=["endpoint:all"])
+    # Add Datadog metrics middleware
+    app.add_middleware(DatadogMetricsMiddleware)
 
     # Initialize DynamoDB session
     database_manager = DatabaseManager()
@@ -170,7 +163,6 @@ def create_fastapi_app() -> FastAPI:
         logging.error(f"Traceback: {error_traceback}")
         logging.error(f"Request Path: {request.url.path}")
         logging.error(f"Request Body: {await request.body()}")
-        statsd.increment("agent.message.unhandled_error")
 
         return JSONResponse(
             status_code=500,
@@ -263,8 +255,6 @@ def create_fastapi_app() -> FastAPI:
         request_data = await request.json()
         agent_request = AgentChatRequest(**request_data)
 
-        statsd.increment("agent.message.received")
-
         # Increment message count, return 429 if limit reached
         if not await activity_tracker.increment_message_count(
             agent_request.context.address, agent_request.context.miner_token
@@ -291,7 +281,6 @@ def create_fastapi_app() -> FastAPI:
             )
         except Exception as e:
             logging.error(f"Error processing agent request: {e}")
-            statsd.increment("agent.message.server_error")
             raise
 
     @app.post("/api/agent/suggestions")
@@ -616,7 +605,6 @@ async def run_main_agent(
         }
     except Exception as e:
         logging.error(f"Error running main agent: {e}")
-        statsd.increment("agent.failure", tags=["agent_type:main"])
         raise
 
 
@@ -734,5 +722,4 @@ async def run_analytics_agent(
         )
     except Exception as e:
         logging.error(f"Error running analytics agent: {e}")
-        statsd.increment("agent.failure", tags=["agent_type:analytics"])
         raise
