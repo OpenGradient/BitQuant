@@ -51,7 +51,6 @@ def _verify_firebase_id_token(token: str) -> FirebaseIDTokenData:
 security = HTTPBearer(auto_error=False)
 
 
-
 async def get_current_user(
     request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
@@ -73,5 +72,7 @@ async def get_current_user(
             return FirebaseIDTokenData(uid="test_user")
 
     if not credentials:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authenticated")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not authenticated"
+        )
     return _verify_firebase_id_token(credentials.credentials)
