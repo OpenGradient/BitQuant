@@ -14,7 +14,7 @@ class InviteCodeManager:
     """Manages invite codes for whitelisting users."""
 
     # How many unused codes a user can have
-    MAX_UNUSED_CODES = 100
+    MAX_UNUSED_CODES = 30
 
     def __init__(
         self,
