@@ -299,7 +299,7 @@ def create_fastapi_app() -> FastAPI:
         )
         return {"suggestions": suggestions}
 
-    @app.post("/api/invite/generate")
+    # TODO: Re-enable this endpoint if needed
     async def generate_invite_code(
         request: Request,
         user: FirebaseIDTokenData = Depends(get_current_user),
