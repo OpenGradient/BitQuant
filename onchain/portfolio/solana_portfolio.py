@@ -23,7 +23,7 @@ class PortfolioFetcher:
     async def close(self):
         await self.http_client.close()
 
-    @alru_cache(maxsize=100_000, ttl=300)
+    @alru_cache(maxsize=1_000_000, ttl=60*60)
     async def get_portfolio(self, wallet_address: str) -> Portfolio:
         """Get the complete portfolio of token holdings for a wallet address."""
         token_accounts = await self._get_token_accounts(wallet_address)
