@@ -3,6 +3,7 @@ from typing import Annotated, Optional
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import logging
+import asyncio
 
 from .firebase import auth
 from .config import SKIP_TOKEN_AUTH_HEADER, SKIP_TOKEN_AUTH_KEY
@@ -12,7 +13,7 @@ class FirebaseIDTokenData(BaseModel):
     uid: str
 
 
-def _verify_firebase_id_token(token: str) -> FirebaseIDTokenData:
+async def _verify_firebase_id_token(token: str) -> FirebaseIDTokenData:
     """Verify Firebase ID token and returns the UID.
 
     Args:
@@ -22,7 +23,7 @@ def _verify_firebase_id_token(token: str) -> FirebaseIDTokenData:
         FirebaseIDTokenData: Pydantic model containing the user's firebase `uid`.
     """
     try:
-        user_data = auth.verify_id_token(
+        user_data = await asyncio.to_thread(auth.verify_id_token,
             id_token=token, app=None, check_revoked=True, clock_skew_seconds=10
         )
         return FirebaseIDTokenData(**user_data)
@@ -75,4 +76,4 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Not authenticated"
         )
-    return _verify_firebase_id_token(credentials.credentials)
+    return await _verify_firebase_id_token(credentials.credentials)
