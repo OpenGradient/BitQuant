@@ -37,7 +37,7 @@ class ActivityTracker:
         """
         self.get_table = get_table
         self._stats_cache: Dict[str, tuple[float, ActivityStats]] = {}
-        self._cache_ttl = 10  # Cache TTL in seconds
+        self._cache_ttl = 3  # Cache TTL in seconds
 
     async def increment_message_count(
         self, user_address: str, miner_token: str = None
