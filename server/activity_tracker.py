@@ -36,8 +36,6 @@ class ActivityTracker:
         Initialize the PointsTracker with a function that returns an async DynamoDB table.
         """
         self.get_table = get_table
-        self._stats_cache: Dict[str, tuple[float, ActivityStats]] = {}
-        self._cache_ttl = 3  # Cache TTL in seconds
 
     async def increment_message_count(
         self, user_address: str, miner_token: str = None
@@ -109,14 +107,6 @@ class ActivityTracker:
         Get the message count and successful invites count for a user.
         Returns ActivityStats with 0 for both counts if the user doesn't exist.
         """
-        # Check cache first
-        current_time = datetime.now(timezone.utc).timestamp()
-        cached_data = self._stats_cache.get(user_address)
-        if cached_data:
-            cache_time, stats = cached_data
-            if current_time - cache_time < self._cache_ttl:
-                return stats
-
         try:
             async with self.get_table() as table:
                 # First get the user's stats
@@ -152,8 +142,6 @@ class ActivityTracker:
                     rank=-1,
                 )
 
-                # Update cache
-                self._stats_cache[user_address] = (current_time, stats)
                 return stats
         except Exception:
             return ActivityStats(
