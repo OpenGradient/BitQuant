@@ -129,7 +129,8 @@ class ActivityTracker:
 
                 # Bypass daily limit for privileged wallets
                 if user_address in DAILY_LIMIT_BYPASS_WALLETS:
-                    daily_message_limit = 10_000
+                    # TODO: Remove this once we have a proper daily limit
+                    daily_message_limit = PointsConfig.DAILY_MESSAGE_LIMIT
                 else:
                     daily_message_limit = PointsConfig.DAILY_MESSAGE_LIMIT
 
