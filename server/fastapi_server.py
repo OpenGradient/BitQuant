@@ -266,9 +266,8 @@ def create_fastapi_app() -> FastAPI:
             raise HTTPException(status_code=429, detail="Daily message limit reached")
 
         try:
-            portfolio = await portfolio_fetcher.get_portfolio(
-                agent_request.context.address
-            )
+            # TODO: Revert
+            portfolio = Portfolio(holdings=[], total_value_usd=0)
             response = await handle_agent_chat_request(
                 token_metadata_repo=token_metadata_repo,
                 protocol_registry=protocol_registry,
@@ -294,7 +293,7 @@ def create_fastapi_app() -> FastAPI:
         request_data = await request.json()
         agent_request = AgentChatRequest(**request_data)
 
-        portfolio = await portfolio_fetcher.get_portfolio(agent_request.context.address)
+        portfolio = Portfolio(holdings=[], total_value_usd=0)
         suggestions = await handle_suggestions_request(
             token_metadata_repo=token_metadata_repo,
             request=agent_request,
