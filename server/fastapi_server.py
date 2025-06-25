@@ -330,25 +330,6 @@ def create_fastapi_app() -> FastAPI:
     @app.post("/api/invite/use")
     async def use_invite_code(request: Request):
         try:
-            request_data = await request.json()
-            if (
-                not request_data
-                or "code" not in request_data
-                or "address" not in request_data
-            ):
-                raise HTTPException(
-                    status_code=400, detail="Code and address are required"
-                )
-
-            code = request_data["code"]
-            user_address = request_data["address"]
-
-            # Try to use the invite code
-            if not await invite_manager.use_invite_code(code, user_address):
-                raise HTTPException(
-                    status_code=400, detail="Invalid or already used invite code"
-                )
-
             return {"status": "success"}
         except Exception as e:
             logging.error(f"Error using invite code: {e}")
