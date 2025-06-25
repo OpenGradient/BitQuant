@@ -236,8 +236,12 @@ def create_fastapi_app() -> FastAPI:
         if not address:
             raise HTTPException(status_code=400, detail="Address parameter is required")
 
-        portfolio = await portfolio_fetcher.get_portfolio(address)
-        return portfolio.model_dump()
+        # portfolio = await portfolio_fetcher.get_portfolio(address)
+        # return portfolio.model_dump()
+
+        # TODO: Revert this once load is under control
+        return Portfolio(holdings=[], total_value_usd=0).model_dump()
+
 
     @app.get("/api/tokenlist")
     async def get_tokenlist():
