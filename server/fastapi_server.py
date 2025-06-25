@@ -330,7 +330,7 @@ def create_fastapi_app() -> FastAPI:
     @app.post("/api/invite/use")
     async def use_invite_code(request: Request):
         try:
-            return {"status": "success"}
+            return {"status": "ended"}
         except Exception as e:
             logging.error(f"Error using invite code: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
