@@ -211,7 +211,7 @@ def create_fastapi_app() -> FastAPI:
             request_data = await request.json()
             verify_request = SolanaVerifyRequest(**request_data)
 
-            token = service.verify_solana_signature(verify_request)
+            token = await asyncio.to_thread(service.verify_solana_signature, verify_request)
             return {"token": token}
 
         except ValidationError as e:
