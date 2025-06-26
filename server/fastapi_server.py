@@ -282,8 +282,8 @@ def create_fastapi_app() -> FastAPI:
 
         if not agent_request.captchaToken:
             raise HTTPException(status_code=400, detail="Captcha token is required")
-        if not await verify_captcha_token(agent_request.captchaToken):
-            raise HTTPException(status_code=429, detail="Invalid captcha token")
+        # if not await verify_captcha_token(agent_request.captchaToken):
+        #     raise HTTPException(status_code=429, detail="Invalid captcha token")
 
         # Increment message count, return 429 if limit reached
         if not await activity_tracker.increment_message_count(
@@ -322,8 +322,8 @@ def create_fastapi_app() -> FastAPI:
 
         if not agent_request.captchaToken:
             raise HTTPException(status_code=400, detail="Captcha token is required")
-        if not await verify_captcha_token(agent_request.captchaToken):
-            raise HTTPException(status_code=429, detail="Invalid captcha token")
+        # if not await verify_captcha_token(agent_request.captchaToken):
+        #     raise HTTPException(status_code=429, detail="Invalid captcha token")
 
         portfolio = Portfolio(holdings=[], total_value_usd=0)
         suggestions = await handle_suggestions_request(
