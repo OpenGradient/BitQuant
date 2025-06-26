@@ -174,6 +174,26 @@ def create_fastapi_app() -> FastAPI:
             raise HTTPException(status_code=401, detail="Invalid or missing API key")
         return x_api_key
 
+    async def verify_captcha_token(captchaToken: str):
+        secret_key = os.getenv("CLOUDFLARE_TURNSTILE_SECRET_KEY")
+        if not secret_key:
+            raise Exception(
+                "CLOUDFLARE_TURNSTILE_SECRET_KEY environment variable is not set"
+            )
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+                data={"secret": secret_key, "response": captchaToken},
+                headers={"content-type": "application/x-www-form-urlencoded"},
+            ) as response:
+                result = await response.json()
+                if result.get("success"):
+                    return True
+                else:
+                    logging.error(f"Captcha verification failed: {result}")
+                    return False
+
     # Routes
     @app.post("/api/cloudflare/turnstile/v0/siteverify")
     async def verify_cloudflare_turnstile_token(request: Request):
@@ -260,8 +280,8 @@ def create_fastapi_app() -> FastAPI:
         agent_request = AgentChatRequest(**request_data)
 
         if agent_request.captchaToken:
-            # TODO: Verify captcha token
-            pass
+            if not await verify_captcha_token(agent_request.captchaToken):
+                raise HTTPException(status_code=429, detail="Invalid captcha token")
 
         # Increment message count, return 429 if limit reached
         if not await activity_tracker.increment_message_count(
@@ -299,8 +319,8 @@ def create_fastapi_app() -> FastAPI:
         agent_request = AgentChatRequest(**request_data)
 
         if agent_request.captchaToken:
-            # TODO: Verify captcha token
-            pass
+            if not await verify_captcha_token(agent_request.captchaToken):
+                raise HTTPException(status_code=429, detail="Invalid captcha token")
 
         portfolio = Portfolio(holdings=[], total_value_usd=0)
         suggestions = await handle_suggestions_request(
