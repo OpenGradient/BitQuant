@@ -251,7 +251,7 @@ def create_fastapi_app() -> FastAPI:
             raise HTTPException(status_code=404, detail="Tokenlist file not found")
         return FileResponse(file_path)
 
-    @app.post("/api/agent/run")
+    @app.post("/api/v2/agent/run")
     async def run_agent(
         request: Request,
         user: FirebaseIDTokenData = Depends(get_current_user),
@@ -286,7 +286,7 @@ def create_fastapi_app() -> FastAPI:
             logging.error(f"Error processing agent request: {e}")
             raise
 
-    @app.post("/api/agent/suggestions")
+    @app.post("/api/v2/agent/suggestions")
     async def run_suggestions(
         request: Request,
         user: FirebaseIDTokenData = Depends(get_current_user),
