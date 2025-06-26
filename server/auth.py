@@ -36,17 +36,14 @@ async def _verify_firebase_id_token(token: str) -> FirebaseIDTokenData:
         auth.ExpiredIdTokenError,
         auth.RevokedIdTokenError,
     ) as e:
-        logging.exception(msg=e, stack_info=True)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
         )
     except auth.UserDisabledError as e:
-        logging.exception(msg=e, stack_info=True)
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User disabled"
         )
     except (ValueError, auth.CertificateFetchError, auth.FirebaseError) as e:
-        logging.exception(msg=e, stack_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",
