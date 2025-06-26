@@ -122,7 +122,7 @@ class AgentChatRequest(BaseModel):
     context: Context
     message: UserMessage
     agent: Optional[AgentType] = None
-    captchaToken: str
+    captchaToken: Optional[str] = None
 
 
 class FeedbackRequest(BaseModel):
