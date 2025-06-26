@@ -37,9 +37,7 @@ class ActivityTracker:
         """
         self.get_table = get_table
 
-    async def increment_message_count(
-        self, user_address: str, miner_token: str = None
-    ) -> bool:
+    async def increment_message_count(self, user_address: str) -> bool:
         """
         Increment the message count for a user.
         Returns True if the message was counted, False if the daily limit was reached.

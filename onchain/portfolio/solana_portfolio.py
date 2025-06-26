@@ -23,7 +23,7 @@ class PortfolioFetcher:
     async def close(self):
         await self.http_client.close()
 
-    @alru_cache(maxsize=1_000_000, ttl=60*60)
+    @alru_cache(maxsize=1_000_000, ttl=60 * 60)
     async def get_portfolio(self, wallet_address: str) -> Portfolio:
         if wallet_address == "":
             return Portfolio(holdings=[], total_value_usd=0)

@@ -211,7 +211,9 @@ def create_fastapi_app() -> FastAPI:
             request_data = await request.json()
             verify_request = SolanaVerifyRequest(**request_data)
 
-            token = await asyncio.to_thread(service.verify_solana_signature, verify_request)
+            token = await asyncio.to_thread(
+                service.verify_solana_signature, verify_request
+            )
             return {"token": token}
 
         except ValidationError as e:
@@ -242,7 +244,6 @@ def create_fastapi_app() -> FastAPI:
         # TODO: Revert this once load is under control
         return Portfolio(holdings=[], total_value_usd=0).model_dump()
 
-
     @app.get("/api/tokenlist")
     async def get_tokenlist():
         file_path = os.path.join(STATIC_DIR, "tokenlist.json")
@@ -260,7 +261,7 @@ def create_fastapi_app() -> FastAPI:
 
         # Increment message count, return 429 if limit reached
         if not await activity_tracker.increment_message_count(
-            agent_request.context.address, agent_request.context.miner_token
+            agent_request.context.address
         ):
             statsd.increment("agent.message.daily_limit_reached")
             raise HTTPException(status_code=429, detail="Daily message limit reached")

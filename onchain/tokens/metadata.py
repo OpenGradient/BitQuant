@@ -55,7 +55,9 @@ class TokenMetadataRepo:
         if self._session is None:
             self._session = aiohttp.ClientSession(
                 timeout=aiohttp.ClientTimeout(total=10),  # Add timeout
-                connector=aiohttp.TCPConnector(limit=100, limit_per_host=30)  # Connection pooling
+                connector=aiohttp.TCPConnector(
+                    limit=100, limit_per_host=30
+                ),  # Connection pooling
             )
         return self._session
 

@@ -23,8 +23,12 @@ async def _verify_firebase_id_token(token: str) -> FirebaseIDTokenData:
         FirebaseIDTokenData: Pydantic model containing the user's firebase `uid`.
     """
     try:
-        user_data = await asyncio.to_thread(auth.verify_id_token,
-            id_token=token, app=None, check_revoked=True, clock_skew_seconds=10
+        user_data = await asyncio.to_thread(
+            auth.verify_id_token,
+            id_token=token,
+            app=None,
+            check_revoked=True,
+            clock_skew_seconds=10,
         )
         return FirebaseIDTokenData(**user_data)
     except (
