@@ -259,6 +259,10 @@ def create_fastapi_app() -> FastAPI:
         request_data = await request.json()
         agent_request = AgentChatRequest(**request_data)
 
+        if agent_request.captchaToken:
+            # TODO: Verify captcha token
+            pass
+
         # Increment message count, return 429 if limit reached
         if not await activity_tracker.increment_message_count(
             agent_request.context.address
@@ -293,6 +297,10 @@ def create_fastapi_app() -> FastAPI:
     ):
         request_data = await request.json()
         agent_request = AgentChatRequest(**request_data)
+
+        if agent_request.captchaToken:
+            # TODO: Verify captcha token
+            pass
 
         portfolio = Portfolio(holdings=[], total_value_usd=0)
         suggestions = await handle_suggestions_request(
