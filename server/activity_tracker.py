@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Callable, Dict
 
 from server.config import MINER_TOKEN, DAILY_LIMIT_BYPASS_WALLETS
@@ -36,6 +36,33 @@ class ActivityTracker:
         Initialize the PointsTracker with a function that returns an async DynamoDB table.
         """
         self.get_table = get_table
+        self._blocked_cache: Dict[str, datetime] = {}  # address -> expiration time
+
+    def _get_today_end(self) -> datetime:
+        """
+        Get the end of today (start of tomorrow) in UTC.
+        """
+        today = datetime.now(timezone.utc).date()
+        tomorrow = today + timedelta(days=1)
+        return datetime.combine(tomorrow, datetime.min.time(), tzinfo=timezone.utc)
+
+    def _is_blocked_cached(self, user_address: str) -> bool:
+        """
+        Check if user is cached as blocked and not expired.
+        """
+        expiration = self._blocked_cache.get(user_address)
+        if expiration and datetime.now(timezone.utc) < expiration:
+            return True
+        elif expiration:
+            # Remove expired entry
+            del self._blocked_cache[user_address]
+        return False
+
+    def _cache_blocked_address(self, user_address: str):
+        """
+        Cache an address as blocked until the end of today.
+        """
+        self._blocked_cache[user_address] = self._get_today_end()
 
     async def increment_message_count(self, user_address: str) -> bool:
         """
@@ -43,6 +70,10 @@ class ActivityTracker:
         Returns True if the message was counted, False if the daily limit was reached.
         """
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+        # Check cache first
+        if self._is_blocked_cached(user_address):
+            return False
 
         try:
             async with self.get_table() as table:
@@ -61,6 +92,8 @@ class ActivityTracker:
 
                 # Check if daily limit reached
                 if daily_message_count >= PointsConfig.DAILY_MESSAGE_LIMIT:
+                    # Cache this blocked address
+                    self._cache_blocked_address(user_address)
                     return False
 
                 # Update both total and daily message counts, and points
