@@ -174,6 +174,36 @@ def create_fastapi_app() -> FastAPI:
             raise HTTPException(status_code=401, detail="Invalid or missing API key")
         return x_api_key
 
+    async def verify_captcha_token(captcha_token: str) -> bool:
+        """Verify Cloudflare Turnstile token."""
+        if not captcha_token:
+            raise HTTPException(status_code=400, detail="Missing captcha token")
+        
+        secret_key = os.getenv("CLOUDFLARE_TURNSTILE_SECRET_KEY")
+        if not secret_key:
+            raise HTTPException(
+                status_code=500, 
+                detail="CLOUDFLARE_TURNSTILE_SECRET_KEY environment variable is not set"
+            )
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+                    data={"secret": secret_key, "response": captcha_token},
+                    headers={"content-type": "application/x-www-form-urlencoded"},
+                ) as response:
+                    result = await response.json()
+                    if not result.get("success"):
+                        logging.warning(f"Captcha verification failed: {result}")
+                        raise HTTPException(status_code=400, detail="Invalid captcha token")
+                    return True
+        except HTTPException:
+            raise
+        except Exception as e:
+            logging.error(f"Error verifying Cloudflare Turnstile token: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
     # Routes
     @app.post("/api/cloudflare/turnstile/v0/siteverify")
     async def verify_cloudflare_turnstile_token(request: Request):
@@ -259,6 +289,9 @@ def create_fastapi_app() -> FastAPI:
         request_data = await request.json()
         agent_request = AgentChatRequest(**request_data)
 
+        # Verify captcha token
+        await verify_captcha_token(agent_request.captchaToken)
+
         # Increment message count, return 429 if limit reached
         if not await activity_tracker.increment_message_count(
             agent_request.context.address
@@ -293,6 +326,10 @@ def create_fastapi_app() -> FastAPI:
     ):
         request_data = await request.json()
         agent_request = AgentChatRequest(**request_data)
+
+        # Verify captcha token if provided
+        if agent_request.captchaToken:
+            await verify_captcha_token(agent_request.captchaToken)
 
         portfolio = Portfolio(holdings=[], total_value_usd=0)
         suggestions = await handle_suggestions_request(
