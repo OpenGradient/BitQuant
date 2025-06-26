@@ -18,7 +18,7 @@ class DatabaseManager:
 
 
 class TableContext:
-    def __init__(self, session, table_name):
+    def __init__(self, session: aioboto3.Session, table_name):
         self.session = session
         self.table_name = table_name
 

@@ -353,7 +353,7 @@ def create_fastapi_app() -> FastAPI:
             )
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    @app.post("/api/sentient/assist")
+    # @app.post("/api/sentient/assist")
     async def sentient_assist(
         request: Request,
         user: FirebaseIDTokenData = Depends(get_current_user),

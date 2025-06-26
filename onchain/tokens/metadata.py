@@ -53,7 +53,10 @@ class TokenMetadataRepo:
     @property
     async def session(self) -> aiohttp.ClientSession:
         if self._session is None:
-            self._session = aiohttp.ClientSession()
+            self._session = aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=10),  # Add timeout
+                connector=aiohttp.TCPConnector(limit=100, limit_per_host=30)  # Connection pooling
+            )
         return self._session
 
     @alru_cache(maxsize=100_000, ttl=60 * 60)

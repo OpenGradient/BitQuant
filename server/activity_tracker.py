@@ -61,12 +61,8 @@ class ActivityTracker:
                 if last_message_date != today:
                     daily_message_count = 0
 
-                # Check if daily limit reached, except for Subnet miner wallet
-                if (
-                    daily_message_count >= PointsConfig.DAILY_MESSAGE_LIMIT
-                    and user_address not in DAILY_LIMIT_BYPASS_WALLETS
-                    and miner_token != MINER_TOKEN
-                ):
+                # Check if daily limit reached
+                if daily_message_count >= PointsConfig.DAILY_MESSAGE_LIMIT:
                     return False
 
                 # Update both total and daily message counts, and points
