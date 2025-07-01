@@ -258,11 +258,8 @@ def create_fastapi_app() -> FastAPI:
         if not address:
             raise HTTPException(status_code=400, detail="Address parameter is required")
 
-        # portfolio = await portfolio_fetcher.get_portfolio(address)
-        # return portfolio.model_dump()
-
-        # TODO: Revert this once load is under control
-        return Portfolio(holdings=[], total_value_usd=0).model_dump()
+        portfolio = await portfolio_fetcher.get_portfolio(address)
+        return portfolio.model_dump()
 
     @app.get("/api/tokenlist")
     async def get_tokenlist():
@@ -293,8 +290,9 @@ def create_fastapi_app() -> FastAPI:
             raise HTTPException(status_code=429, detail="Daily message limit reached")
 
         try:
-            # TODO: Revert
-            portfolio = Portfolio(holdings=[], total_value_usd=0)
+            portfolio = await portfolio_fetcher.get_portfolio(
+                wallet_address=agent_request.context.address
+            )
             response = await handle_agent_chat_request(
                 token_metadata_repo=token_metadata_repo,
                 protocol_registry=protocol_registry,
@@ -325,7 +323,9 @@ def create_fastapi_app() -> FastAPI:
         # if not await verify_captcha_token(agent_request.captchaToken):
         #     raise HTTPException(status_code=429, detail="Invalid captcha token")
 
-        portfolio = Portfolio(holdings=[], total_value_usd=0)
+        portfolio = await portfolio_fetcher.get_portfolio(
+            wallet_address=agent_request.context.address
+        )
         suggestions = await handle_suggestions_request(
             token_metadata_repo=token_metadata_repo,
             request=agent_request,
