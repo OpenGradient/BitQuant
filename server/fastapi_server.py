@@ -4,7 +4,6 @@ import json
 import traceback
 import logging
 import asyncio
-import time
 
 from fastapi import FastAPI, Request, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
