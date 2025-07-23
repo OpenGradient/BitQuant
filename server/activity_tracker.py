@@ -101,14 +101,12 @@ class ActivityTracker:
                     Key={"user_address": user_address},
                     UpdateExpression="SET message_count = if_not_exists(message_count, :zero) + :inc, "
                     "daily_message_count = :daily_count, "
-                    "last_message_date = :today "
-                    "ADD points :points_inc",
+                    "last_message_date = :today",
                     ExpressionAttributeValues={
                         ":inc": 1,
                         ":zero": 0,
                         ":daily_count": daily_message_count + 1,
                         ":today": today,
-                        ":points_inc": PointsConfig.POINTS_PER_MESSAGE,
                     },
                 )
                 return True
@@ -122,10 +120,9 @@ class ActivityTracker:
         async with self.get_table() as table:
             await table.update_item(
                 Key={"user_address": user_address},
-                UpdateExpression="ADD successful_invites :inc, points :points_inc",
+                UpdateExpression="ADD successful_invites :inc",
                 ExpressionAttributeValues={
                     ":inc": 1,
-                    ":points_inc": PointsConfig.POINTS_PER_SUCCESSFUL_INVITE,
                 },
             )
 
