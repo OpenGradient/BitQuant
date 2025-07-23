@@ -9,7 +9,6 @@ from fastapi import FastAPI, Request, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import ValidationError
-from langgraph.graph.graph import CompiledGraph
 from langchain_core.runnables.config import RunnableConfig
 from datadog import initialize, statsd
 import aiohttp
@@ -451,8 +450,8 @@ async def handle_agent_chat_request(
     request: AgentChatRequest,
     portfolio: Portfolio,
     token_metadata_repo: TokenMetadataRepo,
-    investor_agent: CompiledGraph,
-    analytics_agent: CompiledGraph,
+    investor_agent: any,
+    analytics_agent: any,
     router_model: ChatOpenAI,
 ) -> AgentMessage:
     # If agent is explicitly specified, bypass router
@@ -501,7 +500,7 @@ async def handle_agent_chat_request(
 async def handle_investor_chat_request(
     request: AgentChatRequest,
     portfolio: Portfolio,
-    investor_agent: CompiledGraph,
+    investor_agent: any,
     protocol_registry: ProtocolRegistry,
 ) -> AgentMessage:
     """Handle requests for the investor agent."""
@@ -597,7 +596,7 @@ async def handle_suggestions_request(
 
 
 async def run_main_agent(
-    agent: CompiledGraph,
+    agent: any,
     messages: List,
     config: RunnableConfig,
     protocol_registry: ProtocolRegistry,
@@ -652,7 +651,7 @@ async def handle_analytics_chat_request(
     request: AgentChatRequest,
     token_metadata_repo: TokenMetadataRepo,
     portfolio: Portfolio,
-    agent: CompiledGraph,
+    agent: any,
 ) -> AgentMessage:
     # Emit metric for analytics agent usage
     statsd.increment("agent.usage", tags=["agent_type:analytics"])
@@ -688,7 +687,7 @@ async def handle_analytics_chat_request(
 
 
 async def run_analytics_agent(
-    agent: CompiledGraph,
+    agent: any,
     token_metadata_repo: TokenMetadataRepo,
     messages: List,
     config: RunnableConfig,

@@ -2,7 +2,6 @@ import os
 
 from openai import OpenAI
 from langgraph.prebuilt import create_react_agent
-from langgraph.graph.graph import CompiledGraph
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.language_models.chat_models import BaseChatModel
 
@@ -70,7 +69,7 @@ def create_suggestions_model() -> BaseChatModel:
     )
 
 
-def create_investor_executor() -> CompiledGraph:
+def create_investor_executor() -> any:
     openai_model = ChatGoogleGenerativeAI(
         model=REASONING_MODEL,
         temperature=0.0,
@@ -84,7 +83,7 @@ def create_investor_executor() -> CompiledGraph:
     return agent_executor
 
 
-def create_analytics_executor(token_metadata_repo: TokenMetadataRepo) -> CompiledGraph:
+def create_analytics_executor(token_metadata_repo: TokenMetadataRepo) -> any:
     openai_model = ChatGoogleGenerativeAI(
         model=REASONING_MODEL,
         temperature=0.0,
