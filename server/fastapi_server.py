@@ -285,15 +285,15 @@ def create_fastapi_app() -> FastAPI:
             statsd.increment("agent.message.daily_limit_reached")
             raise HTTPException(status_code=429, detail="Daily message limit reached")
 
+        portfolio = await portfolio_fetcher.get_portfolio(
+            wallet_address=agent_request.context.address
+        )
+
+        # Restrict agent usage to funded wallets
+        if portfolio.total_value_usd <= 100:
+            raise HTTPException(status_code=400, detail="Please use a funded wallet to start using the agent")
+
         try:
-            portfolio = await portfolio_fetcher.get_portfolio(
-                wallet_address=agent_request.context.address
-            )
-
-            # Restrict agent usage to funded wallets
-            if portfolio.total_value_usd <= 100:
-                raise HTTPException(status_code=400, detail="Please use a funded wallet to start using the agent")
-
             response = await handle_agent_chat_request(
                 token_metadata_repo=token_metadata_repo,
                 protocol_registry=protocol_registry,
