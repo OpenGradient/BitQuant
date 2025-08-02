@@ -66,7 +66,7 @@ initialize(
 )
 
 # number of messages to send to agents
-NUM_MESSAGES_TO_KEEP = 6
+NUM_MESSAGES_TO_KEEP = 5
 
 # API key for whitelist management
 API_KEY = os.environ.get("WHITELIST_API_KEY")
