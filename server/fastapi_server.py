@@ -277,8 +277,6 @@ def create_fastapi_app() -> FastAPI:
 
         if not agent_request.captchaToken:
             raise HTTPException(status_code=400, detail="Captcha token is required")
-        # if not await verify_captcha_token(agent_request.captchaToken):
-        #     raise HTTPException(status_code=429, detail="Invalid captcha token")
 
         # Increment message count, return 429 if limit reached
         if not await activity_tracker.increment_message_count(
@@ -291,6 +289,12 @@ def create_fastapi_app() -> FastAPI:
             portfolio = await portfolio_fetcher.get_portfolio(
                 wallet_address=agent_request.context.address
             )
+
+            # New user
+            if activity_tracker.get_activity_stats(agent_request.context.address).points == 0:
+                if not portfolio.holdings:
+                    raise HTTPException(status_code=400, detail="Please use an existing wallet to start using the agent")
+
             response = await handle_agent_chat_request(
                 token_metadata_repo=token_metadata_repo,
                 protocol_registry=protocol_registry,
