@@ -290,7 +290,7 @@ def create_fastapi_app() -> FastAPI:
         )
 
         # Restrict agent usage to funded wallets
-        if portfolio.total_value_usd <= 100:
+        if portfolio.total_value_usd <= 10:
             raise HTTPException(status_code=400, detail="Please use a funded wallet to start using the agent")
 
         try:
