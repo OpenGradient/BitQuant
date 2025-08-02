@@ -292,8 +292,8 @@ def create_fastapi_app() -> FastAPI:
 
             # New user
             if activity_tracker.get_activity_stats(agent_request.context.address).points == 0:
-                if not portfolio.holdings:
-                    raise HTTPException(status_code=400, detail="Please use an existing wallet to start using the agent")
+                if portfolio.total_value_usd <= 100:
+                    raise HTTPException(status_code=400, detail="Please use a funded wallet to start using the agent")
 
             response = await handle_agent_chat_request(
                 token_metadata_repo=token_metadata_repo,
