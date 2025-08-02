@@ -291,7 +291,11 @@ def create_fastapi_app() -> FastAPI:
 
         # Restrict agent usage to funded wallets
         if portfolio.total_value_usd <= 10:
-            raise HTTPException(status_code=400, detail="Please use a funded wallet to start using the agent")
+            return AgentMessage(
+                message="Please use a funded Solana wallet to start using the agent",
+                pools=[],
+                tokens=[],
+            )
 
         try:
             response = await handle_agent_chat_request(
