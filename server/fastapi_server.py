@@ -290,7 +290,7 @@ def create_fastapi_app() -> FastAPI:
         )
 
         # Restrict agent usage to funded wallets
-        if portfolio.total_value_usd <= 5:
+        if portfolio.total_value_usd <= 1:
             return AgentMessage(
                 message="Please use a funded Solana wallet to start using the agent",
                 pools=[],
