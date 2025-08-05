@@ -23,7 +23,7 @@ class ActivityStats:
 class PointsConfig:
     POINTS_PER_MESSAGE = 0
     POINTS_PER_SUCCESSFUL_INVITE = 0
-    DAILY_MESSAGE_LIMIT = 6
+    DAILY_MESSAGE_LIMIT = 8
 
 
 class ActivityTracker:
