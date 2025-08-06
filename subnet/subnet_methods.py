@@ -101,8 +101,11 @@ def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) ->
                 if not isinstance(score, (int, float)) or score < 0 or score > 50:
                     logging.error(f"Invalid score value: {score}. Expected range: 0-50")
                     return 0.0
+
                 # Normalize the score to be between 0 and 1
-                return float(score) / 50
+                logging.info(f"Score: {score}")
+                return float(score) / 50.0
+
             except (json.JSONDecodeError, KeyError) as e:
                 logging.error(f"Failed to parse score from JSON: {e}. JSON string: {json_str}")
                 return 0.0
