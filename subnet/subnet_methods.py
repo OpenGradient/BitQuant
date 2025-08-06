@@ -50,13 +50,16 @@ import time
 def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) -> float:
     """
     Evaluate the subnet miner query based on the provided QuantQuery and QuantResponse, with up to 3 retries on failure.
+    
+    The evaluation uses a 5-criteria scoring system where each criterion is scored 0-10, 
+    resulting in a maximum possible score of 50. The final score is normalized to 0-1 range.
 
     Args:
         quant_query (QuantQuery): The query object containing the query string and metadata.
         quant_response (QuantResponse): The response object containing the agent's response.
 
     Returns:
-        float: A score representing the evaluation of the query and response.
+        float: A normalized score between 0 and 1 representing the evaluation quality.
     """
     global evaluation_model
     if evaluation_model is None:
@@ -94,9 +97,18 @@ def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) ->
                 logging.error(f"Could not find JSON in model response: {answer}")
                 return 0.0
             json_str = match.group(1)
-            score = json.loads(json_str)["score"]
-            # Normalize the score to be between 0 and 1
-            return float(score) / 50
+            try:
+                parsed_json = json.loads(json_str)
+                score = parsed_json["score"]
+                # Validate score is within expected range (0-50)
+                if not isinstance(score, (int, float)) or score < 0 or score > 50:
+                    logging.error(f"Invalid score value: {score}. Expected range: 0-50")
+                    return 0.0
+                # Normalize the score to be between 0 and 1
+                return float(score) / 50
+            except (json.JSONDecodeError, KeyError) as e:
+                logging.error(f"Failed to parse score from JSON: {e}. JSON string: {json_str}")
+                return 0.0
         except Exception as e:
             last_exception = e
             logging.error(f"subnet_evaluation attempt {attempt} failed: {e}")

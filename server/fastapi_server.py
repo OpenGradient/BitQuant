@@ -44,6 +44,8 @@ from agent.tools import (
     create_investor_agent_toolkit,
     create_analytics_agent_toolkit,
 )
+from subnet.subnet_methods import subnet_evaluation
+from subnet.api_types import QuantQuery, QuantResponse
 from langchain_openai import ChatOpenAI
 from server.invitecode import InviteCodeManager
 from server.activity_tracker import ActivityTracker
@@ -388,6 +390,63 @@ def create_fastapi_app() -> FastAPI:
             logging.error(
                 f"Error getting activity stats: {e}\nTraceback:\n{traceback.format_exc()}"
             )
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    @app.post("/api/subnet/evaluate")
+    async def evaluate_subnet_response(
+        request: Request,
+        user: FirebaseIDTokenData = Depends(get_current_user),
+    ):
+        """
+        Evaluate a subnet miner response using the subnet evaluation model.
+        
+        Expected request body:
+        {
+            "quant_query": {
+                "query": "string",
+                "userID": "string", 
+                "metadata": {}
+            },
+            "quant_response": {
+                "response": "string",
+                "signature": "bytes",
+                "proofs": [],
+                "metadata": {}
+            }
+        }
+        
+        Returns:
+        {
+            "score": float  // Score between 0 and 1
+        }
+        """
+        try:
+            request_data = await request.json()
+            
+            # Validate required fields
+            if "quant_query" not in request_data or "quant_response" not in request_data:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="Both quant_query and quant_response are required"
+                )
+            
+            # Parse the request data into QuantQuery and QuantResponse objects
+            quant_query = QuantQuery(**request_data["quant_query"])
+            quant_response = QuantResponse(**request_data["quant_response"])
+            
+            # Call the subnet evaluation function
+            score = await asyncio.to_thread(
+                subnet_evaluation, quant_query, quant_response
+            )
+            
+            return {"score": score}
+            
+        except ValidationError as e:
+            logging.error(f"Validation error in subnet evaluation: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            logging.error(f"Error in subnet evaluation: {e}")
+            logging.error(f"Traceback: {traceback.format_exc()}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
     # @app.post("/api/sentient/assist")

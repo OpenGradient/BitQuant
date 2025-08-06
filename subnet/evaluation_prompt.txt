@@ -39,10 +39,10 @@ Strategic Consideration: Did the analysis consider broader strategic implication
 
 Final Scoring Calculation:
 
-Score each of the 5 main criteria on a scale of 1 to 10.
-Calculate the final score as the sum of the scores.
+Score each of the 5 main criteria on a scale of 0 to 10.
+Calculate the final score as the sum of the scores (maximum possible score: 50).
 
-Explain your scoring and evaluation method and return the final score as a JSON like: ```json{"score":100}```
+Explain your scoring and evaluation method and return the final score as a JSON like: ```json{"score":35}```
 
 =======
 
@@ -56,4 +56,4 @@ Agent answer:
 
 ========
 
-Remember to output the final score as ```json{"score":100}```.
+Remember to output the final score as ```json{"score":35}```.
