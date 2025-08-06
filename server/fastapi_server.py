@@ -395,7 +395,6 @@ def create_fastapi_app() -> FastAPI:
     @app.post("/api/subnet/evaluate")
     async def evaluate_subnet_response(
         request: Request,
-        user: FirebaseIDTokenData = Depends(get_current_user),
     ):
         """
         Evaluate a subnet miner response using the subnet evaluation model.
