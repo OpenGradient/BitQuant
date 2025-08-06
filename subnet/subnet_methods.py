@@ -1,19 +1,16 @@
 import requests
-from typing import Dict, Any, List
+from typing import Dict, Any
 import logging
 import os
 import json
 import re
-
 import jinja2
-from langchain_openai import ChatOpenAI
-import os
-import logging
-import json
-import re
+
 import opengradient as og
-from ..server.config import USE_TEE
+from langchain_openai import ChatOpenAI
+
 from .api_types import QuantQuery, QuantResponse
+from ..server.config import USE_TEE
 
 evaluation_model = None
 
