@@ -9,8 +9,8 @@ import jinja2
 import opengradient as og
 from langchain_openai import ChatOpenAI
 
-from .api_types import QuantQuery, QuantResponse
-from ..server.config import USE_TEE
+from subnet.api_types import QuantQuery, QuantResponse
+from server.config import USE_TEE
 
 evaluation_model = None
 
