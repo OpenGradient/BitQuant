@@ -76,15 +76,72 @@ make install
 
 ## 🚦 Usage
 
-1. Copy the example environment file and fill out your credentials:
+### Environment Variables
+
+Before running the service, you need to set up the following environment variables. Create a `.env` file in the root directory with the following variables:
+
+#### Required Environment Variables
+
+**Firebase Authentication:**
+```bash
+FIREBASE_PROJECT_ID=your_firebase_project_id
+FIREBASE_PRIVATE_KEY_ID=your_private_key_id
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYour private key here\n-----END PRIVATE KEY-----"
+FIREBASE_CLIENT_EMAIL=your_service_account_email
+FIREBASE_CLIENT_ID=your_client_id
+FIREBASE_CLIENT_X509_CERT_URL=your_cert_url
+```
+
+**Solana RPC:**
+```bash
+SOLANA_RPC_URL=your_solana_rpc_endpoint
+```
+
+**API Keys:**
+```bash
+OPENROUTER_API_KEY=your_openrouter_api_key
+GEMINI_API_KEY=your_gemini_api_key
+COINGECKO_API_KEY=your_coingecko_api_key
+```
+
+**AWS (for DynamoDB):**
+```bash
+AWS_ACCESS_KEY_ID=your_aws_access_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+AWS_REGION=your_aws_region
+```
+
+#### Optional Environment Variables
+
+**Datadog Monitoring:**
+```bash
+DD_API_KEY=your_datadog_api_key
+DD_APP_KEY=your_datadog_app_key
+DD_HOSTNAME=your_hostname
+```
+
+**Cloudflare Turnstile (for CAPTCHA):**
+```bash
+CLOUDFLARE_TURNSTILE_SECRET_KEY=your_turnstile_secret_key
+```
+
+**Environment:**
+```bash
+ENVIRONMENT=development
+```
+
+### Running the Service
+
+1. Create your `.env` file with the required variables:
    ```bash
-   cp .env.example .env
-   # Edit .env and fill in the required values
+   # Copy and edit the environment variables above
    ```
+
 2. Run the server:
    ```bash
    make run
    ```
+
 3. (Optional) Try a sample query:
    ```bash
    make sample
