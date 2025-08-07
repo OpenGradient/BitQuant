@@ -332,6 +332,12 @@ def create_fastapi_app() -> FastAPI:
         # if not await verify_captcha_token(agent_request.captchaToken):
         #     raise HTTPException(status_code=429, detail="Invalid captcha token")
 
+        # Check if user has reached daily message limit (without incrementing)
+        stats = await activity_tracker.get_activity_stats(agent_request.context.address)
+        if stats.daily_message_count >= stats.daily_message_limit:
+            statsd.increment("agent.suggestions.daily_limit_reached")
+            raise HTTPException(status_code=429, detail="Daily message limit reached")
+
         portfolio = await portfolio_fetcher.get_portfolio(
             wallet_address=agent_request.context.address
         )
