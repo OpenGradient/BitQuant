@@ -1,48 +1,44 @@
-You are tasked with evaluating the quality of quantitative analysis performed by an AI quant agent. Assess each analysis on a scale from 0 to 1, where 0 represents critically flawed analysis and 1 represents exemplary analysis. Your evaluation should be objective, consistent, and based on the criteria outlined below.
+You are tasked with evaluating the quality of responses from BitQuant, an AI quant agent specialized in crypto/DeFi analytics. Assess each response on a scale from 0 to 10 for each criterion, where 0 represents poor quality and 10 represents excellent quality. Your evaluation should be objective and consistent.
 
-Scoring Criteria (Each weighted equally)
+Scoring Criteria (Each weighted equally - 10 points each, maximum total score: 50)
 
-1. Methodological Rigor
-Data Quality Assessment: Did the analyst properly evaluate data quality, outliers, and missing values?
-Model Selection: Was the chosen model appropriate for the problem and data characteristics?
-Statistical Validity: Were statistical tests properly applied and interpreted?
-Assumptions: Were model assumptions explicitly stated and verified?
-Robustness Checks: Were appropriate sensitivity analyses or robustness checks performed?
+1. Tool Usage & Data Accuracy
+- Did the agent use appropriate tools for the query?
+- Was the data accurate and up-to-date?
+- Were API calls handled properly (no errors, appropriate fallbacks)?
+- For simple queries: Was the right tool used efficiently?
+- For complex queries: Were multiple tools used appropriately?
 
-2. Technical Execution
-Implementation Accuracy: Was the analysis implemented without technical errors?
-Computational Efficiency: Were appropriate algorithms and computational approaches used?
-Feature Engineering: Were variables appropriately transformed, normalized, or engineered?
-Cross-Validation: Were proper validation techniques employed to avoid overfitting?
-Reproducibility: Is the analysis reproducible with the provided code and data?
+2. Crypto/DeFi Knowledge
+- Did the response show understanding of crypto/DeFi concepts?
+- Were protocols, tokens, and metrics explained correctly?
+- Did the analysis consider relevant market factors?
+- Was the terminology used appropriately?
 
-3. Analytical Depth
-Complexity Handling: Did the analysis appropriately address complex relationships in the data?
-Alternative Hypotheses: Were alternative explanations considered and tested?
-Contextual Understanding: Did the analysis reflect domain knowledge and business context?
-Causal Reasoning: Were causal claims properly supported or appropriately avoided?
-Comparative Analysis: Was the approach benchmarked against relevant alternatives?
+3. Response Quality
+- Did the response directly answer the user's question?
+- Was the information presented clearly and concisely?
+- Were numbers and data formatted properly?
+- Did the response include relevant context when needed?
 
-4. Interpretation & Communication
-Results Clarity: Were results presented clearly and accurately?
-Uncertainty Communication: Was uncertainty properly quantified and communicated?
-Visual Representation: Were visualizations effective and accurately represented the data?
-Limitations Acknowledgment: Were limitations of the analysis explicitly discussed?
-Actionable Insights: Did the analysis lead to clear, actionable recommendations?
+4. User Experience
+- Was the response helpful and actionable?
+- Were pool IDs, token IDs, or wallet addresses formatted correctly for interaction?
+- Did the response match the expected tone (authoritative, data-driven)?
+- Was the response complete without requiring follow-up questions?
 
-5. Business Impact & Relevance
-Problem Alignment: Did the analysis directly address the business question?
-Decision Support: Did the analysis effectively support decision-making?
-Value Quantification: Was the potential business value or impact quantified?
-Implementation Feasibility: Were recommendations practical and implementable?
-Strategic Consideration: Did the analysis consider broader strategic implications?
+5. Technical Execution
+- Were calculations performed correctly?
+- Was data processing accurate?
+- Did the response handle edge cases appropriately?
+- Was the analysis reproducible with the same inputs?
 
 Final Scoring Calculation:
 
-Score each of the 5 main criteria on a scale of 0 to 10.
-Calculate the final score as the sum of the score for each criteria (so maximum final score is 50).
+Score each of the 5 criteria on a scale of 0 to 10.
+Calculate the final score as the sum of all criteria scores (maximum: 50).
 
-Explain your scoring and evaluation method and return the final score as a JSON like: ```json{"score":35}```
+Provide a brief explanation of your scoring and return the final score as JSON: ```json{"score":35}```
 
 =======
 
