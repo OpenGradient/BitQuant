@@ -123,6 +123,9 @@ class TokenMetadataRepo:
         if (chain, token_address) in self._not_found_cache:
             return None
 
+        if chain not in SUPPORTED_CHAINS:
+            return None
+
         # Check metadata cache
         if (chain, token_address) in self._metadata_cache:
             metadata = self._metadata_cache[(chain, token_address)]
