@@ -27,6 +27,8 @@ from api.api_types import (
     Message,
     TokenMetadata,
     SolanaVerifyRequest,
+    Context,
+    UserMessage,
 )
 from agent.agent_executors import (
     create_investor_executor,
@@ -483,11 +485,50 @@ def create_fastapi_app() -> FastAPI:
             # Parse the request data into QuantQuery object
             quant_query = QuantQuery(**request_data)
             
-            # Call the actual subnet query function
-            quant_response = await asyncio.to_thread(subnet_query, quant_query)
+            # Convert QuantQuery to AgentChatRequest format
+            # Use userID as wallet address
+            wallet_address = quant_query.userID
             
-            if quant_response is None:
-                raise HTTPException(status_code=500, detail="Subnet query failed")
+            # Create AgentChatRequest structure
+            agent_request = AgentChatRequest(
+                context=Context(
+                    address=wallet_address,
+                    conversationHistory=[],
+                    miner_token=None
+                ),
+                message=UserMessage(
+                    message=quant_query.query
+                ),
+                agent=None,  # Let router decide
+                captchaToken=None  # No captcha for subnet
+            )
+            
+            # Get portfolio for the wallet address
+            portfolio = await portfolio_fetcher.get_portfolio(
+                wallet_address=wallet_address
+            )
+            
+            # Process the request using the same logic as run_agent
+            response = await handle_agent_chat_request(
+                token_metadata_repo=token_metadata_repo,
+                protocol_registry=protocol_registry,
+                request=agent_request,
+                portfolio=portfolio,
+                investor_agent=investor_agent,
+                analytics_agent=analytics_agent,
+                router_model=router_model,
+            )
+            
+            # Convert response to QuantResponse format
+            quant_response = QuantResponse(
+                response=response.message,
+                signature=b"",  # Empty signature for now
+                proofs=[],  # Empty proofs for now
+                metadata={
+                    "pools": [pool.model_dump() for pool in response.pools],
+                    "tokens": [token.model_dump() for token in response.tokens]
+                }
+            )
             
             return quant_response.model_dump()
             
