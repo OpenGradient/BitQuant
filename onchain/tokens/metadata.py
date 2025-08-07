@@ -6,8 +6,9 @@ from cachetools import TTLCache, LRUCache
 from aiolimiter import AsyncLimiter
 import time
 from async_lru import alru_cache
-import aioboto3
 from boto3.dynamodb.table import TableResource
+
+SUPPORTED_CHAINS = ["solana", "ethereum", "polygon", "bnb", "avax", "sui", "arbitrum", "base", "optimism", "celo", "fantom", "gnosis", "avalanche", "bsc"]
 
 
 @dataclass
@@ -29,8 +30,8 @@ class TokenMetadataRepo:
 
     NOT_FOUND_CACHE_TTL = 10_000 * 24  # 24 hours in seconds
 
-    METADATA_CACHE_SIZE = 100_000  # Maximum number of metadata entries to cache
-    METADATA_CACHE_TTL = 15 * 60  # 15 minutes in seconds
+    METADATA_CACHE_SIZE = 1_000_000  # Maximum number of metadata entries to cache
+    METADATA_CACHE_TTL = 60 * 60  # 1 hour in seconds
 
     DEXSCREENER_CALLS_PER_MINUTE = 200
     DEXSCREENER_SEARCH_CALLS_PER_MINUTE = 60
@@ -68,12 +69,17 @@ class TokenMetadataRepo:
         """Search for a token by name or symbol."""
         if chain:
             chain = chain.lower()
+        if chain not in SUPPORTED_CHAINS:
+            return None
 
         if chain is not None:
             # Check if token is a valid address
             token_metadata = await self.get_token_metadata(token, chain)
             if token_metadata:
                 return token_metadata
+
+        if not token:
+            return None
 
         # If not, search by name or symbol
         return await self._search_token_on_dexscreener(token, chain)
