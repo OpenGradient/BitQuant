@@ -44,7 +44,7 @@ from agent.tools import (
     create_investor_agent_toolkit,
     create_analytics_agent_toolkit,
 )
-from subnet.subnet_methods import subnet_evaluation
+from subnet.subnet_methods import subnet_evaluation, subnet_query
 from subnet.api_types import QuantQuery, QuantResponse
 from langchain_openai import ChatOpenAI
 from server.invitecode import InviteCodeManager
@@ -445,6 +445,57 @@ def create_fastapi_app() -> FastAPI:
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
             logging.error(f"Error in subnet evaluation: {e}")
+            logging.error(f"Traceback: {traceback.format_exc()}")
+            raise HTTPException(status_code=500, detail="Internal server error")
+
+    @app.post("/api/subnet/query")
+    async def subnet_query_endpoint(
+        request: Request,
+    ):
+        """
+        Handle subnet queries without authentication.
+        
+        Expected request body:
+        {
+            "query": "string",
+            "userID": "string",
+            "metadata": {}
+        }
+        
+        Returns:
+        {
+            "response": "string",
+            "signature": "bytes",
+            "proofs": [],
+            "metadata": {}
+        }
+        """
+        try:
+            request_data = await request.json()
+            
+            # Validate required fields
+            if "query" not in request_data:
+                raise HTTPException(
+                    status_code=400, 
+                    detail="Query is required"
+                )
+            
+            # Parse the request data into QuantQuery object
+            quant_query = QuantQuery(**request_data)
+            
+            # Call the actual subnet query function
+            quant_response = await asyncio.to_thread(subnet_query, quant_query)
+            
+            if quant_response is None:
+                raise HTTPException(status_code=500, detail="Subnet query failed")
+            
+            return quant_response.model_dump()
+            
+        except ValidationError as e:
+            logging.error(f"Validation error in subnet query: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            logging.error(f"Error in subnet query: {e}")
             logging.error(f"Traceback: {traceback.format_exc()}")
             raise HTTPException(status_code=500, detail="Internal server error")
 

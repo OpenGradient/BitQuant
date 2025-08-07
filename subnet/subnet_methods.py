@@ -175,7 +175,7 @@ def subnet_query(quant_query: QuantQuery) -> QuantResponse:
     }
 
     # Set the endpoint
-    endpoint = "http://127.0.0.1:5000/api/agent/run"
+    endpoint = "http://127.0.0.1:5000/api/v2/agent/run"
 
     # Format the message
     message = {"type": "user", "message": quant_query.query}
