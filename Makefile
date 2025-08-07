@@ -19,10 +19,10 @@ test:
 	python3.13 -m unittest discover
 
 docker:
-	docker build . -t bluefin_agent
+	docker build . -t bitquant_agent
 
 prod:
-	docker run -d -p 8000:8000 bluefin_agent
+	docker run -d -p 8000:8000 bitquant_agent
 
 chat:
 	python3.13 testclient/client.py

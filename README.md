@@ -137,14 +137,14 @@ ENVIRONMENT=development
    # Copy and edit the environment variables above
    ```
 
-2. Run the server:
+2. Build the server:
    ```bash
-   make run
+   make docker
    ```
 
-3. (Optional) Try a sample query:
+3. Start the server:
    ```bash
-   make sample
+   make prod
    ```
 
 <p align="center">
