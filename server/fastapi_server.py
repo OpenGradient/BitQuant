@@ -341,6 +341,11 @@ def create_fastapi_app() -> FastAPI:
         portfolio = await portfolio_fetcher.get_portfolio(
             wallet_address=agent_request.context.address
         )
+
+        # Restrict agent usage to funded wallets
+        if portfolio.total_value_usd <= 1:
+            return {"suggestions": []}
+
         suggestions = await handle_suggestions_request(
             token_metadata_repo=token_metadata_repo,
             request=agent_request,
