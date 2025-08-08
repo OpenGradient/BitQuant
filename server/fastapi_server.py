@@ -451,10 +451,12 @@ def create_fastapi_app() -> FastAPI:
                 subnet_evaluation, quant_query, quant_response
             )
             
+            statsd.increment("subnet.evaluation.success")
             return {"score": score}
             
         except ValidationError as e:
             logging.exception("Validation error in subnet evaluation")
+            statsd.increment("subnet.evaluation.validation_error")
             raise HTTPException(status_code=400, detail=str(e))
         except Exception:
             logging.exception("Error in subnet evaluation")
