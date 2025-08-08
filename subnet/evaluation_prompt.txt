@@ -38,7 +38,7 @@ Final Scoring Calculation:
 Score each of the 5 criteria on a scale of 0 to 10.
 Calculate the final score as the sum of all criteria scores (maximum: 50).
 
-Provide a brief explanation of your scoring and return the final score as JSON: ```json{"score":35}```
+Return the final score as JSON: ```json{"score":35}```
 
 =======
 

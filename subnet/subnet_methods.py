@@ -97,7 +97,7 @@ def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) ->
 
             json_str = match.group(1)
             try:
-                parsed_json = json.loads(json_str)
+                parsed_json = json.loads(json_str.strip())
                 score = parsed_json["score"]
                 # Validate score is within expected range (0-50)
                 if not isinstance(score, (int, float)) or score < 0 or score > 50:
