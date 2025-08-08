@@ -460,6 +460,7 @@ def create_fastapi_app() -> FastAPI:
             raise HTTPException(status_code=400, detail=str(e))
         except Exception:
             logging.exception("Error in subnet evaluation")
+            statsd.increment("subnet.evaluation.error")
             raise HTTPException(status_code=500, detail="Internal server error")
 
     @app.post("/api/subnet/query")
