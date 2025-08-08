@@ -454,11 +454,10 @@ def create_fastapi_app() -> FastAPI:
             return {"score": score}
             
         except ValidationError as e:
-            logging.error(f"Validation error in subnet evaluation: {e}")
+            logging.exception("Validation error in subnet evaluation")
             raise HTTPException(status_code=400, detail=str(e))
-        except Exception as e:
-            logging.error(f"Error in subnet evaluation: {e}")
-            logging.error(f"Traceback: {traceback.format_exc()}")
+        except Exception:
+            logging.exception("Error in subnet evaluation")
             raise HTTPException(status_code=500, detail="Internal server error")
 
     @app.post("/api/subnet/query")
