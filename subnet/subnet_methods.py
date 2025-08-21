@@ -17,7 +17,7 @@ evaluation_model = None
 env = jinja2.Environment(
     loader=jinja2.FileSystemLoader(os.path.dirname(os.path.abspath(__file__)))
 )
-LLM_MODEL = "google/gemini-2.0-flash-001"
+LLM_MODEL = "google/gemini-2.5-flash-lite"
 BASE_URL = "https://openrouter.ai/api/v1"
 API_KEY = os.getenv("OPENROUTER_API_KEY")
 

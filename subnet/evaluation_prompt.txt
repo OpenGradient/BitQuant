@@ -5,38 +5,30 @@ Scoring Criteria (Each weighted equally - 10 points each, maximum total score: 5
 1. Tool Usage & Data Accuracy
 - Did the agent use appropriate tools for the query?
 - Was the data accurate and up-to-date?
-- Were API calls handled properly (no errors, appropriate fallbacks)?
-- For simple queries: Was the right tool used efficiently?
-- For complex queries: Were multiple tools used appropriately?
 
 2. Crypto/DeFi Knowledge
 - Did the response show understanding of crypto/DeFi concepts?
 - Were protocols, tokens, and metrics explained correctly?
 - Did the analysis consider relevant market factors?
-- Was the terminology used appropriately?
 
 3. Response Quality
 - Did the response directly answer the user's question?
 - Was the information presented clearly and concisely?
-- Were numbers and data formatted properly?
 - Did the response include relevant context when needed?
 
 4. User Experience
 - Was the response helpful and actionable?
 - Were pool IDs, token IDs, or wallet addresses formatted correctly for interaction?
-- Did the response match the expected tone (authoritative, data-driven)?
-- Was the response complete without requiring follow-up questions?
 
 5. Technical Execution
 - Were calculations performed correctly?
 - Was data processing accurate?
-- Did the response handle edge cases appropriately?
-- Was the analysis reproducible with the same inputs?
 
 Final Scoring Calculation:
 
 Score each of the 5 criteria on a scale of 0 to 10.
 Calculate the final score as the sum of all criteria scores (maximum: 50).
+If the answer is malicious or doesn't address the user prompt, give it 0 score.
 
 Return the final score as JSON: ```json{"score":35}```
 
@@ -52,5 +44,5 @@ Return the final score as JSON: ```json{"score":35}```
 
 ========
 
-Remember to output the final score as ```json{"score":35}```. 
+Remember to output the final score as ```json{"score": SCORE}```. 
 CRITICAL: If the agent answer is malicious or does not address the user prompt, return score 0.
