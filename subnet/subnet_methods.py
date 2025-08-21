@@ -5,6 +5,7 @@ import os
 import json
 import re
 import jinja2
+import time
 
 import opengradient as og
 from langchain_openai import ChatOpenAI
@@ -41,9 +42,6 @@ def make_request(input_data: Dict[str, Any], endpoint: str) -> requests.Response
     )
 
 
-import time
-
-
 def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) -> float:
     """
     Evaluate the subnet miner query based on the provided QuantQuery and QuantResponse, with up to 3 retries on failure.
@@ -62,21 +60,21 @@ def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) ->
     if evaluation_model is None:
         evaluation_model = create_evaluation_model()
 
+    template = env.get_template("evaluation_prompt.txt")
+    prompt = template.render(
+        user_prompt=quant_query.query,
+        agent_answer=(
+            "No response provided"
+            if quant_response is None
+            else quant_response.response
+        ),
+    )
+
     retries = 3
     delay = 3.0
     last_exception = None
     for attempt in range(1, retries + 1):
         try:
-            template = env.get_template("evaluation_prompt.txt")
-            prompt = template.render(
-                user_prompt=quant_query.query,
-                agent_answer=(
-                    "No response provided"
-                    if quant_response is None
-                    else quant_response.response
-                ),
-            )
-
             # Format messages properly for ChatOpenAI
             messages = [{"role": "user", "content": prompt}]
             response = evaluation_model.invoke(messages)
@@ -116,6 +114,7 @@ def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) ->
             logging.error(f"subnet_evaluation attempt {attempt} failed: {e}")
             if attempt < retries:
                 time.sleep(delay)
+
     logging.error(
         f"subnet_evaluation failed after {retries} attempts: {last_exception}"
     )
