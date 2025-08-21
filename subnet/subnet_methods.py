@@ -1,5 +1,5 @@
 import requests
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import logging
 import os
 import json
@@ -9,6 +9,7 @@ import time
 
 import opengradient as og
 from langchain_openai import ChatOpenAI
+from datadog import statsd
 
 from subnet.api_types import QuantQuery, QuantResponse
 from server.config import USE_TEE
@@ -21,6 +22,11 @@ env = jinja2.Environment(
 LLM_MODEL = "google/gemini-2.5-flash-lite"
 BASE_URL = "https://openrouter.ai/api/v1"
 API_KEY = os.getenv("OPENROUTER_API_KEY")
+
+# Evaluation constants
+MAX_SCORE = 50.0
+MAX_RETRIES = 3
+RETRY_DELAY = 3.0
 
 
 def create_evaluation_model() -> ChatOpenAI:
@@ -42,82 +48,125 @@ def make_request(input_data: Dict[str, Any], endpoint: str) -> requests.Response
     )
 
 
+def _extract_score_from_response(response_content: str) -> Optional[float]:
+    """
+    Extract and validate the score from the LLM response.
+    
+    Args:
+        response_content: The raw response content from the LLM
+        
+    Returns:
+        The extracted score as a float, or None if extraction fails
+    """
+    # Find JSON block in the response
+    match = re.search(r"```json\s*({.*})\s*```", response_content, re.DOTALL)
+    if not match:
+        logging.error(f"Could not find JSON in model response: {response_content}")
+        return None
+
+    json_str = match.group(1)
+    try:
+        parsed_json = json.loads(json_str.strip())
+        score = parsed_json["score"]
+        
+        # Validate score is within expected range (0-50)
+        if not isinstance(score, (int, float)) or score < 0 or score > MAX_SCORE:
+            logging.error(f"Invalid score value: {score}. Expected range: 0-{MAX_SCORE}")
+            return None
+            
+        return float(score)
+        
+    except (json.JSONDecodeError, KeyError) as e:
+        logging.error(f"Failed to parse score from JSON: {e}. JSON string: {json_str}")
+        return None
+
+
+def _get_evaluation_model() -> ChatOpenAI:
+    """Get or create the evaluation model singleton."""
+    global evaluation_model
+    if evaluation_model is None:
+        evaluation_model = create_evaluation_model()
+    return evaluation_model
+
+
+def _invoke_evaluation_model(prompt: str) -> Optional[str]:
+    """
+    Invoke the evaluation model with the given prompt.
+    
+    Args:
+        prompt: The evaluation prompt to send to the model
+        
+    Returns:
+        The model's response content, or None if the request fails
+    """
+    try:
+        model = _get_evaluation_model()
+        messages = [{"role": "user", "content": prompt}]
+        response = model.invoke(messages)
+        
+        # Handle different response formats
+        if hasattr(response, "content"):
+            return response.content
+        elif isinstance(response, dict) and "content" in response:
+            return response["content"]
+        else:
+            logging.error(f"Unexpected response format: {type(response)}")
+            return None
+            
+    except Exception as e:
+        logging.error(f"Failed to invoke evaluation model: {e}")
+        return None
+
+
 def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) -> float:
     """
-    Evaluate the subnet miner query based on the provided QuantQuery and QuantResponse, with up to 3 retries on failure.
+    Evaluate the subnet miner query based on the provided QuantQuery and QuantResponse.
     
     The evaluation uses a 5-criteria scoring system where each criterion is scored 0-10, 
     resulting in a maximum possible score of 50. The final score is normalized to 0-1 range.
 
     Args:
-        quant_query (QuantQuery): The query object containing the query string and metadata.
-        quant_response (QuantResponse): The response object containing the agent's response.
+        quant_query: The query object containing the query string and metadata
+        quant_response: The response object containing the agent's response
 
     Returns:
-        float: A normalized score between 0 and 1 representing the evaluation quality.
+        A normalized score between 0 and 1 representing the evaluation quality
     """
-    global evaluation_model
-    if evaluation_model is None:
-        evaluation_model = create_evaluation_model()
-
+    # Prepare the evaluation prompt
     template = env.get_template("evaluation_prompt.txt")
+    agent_answer = quant_response.response if quant_response else "No response provided"
+    
     prompt = template.render(
         user_prompt=quant_query.query,
-        agent_answer=(
-            "No response provided"
-            if quant_response is None
-            else quant_response.response
-        ),
+        agent_answer=agent_answer,
     )
 
-    retries = 3
-    delay = 3.0
-    last_exception = None
-    for attempt in range(1, retries + 1):
+    # Retry logic for evaluation
+    for attempt in range(MAX_RETRIES):
         try:
-            # Format messages properly for ChatOpenAI
-            messages = [{"role": "user", "content": prompt}]
-            response = evaluation_model.invoke(messages)
-
-            # Parse the response
-            answer = (
-                response.content
-                if hasattr(response, "content")
-                else response["content"]
-            )
-            logging.info(f"Evaluation Answer: {answer}")
-
-            # Find ```json{{...}}``` in the answer
-            match = re.search(r"```json\s*({.*})\s*```", answer, re.DOTALL)
-            if not match:
-                logging.error(f"Could not find JSON in model response: {answer}")
-                return 0.0
-
-            json_str = match.group(1)
-            try:
-                parsed_json = json.loads(json_str.strip())
-                score = parsed_json["score"]
-                # Validate score is within expected range (0-50)
-                if not isinstance(score, (int, float)) or score < 0 or score > 50:
-                    logging.error(f"Invalid score value: {score}. Expected range: 0-50")
-                    return 0.0
-
+            # Get model response
+            response_content = _invoke_evaluation_model(prompt)
+            if response_content is None:
+                continue
+                
+            logging.info(f"Evaluation Answer: {response_content}")
+            
+            # Extract and validate score
+            score = _extract_score_from_response(response_content)
+            if score is not None:
+                logging.info(f"Raw Score: {score}")
                 # Normalize the score to be between 0 and 1
-                logging.info(f"Score: {score}")
-                return float(score) / 50.0
-
-            except (json.JSONDecodeError, KeyError) as e:
-                logging.error(f"Failed to parse score from JSON: {e}. JSON string: {json_str}")
-                return 0.0
+                normalized_score = score / MAX_SCORE
+                statsd.increment("subnet.evaluation.success")
+                return normalized_score
+                
         except Exception as e:
-            last_exception = e
-            logging.error(f"subnet_evaluation attempt {attempt} failed: {e}")
-            if attempt < retries:
-                time.sleep(delay)
+            logging.error(f"subnet_evaluation attempt {attempt + 1} failed: {e}")
+            if attempt < MAX_RETRIES - 1:
+                time.sleep(RETRY_DELAY)
 
-    logging.error(
-        f"subnet_evaluation failed after {retries} attempts: {last_exception}"
-    )
+    logging.error(f"subnet_evaluation failed after {MAX_RETRIES} attempts")
+    statsd.increment("subnet.evaluation.error")
     return 0.0
 
 
