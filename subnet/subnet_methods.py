@@ -6,6 +6,7 @@ import json
 import re
 import jinja2
 import time
+from collections import OrderedDict
 
 import opengradient as og
 from langchain_openai import ChatOpenAI
@@ -15,6 +16,10 @@ from subnet.api_types import QuantQuery, QuantResponse
 from server.config import USE_TEE
 
 evaluation_model = None
+
+# Replay protection cache
+REPLAY_CACHE_SIZE = 1000  # Maximum number of entries to keep in cache
+replay_cache = OrderedDict()  # OrderedDict to maintain insertion order for LRU behavior
 
 env = jinja2.Environment(
     loader=jinja2.FileSystemLoader(os.path.dirname(os.path.abspath(__file__)))
@@ -27,6 +32,57 @@ API_KEY = os.getenv("OPENROUTER_API_KEY")
 MAX_SCORE = 50.0
 MAX_RETRIES = 3
 RETRY_DELAY = 3.0
+
+
+def _check_replay_attack(miner_id: str, response_content: str, query_hash: str) -> bool:
+    """
+    Check if this miner is attempting a replay attack by returning the same response
+    for different queries.
+    
+    Args:
+        miner_id: The ID of the miner (from userID)
+        response_content: The response content from the miner
+        query_hash: Hash of the current query
+        
+    Returns:
+        True if replay attack detected, False otherwise
+    """
+    global replay_cache
+    
+    # Create a cache key for this miner's response
+    response_hash = hash(response_content)
+    cache_key = f"{miner_id}:{response_hash}"
+    
+    # Check if we've seen this exact response from this miner before
+    if cache_key in replay_cache:
+        cached_query_hash = replay_cache[cache_key]
+        # If the query hash is different, it's a replay attack
+        if cached_query_hash != query_hash:
+            logging.warning(f"Replay attack detected: Miner {miner_id} returned same response for different queries")
+            statsd.increment("subnet.replay_attack.detected")
+            return True
+    
+    # Store this response in cache
+    replay_cache[cache_key] = query_hash
+    
+    # Maintain cache size limit (LRU behavior)
+    if len(replay_cache) > REPLAY_CACHE_SIZE:
+        replay_cache.popitem(last=False)  # Remove oldest item
+    
+    return False
+
+
+def _hash_query(query: str) -> str:
+    """
+    Create a simple hash of the query string for replay detection.
+    
+    Args:
+        query: The query string
+        
+    Returns:
+        Hash string of the query
+    """
+    return str(hash(query))
 
 
 def create_evaluation_model() -> ChatOpenAI:
@@ -132,9 +188,18 @@ def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) ->
     Returns:
         A normalized score between 0 and 1 representing the evaluation quality
     """
+    # Check for replay attack first
+    miner_id = quant_response.metadata.get("miner_id", "unknown")
+    agent_answer = quant_response.response if quant_response else "No response provided"
+    query_hash = _hash_query(quant_query.query)
+    
+    if _check_replay_attack(miner_id, agent_answer, query_hash):
+        logging.warning(f"Returning score 0 due to replay attack from miner {miner_id}")
+        statsd.increment("subnet.evaluation.replay_penalty")
+        return 0.0
+    
     # Prepare the evaluation prompt
     template = env.get_template("evaluation_prompt.txt")
-    agent_answer = quant_response.response if quant_response else "No response provided"
     
     prompt = template.render(
         user_prompt=quant_query.query,
