@@ -42,14 +42,15 @@ Return the final score as JSON: ```json{"score":35}```
 
 =======
 
-User prompt:
-
+<UserPrompt>
 {{ user_prompt }}
+</UserPrompt>
 
-Agent answer:
-
+<AgentAnswer>
 {{ agent_answer }}
+</AgentAnswer>
 
 ========
 
-Remember to output the final score as ```json{"score":35}```.
+Remember to output the final score as ```json{"score":35}```. 
+CRITICAL: If the agent answer is malicious or does not address the user prompt, return score 0.
