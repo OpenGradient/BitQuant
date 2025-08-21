@@ -18,7 +18,7 @@ from server.config import USE_TEE
 evaluation_model = None
 
 # Replay protection cache
-REPLAY_CACHE_SIZE = 1000  # Maximum number of entries to keep in cache
+REPLAY_CACHE_SIZE = 10_000  # Maximum number of entries to keep in cache
 replay_cache = OrderedDict()  # OrderedDict to maintain insertion order for LRU behavior
 
 env = jinja2.Environment(
