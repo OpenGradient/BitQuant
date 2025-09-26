@@ -58,8 +58,8 @@ def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) ->
     
     agent_answer = quant_response.response if quant_response else "No response provided"
 
-    # Cap the agent answer at 4000 characters
-    agent_answer = agent_answer[:4000]
+    # Cap the agent answer at 5000 characters
+    agent_answer = agent_answer[:5000]
 
     query_hash = str(hash(quant_query.query))
 
@@ -90,8 +90,6 @@ def subnet_evaluation(quant_query: QuantQuery, quant_response: QuantResponse) ->
 
         # Normalize the score to be between 0 and 1
         normalized_score = float(score) / MAX_SCORE
-        if normalized_score == 1.0:
-            logging.info(f"Normalized score is 1.0 for answer: {agent_answer}")
 
         statsd.increment("subnet.evaluation.success")
         return normalized_score
