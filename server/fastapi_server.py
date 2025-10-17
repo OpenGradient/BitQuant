@@ -47,6 +47,7 @@ from agent.tools import (
     create_analytics_agent_toolkit,
 )
 from subnet.subnet_methods import subnet_evaluation, subnet_query
+from subnet.subnet_questions import get_questioner
 from subnet.api_types import QuantQuery, QuantResponse
 from langchain_openai import ChatOpenAI
 from server.invitecode import InviteCodeManager
@@ -461,6 +462,19 @@ def create_fastapi_app() -> FastAPI:
         except Exception:
             logging.exception("Error in subnet evaluation")
             statsd.increment("subnet.evaluation.error")
+            raise HTTPException(status_code=500, detail="Internal server error")
+    
+    @app.get("/api/subnet/question")
+    async def subnet_question_endpoint(
+        _: Request,
+    ):
+        try:
+            questioner = await get_questioner()
+            question = await questioner.choose_question()
+            return {"question": question}
+        except Exception:
+            logging.exception("Error in subnet question")
+            statsd.increment("subnet.question.error")
             raise HTTPException(status_code=500, detail="Internal server error")
 
     @app.post("/api/subnet/query")
