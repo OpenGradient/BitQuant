@@ -26,3 +26,6 @@ langchain_google_genai>=2.0.0
 aioboto3>=1.38.0
 async_lru>=2.0.0
 aiolimiter>=1.2.0
+og-test-x402==0.0.5
+eth-account>=0.13.4
+web3>=7.3.0

@@ -1,4 +1,5 @@
 import os
+import httpx
 
 from openai import OpenAI
 from langgraph.prebuilt import create_react_agent
@@ -8,6 +9,30 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from agent.tools import create_investor_agent_toolkit, create_analytics_agent_toolkit
 from onchain.tokens.metadata import TokenMetadataRepo
 from server import config
+from web3 import Web3
+from x402.clients.base import x402Client
+from x402.types import x402PaymentRequiredResponse
+from .x402 import X402Auth
+
+WEB3_CONFIG = Web3(Web3.HTTPProvider(config.OG_RPC_URL))
+WALLET_ACCOUNT = WEB3_CONFIG.eth.account.from_key(
+    config.WALLET_PRIV_KEY.get_secret_value()
+)
+
+TIMEOUT = httpx.Timeout(
+    timeout=90.0,
+    connect=15.0,
+    read=15.0,
+    write=30.0,
+    pool=10.0,
+)
+
+LIMITS = httpx.Limits(
+    max_keepalive_connections=100,
+    max_connections=500,
+    keepalive_expiry=60 * 20,  # 20 minutes
+)
+
 
 ##
 # Subnet LLM Configuration
@@ -35,6 +60,16 @@ DEEPSEEK_CHAT_V3_MODEL = (
 )
 GROK_MODEL = "x-ai/grok-2-1212"  # $2/M input tokens; $10/M output tokens
 
+x402_http_client = httpx.AsyncClient(
+    base_url=config.LLM_SERVER_URL,
+    headers={"Authorization": f"Bearer {config.DUMMY_X402_API_KEY}"},
+    timeout=TIMEOUT,
+    limits=LIMITS,
+    http2=False,
+    follow_redirects=False,
+    auth=X402Auth(account=config.WALLET_ACCOUNT),  # type: ignore
+)
+
 
 # Select model based on configuration
 if not config.SUBNET_MODE:
@@ -52,30 +87,44 @@ else:
 
 
 def create_routing_model() -> BaseChatModel:
-    return ChatGoogleGenerativeAI(
-        model=ROUTING_MODEL,
-        temperature=0.0,
-        google_api_key=API_KEY,
-        max_tokens=500,
-    )
+    return ChatOpenAI(
+            model=ROUTING_MODEL,
+            temperature=0.0,
+            max_tokens=500,
+            api_key=config.DUMMY_X402_API_KEY,
+            http_async_client=x402_http_client,
+            stream_usage=False,
+            streaming=False,
+            base_url=config.LLM_SERVER_URL,
+        )
+        
 
 
 def create_suggestions_model() -> BaseChatModel:
-    return ChatGoogleGenerativeAI(
-        model=SUGGESTIONS_MODEL,
-        temperature=0.3,
-        google_api_key=API_KEY,
-        max_tokens=1000,
-    )
+    return ChatOpenAI(
+            model=SUGGESTIONS_MODEL,
+            temperature=0.3,
+            max_tokens=1000,
+            api_key=config.DUMMY_X402_API_KEY,
+            http_async_client=x402_http_client,
+            stream_usage=False,
+            streaming=False,
+            base_url=config.LLM_SERVER_URL,
+        )
+    
 
 
 def create_investor_executor() -> any:
-    openai_model = ChatGoogleGenerativeAI(
-        model=REASONING_MODEL,
-        temperature=0.0,
-        google_api_key=API_KEY,
-        max_tokens=4096,
-    )
+    openai_model = ChatOpenAI(
+            model=REASONING_MODEL,
+            temperature=0.0,
+            api_key=config.DUMMY_X402_API_KEY,
+            http_async_client=x402_http_client,
+            stream_usage=False,
+            streaming=False,
+            base_url=config.LLM_SERVER_URL,
+        )
+        
     agent_executor = create_react_agent(
         model=openai_model, tools=create_investor_agent_toolkit()
     )
