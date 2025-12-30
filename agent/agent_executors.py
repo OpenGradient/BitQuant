@@ -12,11 +12,12 @@ from server import config
 from web3 import Web3
 from x402.clients.base import x402Client
 from x402.types import x402PaymentRequiredResponse
+from langchain_openai import ChatOpenAI
 from .x402 import X402Auth
 
 WEB3_CONFIG = Web3(Web3.HTTPProvider(config.OG_RPC_URL))
 WALLET_ACCOUNT = WEB3_CONFIG.eth.account.from_key(
-    config.WALLET_PRIV_KEY.get_secret_value()
+    config.WALLET_PRIV_KEY
 )
 
 TIMEOUT = httpx.Timeout(
@@ -67,7 +68,7 @@ x402_http_client = httpx.AsyncClient(
     limits=LIMITS,
     http2=False,
     follow_redirects=False,
-    auth=X402Auth(account=config.WALLET_ACCOUNT),  # type: ignore
+    auth=X402Auth(account=WALLET_ACCOUNT),  # type: ignore
 )
 
 
