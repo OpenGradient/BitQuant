@@ -75,7 +75,7 @@ x402_http_client = httpx.AsyncClient(
 # Select model based on configuration
 if not config.SUBNET_MODE:
     SUGGESTIONS_MODEL = GOOGLE_GEMINI_20_FLASH_MODEL
-    ROUTING_MODEL = GOOGLE_GEMINI_FLASH_15_8B_MODEL
+    ROUTING_MODEL = GOOGLE_GEMINI_20_FLASH_MODEL
     REASONING_MODEL = GOOGLE_GEMINI_20_FLASH_MODEL
     BASE_URL = "https://generativelanguage.googleapis.com/v1beta/"
     API_KEY = os.getenv("GEMINI_API_KEY")
@@ -134,12 +134,17 @@ def create_investor_executor() -> any:
 
 
 def create_analytics_executor(token_metadata_repo: TokenMetadataRepo) -> any:
-    openai_model = ChatGoogleGenerativeAI(
-        model=REASONING_MODEL,
-        temperature=0.0,
-        google_api_key=API_KEY,
-        max_tokens=4096,
-    )
+    openai_model = ChatOpenAI(
+            model=REASONING_MODEL,
+            temperature=0.0,
+            max_tokens=4096,
+            api_key=config.DUMMY_X402_API_KEY,
+            http_async_client=x402_http_client,
+            stream_usage=False,
+            streaming=False,
+            base_url=config.LLM_SERVER_URL,
+        )
+
     analytics_executor = create_react_agent(
         model=openai_model,
         tools=create_analytics_agent_toolkit(token_metadata_repo),
