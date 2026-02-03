@@ -8,7 +8,22 @@ import time
 from async_lru import alru_cache
 from boto3.dynamodb.table import TableResource
 
-SUPPORTED_CHAINS = ["solana", "ethereum", "polygon", "bnb", "avax", "sui", "arbitrum", "base", "optimism", "celo", "fantom", "gnosis", "avalanche", "bsc"]
+SUPPORTED_CHAINS = [
+    "solana",
+    "ethereum",
+    "polygon",
+    "bnb",
+    "avax",
+    "sui",
+    "arbitrum",
+    "base",
+    "optimism",
+    "celo",
+    "fantom",
+    "gnosis",
+    "avalanche",
+    "bsc",
+]
 
 
 @dataclass
@@ -24,6 +39,43 @@ class TokenMetadata:
     market_cap_usd: Optional[int]
 
 
+USDC_TOKEN = TokenMetadata(
+    chain="solana",
+    address="EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+    name="USD Coin",
+    symbol="USDC",
+    image_url="https://statics.solscan.io/cdn/imgs/s60?ref=68747470733a2f2f7261772e67697468756275736572636f6e74656e742e636f6d2f736f6c616e612d6c6162732f746f6b656e2d6c6973742f6d61696e2f6173736574732f6d61696e6e65742f45506a465764643541756671535371654d32714e31787a7962617043384734774547476b5a777954447431762f6c6f676f2e706e67",
+    price=1.0,
+    dex_pool_address=None,
+    market_cap_usd=None,
+    timestamp=int(time.time()),
+)
+
+USDT_TOKEN = TokenMetadata(
+    chain="solana",
+    address="Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB",
+    name="Tether",
+    symbol="USDT",
+    image_url="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.svg",
+    price=1.0,
+    dex_pool_address=None,
+    market_cap_usd=None,
+    timestamp=int(time.time()),
+)
+
+SOL_TOKEN = TokenMetadata(
+    chain="solana",
+    address="So11111111111111111111111111111111111111112",
+    name="Solana",
+    symbol="SOL",
+    image_url="https://solana.com/src/img/branding/solanaLogoMark.png",
+    price=1.0,
+    dex_pool_address=None,
+    market_cap_usd=None,
+    timestamp=int(time.time()),
+)
+
+
 class TokenMetadataRepo:
     DEXSCREENER_API_URL = "https://api.dexscreener.com/tokens/v1/%s/%s"
     DEXSCREENER_SEARCH_API_URL = "https://api.dexscreener.com/latest/dex/search"
@@ -34,7 +86,7 @@ class TokenMetadataRepo:
     METADATA_CACHE_TTL = 60 * 60  # 1 hour in seconds
 
     DEXSCREENER_CALLS_PER_MINUTE = 200
-    DEXSCREENER_SEARCH_CALLS_PER_MINUTE = 60
+    DEXSCREENER_SEARCH_CALLS_PER_MINUTE = 30
     DEXSCREENER_PERIOD = 60
 
     def __init__(self, get_table: Callable[[], Awaitable[TableResource]]):
@@ -71,6 +123,21 @@ class TokenMetadataRepo:
             chain = chain.lower()
         if chain not in SUPPORTED_CHAINS:
             return None
+
+        # Hardcoded Solana tokens
+        if chain == "solana":
+            if token == "usdc" or token == "USDC" or token == USDC_TOKEN.address:
+                return USDC_TOKEN
+            if token == "usdt" or token == "USDT" or token == USDT_TOKEN.address:
+                return USDT_TOKEN
+            if (
+                token == "sol"
+                or token == "SOL"
+                or token == "solana"
+                or token == "Solana"
+                or token == SOL_TOKEN.address
+            ):
+                return SOL_TOKEN
 
         if chain is not None:
             # Check if token is a valid address
@@ -153,43 +220,9 @@ class TokenMetadataRepo:
     async def _get_from_dynamodb(
         self, chain: str, token_address: str
     ) -> Optional[TokenMetadata]:
-        """Retrieve token metadata from DynamoDB."""
-        try:
-            async with self.get_table() as table:
-                response = await table.get_item(Key={"id": f"{chain}:{token_address}"})
-
-                if "Item" not in response:
-                    return None
-
-                item = response["Item"]
-
-                # Check if this is a "not found" marker
-                if item.get("not_found", False):
-                    self._not_found_cache[(chain, token_address)] = True
-                    return None
-
-                metadata = TokenMetadata(
-                    address=item["address"],
-                    chain=item["chain"],
-                    name=item["name"],
-                    symbol=item["symbol"],
-                    timestamp=item["timestamp"],
-                    image_url=item.get("image_url"),
-                    price=item.get("price"),
-                    dex_pool_address=item.get("dex_pool_address"),
-                    market_cap_usd=int(item.get("market_cap_usd", 0)),
-                )
-
-                return metadata
-        except Exception as error:
-            if (
-                hasattr(error, "response")
-                and error.response.get("Error", {}).get("Code")
-                == "ResourceNotFoundException"
-            ):
-                return None
-            logging.error(f"Error retrieving token metadata from DynamoDB: {error}")
-            raise error
+        """Retrieve token metadata from DynamoDB - MOCKED to always return None."""
+        # Mock: Always return None to force fetching from DexScreener
+        return None
 
     async def _store_metadata(self, metadata: TokenMetadata) -> None:
         """Store token metadata in DynamoDB."""
@@ -260,9 +293,9 @@ class TokenMetadataRepo:
                     address=metadata["baseToken"]["address"],
                     name=metadata["baseToken"]["name"],
                     symbol=metadata["baseToken"]["symbol"],
-                    image_url=metadata["info"]["imageUrl"]
-                    if "info" in metadata
-                    else None,
+                    image_url=(
+                        metadata["info"]["imageUrl"] if "info" in metadata else None
+                    ),
                     price=metadata["priceUsd"],
                     dex_pool_address=metadata.get("pairAddress"),
                     market_cap_usd=metadata.get("marketCap"),

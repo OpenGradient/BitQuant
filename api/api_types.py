@@ -20,12 +20,14 @@ class TokenMetadata(BaseModel):
     address: str
     name: str
     symbol: str
-    price_usd: str
+    price_usd: float
     chain: str
 
     dex_pool_address: Optional[str] = None
     market_cap_usd: Optional[str] = None
     image_url: Optional[str] = None
+
+    show_buy_widget: bool = False
 
 
 class Chain(IntEnum):
@@ -36,7 +38,7 @@ class Chain(IntEnum):
 
 
 class AgentType(StrEnum):
-    INVESTOR = "investor_agent"
+    YIELD = "yield_agent"
     ANALYTICS = "analytics_agent"
 
 
@@ -136,3 +138,16 @@ class SolanaVerifyRequest(BaseModel):
     address: str
     message: str
     signature: str
+
+
+class ProcessSwapRequest(BaseModel):
+    txid: str
+    chain: str = "solana"
+    address: str  # wallet address
+
+
+class ProcessSwapResponse(BaseModel):
+    success: bool
+    points_awarded: int
+    referral_reward: float
+    message: str

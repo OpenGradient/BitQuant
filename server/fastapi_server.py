@@ -4,6 +4,7 @@ import json
 import traceback
 import logging
 import asyncio
+from subnet.question_pool import question_pool_manager
 
 from fastapi import FastAPI, Request, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,6 +30,8 @@ from api.api_types import (
     SolanaVerifyRequest,
     Context,
     UserMessage,
+    ProcessSwapRequest,
+    ProcessSwapResponse,
 )
 from agent.agent_executors import (
     create_investor_executor,
@@ -46,7 +49,7 @@ from agent.tools import (
     create_investor_agent_toolkit,
     create_analytics_agent_toolkit,
 )
-from subnet.subnet_methods import subnet_evaluation, subnet_query
+from subnet.subnet_methods import subnet_evaluation
 from subnet.api_types import QuantQuery, QuantResponse
 from langchain_openai import ChatOpenAI
 from server.invitecode import InviteCodeManager
@@ -55,6 +58,9 @@ from server.utils import extract_patterns, convert_to_agent_msg
 from server.dynamodb_helpers import DatabaseManager
 from agent.integrations.sentient.sentient_agent import BitQuantSentientAgent
 from server.middleware import DatadogMetricsMiddleware
+from server.swap_tracker import SwapTracker
+from server.jup_validator import JUPValidator
+from server.cow_validator import COWValidator
 
 from . import service
 from .auth import FirebaseIDTokenData, get_current_user
@@ -70,7 +76,7 @@ initialize(
 )
 
 # number of messages to send to agents
-NUM_MESSAGES_TO_KEEP = 5
+NUM_MESSAGES_TO_KEEP = 6
 
 # API key for whitelist management
 API_KEY = os.environ.get("WHITELIST_API_KEY")
@@ -112,18 +118,28 @@ def create_fastapi_app() -> FastAPI:
         database_manager.table_context_factory("token_metadata_v2")
     )
     portfolio_fetcher = PortfolioFetcher(token_metadata_repo)
+    swap_tracker = SwapTracker(
+        database_manager.table_context_factory("twoligma_processed_swaps")
+    )
+    jup_validator = JUPValidator(token_metadata_repo)
+    cow_validator = COWValidator(token_metadata_repo)
 
     # Store services in app state for access in routes
     app.state.activity_tracker = activity_tracker
     app.state.invite_manager = invite_manager
     app.state.token_metadata_repo = token_metadata_repo
     app.state.portfolio_fetcher = portfolio_fetcher
+    app.state.swap_tracker = swap_tracker
+    app.state.jup_validator = jup_validator
+    app.state.cow_validator = cow_validator
 
     @app.on_event("shutdown")
     async def shutdown_event():
         await protocol_registry.shutdown()
         await token_metadata_repo.close()
         await portfolio_fetcher.close()
+        await jup_validator.close()
+        await cow_validator.close()
 
     # Initialize agents
     router_model = create_routing_model()
@@ -147,6 +163,8 @@ def create_fastapi_app() -> FastAPI:
     @app.on_event("startup")
     async def startup_event():
         await protocol_registry.initialize()
+        await question_pool_manager.ensure_pool_ready()
+        logging.info("✅ Question pool initialized!")
 
     # Exception handlers
     @app.exception_handler(ValidationError)
@@ -278,7 +296,6 @@ def create_fastapi_app() -> FastAPI:
         request_data = await request.json()
         agent_request = AgentChatRequest(**request_data)
 
-
         if not agent_request.captchaToken:
             raise HTTPException(status_code=400, detail="Captcha token is required")
 
@@ -294,9 +311,9 @@ def create_fastapi_app() -> FastAPI:
         )
 
         # Restrict agent usage to funded wallets
-        if portfolio.total_value_usd <= 1:
+        if portfolio.total_value_usd < 1:
             return AgentMessage(
-                message="Please use a funded Solana wallet to start using the agent",
+                message="Please use a funded Solana wallet (at least $1) to start using the agent",
                 pools=[],
                 tokens=[],
             )
@@ -405,62 +422,114 @@ def create_fastapi_app() -> FastAPI:
             )
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    @app.post("/api/subnet/evaluate")
-    async def evaluate_subnet_response(
-        request: Request,
+    @app.post("/api/process_swap")
+    async def process_swap(
+        request: ProcessSwapRequest,
+        user: FirebaseIDTokenData = Depends(get_current_user),
     ):
         """
-        Evaluate a subnet miner response using the subnet evaluation model.
-        
+        Process a JUP swap transaction and award points based on referral rewards.
+
         Expected request body:
         {
-            "quant_query": {
-                "query": "string",
-                "userID": "string", 
-                "metadata": {}
-            },
-            "quant_response": {
-                "response": "string",
-                "signature": "bytes",
-                "proofs": [],
-                "metadata": {}
-            }
+            "txid": "transaction_id",
+            "address": "wallet_address",
         }
-        
+
         Returns:
         {
-            "score": float  // Score between 0 and 1
+            "success": bool,
+            "points_awarded": int,
+            "referral_reward": float,
+            "message": str
         }
         """
         try:
-            request_data = await request.json()
-            
-            # Validate required fields
-            if "quant_query" not in request_data or "quant_response" not in request_data:
-                raise HTTPException(
-                    status_code=400, 
-                    detail="Both quant_query and quant_response are required"
+            # Get services from app state
+            swap_tracker: SwapTracker = app.state.swap_tracker
+            jup_validator: JUPValidator = app.state.jup_validator
+            cow_validator: COWValidator = app.state.cow_validator
+            activity_tracker: ActivityTracker = app.state.activity_tracker
+
+            # Check if this swap has already been processed
+            if await swap_tracker.is_swap_processed(request.chain, request.txid):
+                return ProcessSwapResponse(
+                    success=False,
+                    points_awarded=0,
+                    referral_reward=0.0,
+                    message="Transaction has already been processed",
                 )
-            
-            # Parse the request data into QuantQuery and QuantResponse objects
-            quant_query = QuantQuery(**request_data["quant_query"])
-            quant_response = QuantResponse(**request_data["quant_response"])
-            
-            # Call the subnet evaluation function
-            score = await asyncio.to_thread(
-                subnet_evaluation, quant_query, quant_response
+
+            # Validate the swap transaction
+            if request.chain == "solana":
+                validation_result = await jup_validator.validate_swap_transaction(
+                    request.txid
+                )
+                logging.info(f"Validation result: {validation_result}")
+                if not validation_result or not validation_result.get("valid"):
+                    return ProcessSwapResponse(
+                        success=False,
+                        points_awarded=0,
+                        referral_reward=0.0,
+                        message="Invalid or non-JUP swap transaction",
+                    )
+
+                # Get the actual referral reward from the transaction
+                referral_reward_usdc = validation_result.get(
+                    "referral_reward_usdc", 0.0
+                )
+
+                # Calculate points to award
+                points_awarded = jup_validator.calculate_points_from_reward(
+                    referral_reward_usdc
+                )
+            elif request.chain in ["ethereum", "base"]:
+                # Handle CoW protocol swaps
+                validation_result = await cow_validator.validate_swap_order(
+                    request.txid, request.chain
+                )
+                if not validation_result or not validation_result.get("valid"):
+                    return ProcessSwapResponse(
+                        success=False,
+                        points_awarded=0,
+                        referral_reward=0.0,
+                        message="Invalid or non-CoW swap order",
+                    )
+
+                # Get the actual referral reward from the order in USD
+                referral_reward_usdc = validation_result.get(
+                    "referral_reward_usdc", 0.0
+                )
+                points_awarded = validation_result.get("points_awarded", 0)
+            else:
+                raise HTTPException(status_code=400, detail="Invalid chain")
+
+            # Award points to the user
+            if points_awarded > 0:
+                await activity_tracker.award_swap_points(
+                    request.address, points_awarded
+                )
+
+            # Mark the swap as processed
+            await swap_tracker.mark_swap_processed(
+                request.chain,
+                request.txid,
+                request.address,
+                referral_reward_usdc,
+                points_awarded,
             )
-            
-            statsd.increment("subnet.evaluation.success")
-            return {"score": score}
-            
-        except ValidationError as e:
-            logging.exception("Validation error in subnet evaluation")
-            statsd.increment("subnet.evaluation.validation_error")
-            raise HTTPException(status_code=400, detail=str(e))
-        except Exception:
-            logging.exception("Error in subnet evaluation")
-            statsd.increment("subnet.evaluation.error")
+
+            return ProcessSwapResponse(
+                success=True,
+                points_awarded=points_awarded,
+                referral_reward=referral_reward_usdc,
+                message=f"Successfully processed swap and awarded {points_awarded} points",
+            )
+
+        except Exception as e:
+            logging.error(
+                f"Error processing swap: {e}\nTraceback:\n{traceback.format_exc()}"
+            )
             raise HTTPException(status_code=500, detail="Internal server error")
 
     @app.post("/api/subnet/query")
@@ -469,14 +538,14 @@ def create_fastapi_app() -> FastAPI:
     ):
         """
         Handle subnet queries without authentication.
-        
+
         Expected request body:
         {
             "query": "string",
             "userID": "string",
             "metadata": {}
         }
-        
+
         Returns:
         {
             "response": "string",
@@ -487,40 +556,33 @@ def create_fastapi_app() -> FastAPI:
         """
         try:
             request_data = await request.json()
-            
+
             # Validate required fields
             if "query" not in request_data:
-                raise HTTPException(
-                    status_code=400, 
-                    detail="Query is required"
-                )
-            
+                raise HTTPException(status_code=400, detail="Query is required")
+
             # Parse the request data into QuantQuery object
             quant_query = QuantQuery(**request_data)
-            
+
             # Convert QuantQuery to AgentChatRequest format
             # Use userID as wallet address
             wallet_address = quant_query.userID
-            
+
             # Create AgentChatRequest structure
             agent_request = AgentChatRequest(
                 context=Context(
-                    address=wallet_address,
-                    conversationHistory=[],
-                    miner_token=None
+                    address=wallet_address, conversationHistory=[], miner_token=None
                 ),
-                message=UserMessage(
-                    message=quant_query.query
-                ),
+                message=UserMessage(message=quant_query.query),
                 agent=None,  # Let router decide
-                captchaToken=None  # No captcha for subnet
+                captchaToken=None,  # No captcha for subnet
             )
-            
+
             # Get portfolio for the wallet address
             portfolio = await portfolio_fetcher.get_portfolio(
                 wallet_address=wallet_address
             )
-            
+
             # Process the request using the same logic as run_agent
             response = await handle_agent_chat_request(
                 token_metadata_repo=token_metadata_repo,
@@ -531,7 +593,7 @@ def create_fastapi_app() -> FastAPI:
                 analytics_agent=analytics_agent,
                 router_model=router_model,
             )
-            
+
             # Convert response to QuantResponse format
             quant_response = QuantResponse(
                 response=response.message,
@@ -539,12 +601,12 @@ def create_fastapi_app() -> FastAPI:
                 proofs=[],  # Empty proofs for now
                 metadata={
                     "pools": [pool.model_dump() for pool in response.pools],
-                    "tokens": [token.model_dump() for token in response.tokens]
-                }
+                    "tokens": [token.model_dump() for token in response.tokens],
+                },
             )
-            
+
             return quant_response.model_dump()
-            
+
         except ValidationError as e:
             logging.error(f"Validation error in subnet query: {e}")
             raise HTTPException(status_code=400, detail=str(e))
@@ -553,66 +615,53 @@ def create_fastapi_app() -> FastAPI:
             logging.error(f"Traceback: {traceback.format_exc()}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
-    # @app.post("/api/sentient/assist")
-    async def sentient_assist(
-        request: Request,
-        user: FirebaseIDTokenData = Depends(get_current_user),
-    ):
+    @app.get("/api/subnet/questions/pool")
+    async def get_question_pool():
         """
-        Proxy endpoint for Sentient Agent. Accepts JSON with 'session' and 'query',
-        calls BitQuantSentientAgent.assist, and returns the output blocks as JSON.
+        Get the current pool of evaluation questions.
+        Pool refreshes every hour with N new questions.
+
+        Returns:
+        {
+            "questions": ["Should I buy BTC...", "Compare ETH..."],
+            "generated_at": "2025-10-06T12:00:00Z",
+            "expires_at": "2025-10-06T13:00:00Z",
+            "pool_size": 100,
+            "refresh_hours": 1
+        }
         """
         try:
-            data = await request.json()
-            session_dict = data.get("session")
-            query_dict = data.get("query")
-
-            class SentientAssistSession:
-                def __init__(self, processor_id, activity_id, request_id, interactions):
-                    self.processor_id = processor_id
-                    self.activity_id = activity_id
-                    self.request_id = request_id
-                    self.interactions = interactions or []
-
-                def get_interactions(self):
-                    return self.interactions
-
-            class SentientAssistQuery:
-                def __init__(self, id, prompt):
-                    self.id = id
-                    self.prompt = prompt
-
-            session = SentientAssistSession(
-                processor_id=session_dict.get("processor_id"),
-                activity_id=session_dict.get("activity_id"),
-                request_id=session_dict.get("request_id"),
-                interactions=session_dict.get("interactions", []),
-            )
-            query = SentientAssistQuery(
-                id=query_dict.get("id"),
-                prompt=query_dict.get("prompt"),
-            )
-
-            class SentientFlaskResponseHandler:
-                def __init__(self):
-                    self.blocks = []
-
-                async def emit_text_block(self, label, text):
-                    self.blocks.append({"label": label, "text": text})
-
-                async def complete(self):
-                    pass
-
-            agent = BitQuantSentientAgent()
-            handler = SentientFlaskResponseHandler()
-
-            await agent.assist(session, query, handler)
-            return JSONResponse(content={"blocks": handler.blocks})
+            pool_data = await question_pool_manager.get_pool()
+            logging.info(f"Serving question pool: {pool_data['pool_size']} questions")
+            statsd.increment("subnet.question_pool.served")
+            return pool_data
         except Exception as e:
-            logging.exception("Error in sentient_assist endpoint")
-            return JSONResponse(status_code=500, content={"error": str(e)})
+            logging.error(f"Error getting question pool: {e}")
+            statsd.increment("subnet.question_pool.error")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
-    return app
+    @app.get("/api/subnet/questions/stats")
+    async def get_question_pool_stats():
+        """
+        Get statistics about the question pool.
+
+        Returns:
+        {
+            "pool_size": 100,
+            "generated_at": "2025-10-06T12:00:00Z",
+            "refresh_hours": 1,
+            "time_until_refresh_seconds": 2847.5,
+            "templates_count": 15,
+            "tokens_count": 32,
+            "chains_count": 7
+        }
+        """
+        try:
+            stats = await question_pool_manager.get_stats()
+            return stats
+        except Exception as e:
+            logging.error(f"Error getting question pool stats: {e}")
+            raise HTTPException(status_code=500, detail="Internal server error")
 
 
 async def handle_agent_chat_request(
@@ -647,19 +696,19 @@ async def handle_agent_chat_request(
     selected_agent = router_response.content.strip().lower()
 
     # Extract agent type from response if it contains additional text
-    if "investor_agent" in selected_agent:
-        selected_agent = "investor_agent"
+    if "yield_agent" in selected_agent:
+        selected_agent = AgentType.YIELD
     elif "analytics_agent" in selected_agent:
-        selected_agent = "analytics_agent"
+        selected_agent = AgentType.ANALYTICS
     else:
         # Default to analytics agent if no clear choice
-        selected_agent = "analytics_agent"
+        selected_agent = AgentType.ANALYTICS
 
     if selected_agent == AgentType.ANALYTICS:
         return await handle_analytics_chat_request(
             request, token_metadata_repo, portfolio, analytics_agent
         )
-    elif selected_agent == AgentType.INVESTOR:
+    elif selected_agent == AgentType.YIELD:
         return await handle_investor_chat_request(
             request, portfolio, investor_agent, protocol_registry
         )
@@ -868,7 +917,15 @@ async def run_analytics_agent(
 
         # Extract final state and last message
         last_message = result["messages"][-1]
+
         cleaned_text, token_ids = extract_patterns(last_message.content, "token")
+        cleaned_text, buy_token_ids = extract_patterns(
+            cleaned_text, "swap", remove_pattern=False
+        )
+
+        # Deduplicate token ids
+        buy_token_ids = list(set(buy_token_ids))
+        token_ids = list(set(token_ids).difference(buy_token_ids))
 
         # Create list of async tasks for token metadata search
         token_metadata_tasks = [
@@ -876,7 +933,7 @@ async def run_analytics_agent(
                 parts[1] if len(parts) > 1 else parts[0],  # token part
                 parts[0] if len(parts) > 1 else None,  # chain part, None if no colon
             )
-            for token_id in token_ids
+            for token_id in token_ids + buy_token_ids
             for parts in [token_id.split(":", 1)]
         ]
 
@@ -889,16 +946,19 @@ async def run_analytics_agent(
                 name=token.name,
                 symbol=token.symbol,
                 chain=token.chain,
-                price_usd=str(token.price),
+                price_usd=token.price or 0.0,
                 market_cap_usd=(
                     str(token.market_cap_usd) if token.market_cap_usd else None
                 ),
                 dex_pool_address=token.dex_pool_address,
                 image_url=token.image_url,
+                show_buy_widget=f"{token.chain}:{token.address}" in buy_token_ids,
             )
             for token in token_metadata
             if token is not None
         ]
+        if any(token is None for token in token_metadata):
+            logging.warning(f"Some token metadata is None: {token_ids + buy_token_ids}")
 
         return AgentMessage(
             message=cleaned_text,
