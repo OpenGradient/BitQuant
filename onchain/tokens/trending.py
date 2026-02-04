@@ -1,11 +1,12 @@
-from typing import List, Dict
+from typing import List
 import os
 import requests
 from cachetools import cached, TTLCache
 import logging
 from typing import Tuple, Optional
+import math
 
-from langchain_core.tools import BaseTool, tool
+from langchain_core.tools import tool
 from langchain_core.runnables.config import RunnableConfig
 from agent.telemetry import track_tool_usage
 
@@ -102,7 +103,7 @@ def get_trending_tokens(
 ) -> str:
     """Retrieve the latest trending tokens on the given chain from DEX data."""
     chain = chain.lower()
-    trending_tokens = get_trending_tokens_from_coingecko(chain)[:8]
+    trending_tokens = get_trending_tokens_from_coingecko(chain)[:9]
     return f"""Trending tokens: {trending_tokens}. In your answer, include the ID of each token you mention in the following format: ```token:<insert token_id>```, and the name and symbol too."""
 
 
@@ -241,15 +242,63 @@ def get_trending_tokens_from_coingecko(chain: str) -> List[TokenMetadata]:
         token_id = relationships["base_token"]["data"]["id"]
         token = token_metadata[token_id]
 
+        rounded_price = _round_to_significant_digits(
+            float(attributes["base_token_price_usd"]), 5
+        )
+
         token = TokenMetadata(
             address=token["address"],
             chain=chain,
             name=token["name"],
             symbol=token["symbol"],
             dex_pool_address=attributes["address"],
-            price_usd=attributes["base_token_price_usd"],
+            price_usd=rounded_price,
             market_cap_usd=attributes.get("market_cap_usd"),
         )
         trending_tokens.append(token)
 
     return trending_tokens
+
+
+def _round_to_significant_digits(value: float, digits: int = 5) -> float:
+    """
+    Round a number to a specified number of significant digits.
+    For numbers > 1, keep all integer digits and only round the fractional part.
+
+    Examples:
+        - 530.24 -> 530.24 (keep integer part, round fractional part)
+        - 0.000555 -> 0.000555 (5 significant digits)
+        - 0.000123456 -> 0.00012346 (5 significant digits)
+        - 1234567.89 -> 1234567.9 (keep all integer digits, round fractional part)
+    """
+    if value == 0:
+        return 0.0
+
+    # For numbers >= 1, keep all integer digits and only round fractional part
+    if abs(value) >= 1:
+        # Count integer digits
+        integer_part = int(abs(value))
+        integer_digits = len(str(integer_part))
+
+        # Calculate remaining digits for fractional part
+        remaining_digits = max(0, digits - integer_digits)
+
+        # Round to the calculated decimal places
+        rounded = round(value, remaining_digits)
+
+        # Remove trailing zeros for cleaner display
+        if rounded == int(rounded):
+            return float(int(rounded))
+
+        return rounded
+    else:
+        # For numbers < 1, use the original significant digits logic
+        magnitude = math.floor(math.log10(abs(value)))
+        decimal_places = digits - 1 - magnitude
+        rounded = round(value, decimal_places)
+
+        # Remove trailing zeros for cleaner display
+        if rounded == int(rounded):
+            return float(int(rounded))
+
+        return rounded

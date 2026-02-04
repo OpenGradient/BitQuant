@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 from typing import Callable, Dict
 
-from server.config import MINER_TOKEN, DAILY_LIMIT_BYPASS_WALLETS
 from server.dynamodb_helpers import TableContext
 
 
@@ -23,7 +22,7 @@ class ActivityStats:
 class PointsConfig:
     POINTS_PER_MESSAGE = 0
     POINTS_PER_SUCCESSFUL_INVITE = 0
-    DAILY_MESSAGE_LIMIT = 8
+    DAILY_MESSAGE_LIMIT = 25
 
 
 class ActivityTracker:
@@ -123,6 +122,26 @@ class ActivityTracker:
                 UpdateExpression="ADD successful_invites :inc",
                 ExpressionAttributeValues={
                     ":inc": 1,
+                },
+            )
+
+    async def award_swap_points(self, user_address: str, points: int):
+        """
+        Award points to a user for a successful JUP swap referral.
+
+        Args:
+            user_address: The user's wallet address
+            points: The number of points to award
+        """
+        if points <= 0:
+            return
+
+        async with self.get_table() as table:
+            await table.update_item(
+                Key={"user_address": user_address},
+                UpdateExpression="ADD points :points",
+                ExpressionAttributeValues={
+                    ":points": points,
                 },
             )
 

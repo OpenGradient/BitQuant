@@ -8,6 +8,12 @@ requires-python = ">=3.8"
 line-length = 88
 target-version = ['py38']
 
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+markers = [
+    "asyncio: marks tests as async (deselect with '-m \"not asyncio\"')",
+]
+
 [tool.mypy]
 python_version = "3.8"
 disallow_untyped_defs = false
