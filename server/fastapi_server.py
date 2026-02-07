@@ -37,13 +37,11 @@ from agent.agent_executors import (
     create_investor_executor,
     create_suggestions_model,
     create_analytics_executor,
-    create_routing_model,
 )
 from agent.prompts import (
     get_investor_agent_prompt,
     get_suggestions_prompt,
     get_analytics_prompt,
-    get_router_prompt,
 )
 from agent.tools import (
     create_investor_agent_toolkit,
@@ -142,7 +140,6 @@ def create_fastapi_app() -> FastAPI:
         await cow_validator.close()
 
     # Initialize agents
-    router_model = create_routing_model()
     suggestions_model = create_suggestions_model()
     analytics_agent = create_analytics_executor(token_metadata_repo)
     investor_agent = create_investor_executor()
@@ -154,7 +151,6 @@ def create_fastapi_app() -> FastAPI:
     protocol_registry.register_protocol(KaminoProtocol())
 
     # Store agents in app state
-    app.state.router_model = router_model
     app.state.suggestions_model = suggestions_model
     app.state.analytics_agent = analytics_agent
     app.state.investor_agent = investor_agent
@@ -326,7 +322,6 @@ def create_fastapi_app() -> FastAPI:
                 portfolio=portfolio,
                 investor_agent=investor_agent,
                 analytics_agent=analytics_agent,
-                router_model=router_model,
             )
 
             return (
@@ -574,7 +569,7 @@ def create_fastapi_app() -> FastAPI:
                     address=wallet_address, conversationHistory=[], miner_token=None
                 ),
                 message=UserMessage(message=quant_query.query),
-                agent=None,  # Let router decide
+                agent=AgentType.ANALYTICS,
                 captchaToken=None,  # No captcha for subnet
             )
 
@@ -591,7 +586,6 @@ def create_fastapi_app() -> FastAPI:
                 portfolio=portfolio,
                 investor_agent=investor_agent,
                 analytics_agent=analytics_agent,
-                router_model=router_model,
             )
 
             # Convert response to QuantResponse format
@@ -671,49 +665,17 @@ async def handle_agent_chat_request(
     token_metadata_repo: TokenMetadataRepo,
     investor_agent: any,
     analytics_agent: any,
-    router_model: ChatOpenAI,
 ) -> AgentMessage:
-    # If agent is explicitly specified, bypass router
-    if request.agent is not None:
-        if request.agent == AgentType.ANALYTICS:
-            return await handle_analytics_chat_request(
-                request, token_metadata_repo, portfolio, analytics_agent
-            )
-        elif request.agent == AgentType.INVESTOR:
-            return await handle_investor_chat_request(
-                request, portfolio, investor_agent, protocol_registry
-            )
-        else:
-            raise ValueError(f"Invalid agent type specified: {request.agent}")
-
-    # Otherwise use router to determine agent
-    router_prompt = get_router_prompt(
-        message_history=request.context.conversationHistory[-NUM_MESSAGES_TO_KEEP:],
-        current_message=request.message.message,
-    )
-
-    router_response = await router_model.ainvoke(router_prompt)
-    selected_agent = router_response.content.strip().lower()
-
-    # Extract agent type from response if it contains additional text
-    if "yield_agent" in selected_agent:
-        selected_agent = AgentType.YIELD
-    elif "analytics_agent" in selected_agent:
-        selected_agent = AgentType.ANALYTICS
-    else:
-        # Default to analytics agent if no clear choice
-        selected_agent = AgentType.ANALYTICS
-
-    if selected_agent == AgentType.ANALYTICS:
+    if request.agent == AgentType.ANALYTICS:
         return await handle_analytics_chat_request(
             request, token_metadata_repo, portfolio, analytics_agent
         )
-    elif selected_agent == AgentType.YIELD:
+    elif request.agent == AgentType.INVESTOR:
         return await handle_investor_chat_request(
             request, portfolio, investor_agent, protocol_registry
         )
     else:
-        raise ValueError(f"Invalid agent selection from router: {selected_agent}")
+        raise ValueError(f"Invalid agent type specified: {request.agent}")
 
 
 async def handle_investor_chat_request(

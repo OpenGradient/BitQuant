@@ -14,7 +14,6 @@ env = jinja2.Environment(loader=jinja2.FileSystemLoader(templates_dir))
 investor_agent_template = env.get_template("investor_agent.jinja2")
 analytics_agent_template = env.get_template("analytics_agent.jinja2")
 suggestions_template = env.get_template("suggestions.jinja2")
-router_template = env.get_template("router.jinja2")
 
 
 # We ignore token holdings with a total value of less than $1
@@ -106,29 +105,3 @@ def get_analytics_prompt(
     )
 
     return analytics_agent_prompt
-
-
-def get_router_prompt(message_history: List[Message], current_message: str) -> str:
-    """Get the router prompt to determine which agent should handle the request."""
-
-    MAX_AGENT_MESSAGE_LENGTH = 400
-
-    # Truncate assistant response to 400 characters, also include the message type
-    message_history = [
-        {
-            "type": message.type,
-            "message": (
-                message.message[:MAX_AGENT_MESSAGE_LENGTH] + "..."
-                if message.type == "assistant"
-                and len(message.message) > MAX_AGENT_MESSAGE_LENGTH
-                else message.message
-            ),
-        }
-        for message in message_history
-    ]
-
-    router_prompt = router_template.render(
-        message_history=message_history,
-        current_message=current_message,
-    )
-    return router_prompt

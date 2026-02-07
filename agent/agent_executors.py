@@ -72,29 +72,15 @@ x402_http_client = httpx.AsyncClient(
 # Select model based on configuration
 if not config.SUBNET_MODE:
     SUGGESTIONS_MODEL = GOOGLE_GEMINI_20_FLASH_MODEL
-    ROUTING_MODEL = GOOGLE_GEMINI_FLASH_15_8B_MODEL
     REASONING_MODEL = GOOGLE_GEMINI_20_FLASH_MODEL
     BASE_URL = "https://generativelanguage.googleapis.com/v1beta/"
     API_KEY = os.getenv("GEMINI_API_KEY")
 else:
     SUGGESTIONS_MODEL = LOCAL_LLM_MODEL
-    ROUTING_MODEL = LOCAL_LLM_MODEL
     REASONING_MODEL = LOCAL_LLM_MODEL
     BASE_URL = LOCAL_LLM_BASE_URL
     API_KEY = "dummy_key"
 
-
-def create_routing_model() -> BaseChatModel:
-    return ChatOpenAI(
-        model=ROUTING_MODEL,
-        temperature=0.0,
-        max_tokens=500,
-        api_key=config.DUMMY_X402_API_KEY,
-        http_async_client=x402_http_client,
-        stream_usage=True,
-        streaming=True,
-        base_url=config.LLM_SERVER_URL,
-    )
 
 
 def create_suggestions_model() -> BaseChatModel:
