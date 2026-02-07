@@ -9,7 +9,7 @@ import csv
 import requests
 from time import sleep
 from datetime import datetime, timedelta, UTC
-from cachetools import TTLCache
+from cachetools import TTLCache, cached
 
 from agent.telemetry import track_tool_usage
 from api.api_types import WalletTokenHolding
@@ -32,6 +32,12 @@ COINGECKO_HEADERS = {
 
 # Cache for price data (10-minute TTL)
 price_data_cache = TTLCache(maxsize=1000, ttl=600)
+
+# Caches for market data (5-minute TTL)
+_coin_data_cache = TTLCache(maxsize=100, ttl=300)
+_coins_markets_cache = TTLCache(maxsize=50, ttl=300)
+_global_data_cache = TTLCache(maxsize=1, ttl=300)
+_global_defi_cache = TTLCache(maxsize=1, ttl=300)
 
 # Common token mappings for better user experience
 PREFERRED_TOKEN_IDS = {
@@ -1364,5 +1370,382 @@ def portfolio_volatility(
     except Exception as e:
         return {
             "error": f"Error calculating portfolio volatility: {str(e)}",
+            "traceback": traceback.format_exc(),
+        }
+
+
+# --- Cached helpers for market data endpoints ---
+
+
+@cached(_coin_data_cache)
+def _fetch_coin_data(coin_id: str) -> Dict[str, Any]:
+    """Fetch comprehensive coin data from /coins/{id} with caching."""
+    url = f"{COINGECKO_BASE_URL}/coins/{coin_id}"
+    params = {
+        "localization": "false",
+        "tickers": "false",
+        "market_data": "true",
+        "community_data": "true",
+        "developer_data": "true",
+    }
+    return make_coingecko_request(url, params=params)
+
+
+@cached(_coins_markets_cache)
+def _fetch_coins_markets(
+    vs_currency: str, num_coins: int, category: Optional[str], ids: Optional[str]
+) -> List[Dict[str, Any]]:
+    """Fetch coins/markets data with caching."""
+    url = f"{COINGECKO_BASE_URL}/coins/markets"
+    params = {
+        "vs_currency": vs_currency,
+        "order": "market_cap_desc",
+        "per_page": num_coins,
+        "page": 1,
+        "sparkline": "false",
+        "price_change_percentage": "1h,24h,7d,30d",
+    }
+    if category:
+        params["category"] = category
+    if ids:
+        params["ids"] = ids
+    return make_coingecko_request(url, params=params)
+
+
+@cached(_global_data_cache)
+def _fetch_global_data() -> Dict[str, Any]:
+    """Fetch global market data with caching."""
+    url = f"{COINGECKO_BASE_URL}/global"
+    return make_coingecko_request(url)
+
+
+@cached(_global_defi_cache)
+def _fetch_global_defi_data() -> Dict[str, Any]:
+    """Fetch global DeFi data with caching."""
+    url = f"{COINGECKO_BASE_URL}/global/decentralized_finance_defi"
+    return make_coingecko_request(url)
+
+
+# --- New market data tools ---
+
+
+@tool()
+@track_tool_usage("get_token_market_info")
+def get_token_market_info(token_symbol: str) -> Dict[str, Any]:
+    """
+    Get comprehensive market data for a single token including market cap, FDV,
+    volume, price changes across multiple timeframes, ATH/ATL, supply metrics,
+    community data, and developer activity.
+    """
+    try:
+        token_id, error_message = get_coingecko_id(token_symbol)
+        if not token_id:
+            return {"error": f"Failed to resolve CoinGecko ID for {token_symbol}"}
+
+        data = _fetch_coin_data(token_id)
+
+        if isinstance(data, dict) and "error" in data:
+            suggestions = get_coin_suggestions(token_symbol, token_id)
+            error_msg = f"CoinGecko API couldn't find coin with ID '{token_id}'."
+            if suggestions:
+                error_msg += f" {suggestions}"
+            return {"error": error_msg}
+
+        md = data.get("market_data", {})
+
+        result = {
+            "token_symbol": token_symbol,
+            "token_id": token_id,
+            "name": data.get("name"),
+            "market_cap_rank": data.get("market_cap_rank"),
+            "market_data": {
+                "current_price_usd": md.get("current_price", {}).get("usd"),
+                "market_cap_usd": md.get("market_cap", {}).get("usd"),
+                "fully_diluted_valuation_usd": md.get(
+                    "fully_diluted_valuation", {}
+                ).get("usd"),
+                "total_volume_usd": md.get("total_volume", {}).get("usd"),
+                "price_change_percentage": {
+                    "1h": md.get("price_change_percentage_1h_in_currency", {}).get(
+                        "usd"
+                    ),
+                    "24h": md.get("price_change_percentage_24h"),
+                    "7d": md.get("price_change_percentage_7d"),
+                    "14d": md.get("price_change_percentage_14d"),
+                    "30d": md.get("price_change_percentage_30d"),
+                    "60d": md.get("price_change_percentage_60d"),
+                    "200d": md.get("price_change_percentage_200d"),
+                    "1y": md.get("price_change_percentage_1y"),
+                },
+                "ath": {
+                    "price_usd": md.get("ath", {}).get("usd"),
+                    "date": md.get("ath_date", {}).get("usd"),
+                    "change_percentage": md.get("ath_change_percentage", {}).get("usd"),
+                },
+                "atl": {
+                    "price_usd": md.get("atl", {}).get("usd"),
+                    "date": md.get("atl_date", {}).get("usd"),
+                    "change_percentage": md.get("atl_change_percentage", {}).get("usd"),
+                },
+                "supply": {
+                    "circulating": md.get("circulating_supply"),
+                    "total": md.get("total_supply"),
+                    "max": md.get("max_supply"),
+                },
+            },
+            "community_data": data.get("community_data"),
+            "developer_data": {
+                "stars": data.get("developer_data", {}).get("stars"),
+                "forks": data.get("developer_data", {}).get("forks"),
+                "subscribers": data.get("developer_data", {}).get("subscribers"),
+                "total_issues": data.get("developer_data", {}).get("total_issues"),
+                "commit_count_4_weeks": data.get("developer_data", {}).get(
+                    "commit_count_4_weeks"
+                ),
+            },
+        }
+
+        if error_message:
+            result["warning"] = error_message
+
+        return result
+
+    except Exception as e:
+        return {
+            "error": f"Error fetching market info for {token_symbol}: {str(e)}",
+            "traceback": traceback.format_exc(),
+        }
+
+
+@tool()
+@track_tool_usage("get_top_coins_by_market_cap")
+def get_top_coins_by_market_cap(
+    vs_currency: str = "usd",
+    num_coins: int = 20,
+    category: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Get top N coins ranked by market cap with optional category filter.
+    Categories include: 'decentralized-finance-defi', 'meme-token', 'layer-1',
+    'layer-2', 'gaming', etc. Max 50 coins per request.
+    """
+    try:
+        num_coins = min(max(1, num_coins), 50)
+
+        coins = _fetch_coins_markets(vs_currency, num_coins, category, None)
+
+        if isinstance(coins, dict) and "error" in coins:
+            return {"error": f"CoinGecko API error: {coins['error']}"}
+
+        if not isinstance(coins, list) or len(coins) == 0:
+            return {"error": "No coins found for the specified criteria."}
+
+        results = []
+        for coin in coins:
+            results.append(
+                {
+                    "rank": coin.get("market_cap_rank"),
+                    "name": coin.get("name"),
+                    "symbol": coin.get("symbol", "").upper(),
+                    "current_price": coin.get("current_price"),
+                    "market_cap": coin.get("market_cap"),
+                    "total_volume": coin.get("total_volume"),
+                    "price_change_percentage": {
+                        "1h": coin.get("price_change_percentage_1h_in_currency"),
+                        "24h": coin.get("price_change_percentage_24h"),
+                        "7d": coin.get("price_change_percentage_7d_in_currency"),
+                        "30d": coin.get("price_change_percentage_30d_in_currency"),
+                    },
+                    "ath": coin.get("ath"),
+                    "ath_change_percentage": coin.get("ath_change_percentage"),
+                }
+            )
+
+        return {
+            "vs_currency": vs_currency,
+            "category": category,
+            "num_coins": len(results),
+            "coins": results,
+        }
+
+    except Exception as e:
+        return {
+            "error": f"Error fetching top coins: {str(e)}",
+            "traceback": traceback.format_exc(),
+        }
+
+
+@tool()
+@track_tool_usage("get_global_market_overview")
+def get_global_market_overview() -> Dict[str, Any]:
+    """
+    Get a global crypto market snapshot including total market cap, BTC/ETH dominance,
+    active cryptocurrencies count, and DeFi-specific metrics like DeFi market cap
+    and DeFi-to-ETH ratio.
+    """
+    try:
+        global_data = _fetch_global_data()
+        defi_data = _fetch_global_defi_data()
+
+        if isinstance(global_data, dict) and "error" in global_data:
+            return {"error": f"CoinGecko API error: {global_data['error']}"}
+
+        gd = global_data.get("data", {})
+        dd = defi_data.get("data", {})
+
+        return {
+            "global_market": {
+                "total_market_cap_usd": gd.get("total_market_cap", {}).get("usd"),
+                "total_volume_usd": gd.get("total_volume", {}).get("usd"),
+                "market_cap_change_percentage_24h": gd.get(
+                    "market_cap_change_percentage_24h_usd"
+                ),
+                "btc_dominance": gd.get("market_cap_percentage", {}).get("btc"),
+                "eth_dominance": gd.get("market_cap_percentage", {}).get("eth"),
+                "active_cryptocurrencies": gd.get("active_cryptocurrencies"),
+                "markets": gd.get("markets"),
+            },
+            "defi_market": {
+                "defi_market_cap": dd.get("defi_market_cap"),
+                "eth_market_cap": dd.get("eth_market_cap"),
+                "defi_to_eth_ratio": dd.get("defi_to_eth_ratio"),
+                "trading_volume_24h": dd.get("trading_volume_24h"),
+                "defi_dominance": dd.get("defi_dominance"),
+                "top_coin_name": dd.get("top_coin_name"),
+                "top_coin_defi_dominance": dd.get("top_coin_defi_dominance"),
+            },
+        }
+
+    except Exception as e:
+        return {
+            "error": f"Error fetching global market overview: {str(e)}",
+            "traceback": traceback.format_exc(),
+        }
+
+
+@tool()
+@track_tool_usage("compare_tokens")
+def compare_tokens(token_symbols: List[str]) -> Dict[str, Any]:
+    """
+    Side-by-side fundamental comparison of 2-4 tokens using market data.
+    Compares price, market cap, volume, price changes, and ATH distance.
+    Also computes relative metrics like highest market cap, best/worst 24h performer,
+    closest to ATH, and highest volume/market-cap ratio.
+    This complements compare_assets which does technical comparison.
+    """
+    try:
+        if len(token_symbols) < 2:
+            return {"error": "Please provide at least 2 tokens to compare."}
+        if len(token_symbols) > 4:
+            return {"error": "Please provide at most 4 tokens to compare."}
+
+        # Resolve all token IDs
+        coin_ids = []
+        id_to_symbol = {}
+        for symbol in token_symbols:
+            token_id, err = get_coingecko_id(symbol)
+            if not token_id:
+                return {"error": f"Failed to resolve CoinGecko ID for {symbol}"}
+            coin_ids.append(token_id)
+            id_to_symbol[token_id] = symbol
+
+        # Single batched API call
+        ids_param = ",".join(coin_ids)
+        coins = _fetch_coins_markets("usd", len(coin_ids), None, ids_param)
+
+        if isinstance(coins, dict) and "error" in coins:
+            return {"error": f"CoinGecko API error: {coins['error']}"}
+
+        if not isinstance(coins, list) or len(coins) == 0:
+            return {"error": "No data returned for the specified tokens."}
+
+        # Build per-token data
+        tokens_data = []
+        for coin in coins:
+            cid = coin.get("id", "")
+            symbol = id_to_symbol.get(cid, coin.get("symbol", "").upper())
+            market_cap = coin.get("market_cap") or 0
+            total_volume = coin.get("total_volume") or 0
+            vol_mcap_ratio = (
+                round(total_volume / market_cap, 4) if market_cap > 0 else None
+            )
+
+            tokens_data.append(
+                {
+                    "symbol": symbol,
+                    "name": coin.get("name"),
+                    "current_price": coin.get("current_price"),
+                    "market_cap": market_cap,
+                    "total_volume": total_volume,
+                    "volume_to_market_cap_ratio": vol_mcap_ratio,
+                    "price_change_percentage": {
+                        "1h": coin.get("price_change_percentage_1h_in_currency"),
+                        "24h": coin.get("price_change_percentage_24h"),
+                        "7d": coin.get("price_change_percentage_7d_in_currency"),
+                        "30d": coin.get("price_change_percentage_30d_in_currency"),
+                    },
+                    "ath": coin.get("ath"),
+                    "ath_change_percentage": coin.get("ath_change_percentage"),
+                    "market_cap_rank": coin.get("market_cap_rank"),
+                }
+            )
+
+        # Compute relative metrics
+        valid_tokens = [t for t in tokens_data if t["market_cap"] > 0]
+
+        relative = {}
+        if valid_tokens:
+            highest_mcap = max(valid_tokens, key=lambda t: t["market_cap"])
+            relative["highest_market_cap"] = highest_mcap["symbol"]
+
+            tokens_with_24h = [
+                t
+                for t in valid_tokens
+                if t["price_change_percentage"]["24h"] is not None
+            ]
+            if tokens_with_24h:
+                best_24h = max(
+                    tokens_with_24h,
+                    key=lambda t: t["price_change_percentage"]["24h"],
+                )
+                worst_24h = min(
+                    tokens_with_24h,
+                    key=lambda t: t["price_change_percentage"]["24h"],
+                )
+                relative["best_24h_performer"] = best_24h["symbol"]
+                relative["worst_24h_performer"] = worst_24h["symbol"]
+
+            tokens_with_ath = [
+                t
+                for t in valid_tokens
+                if t["ath_change_percentage"] is not None
+            ]
+            if tokens_with_ath:
+                closest_ath = max(
+                    tokens_with_ath,
+                    key=lambda t: t["ath_change_percentage"],
+                )
+                relative["closest_to_ath"] = closest_ath["symbol"]
+
+            tokens_with_ratio = [
+                t
+                for t in valid_tokens
+                if t["volume_to_market_cap_ratio"] is not None
+            ]
+            if tokens_with_ratio:
+                highest_vol_ratio = max(
+                    tokens_with_ratio,
+                    key=lambda t: t["volume_to_market_cap_ratio"],
+                )
+                relative["highest_volume_mcap_ratio"] = highest_vol_ratio["symbol"]
+
+        return {
+            "tokens": tokens_data,
+            "relative_metrics": relative,
+        }
+
+    except Exception as e:
+        return {
+            "error": f"Error comparing tokens: {str(e)}",
             "traceback": traceback.format_exc(),
         }

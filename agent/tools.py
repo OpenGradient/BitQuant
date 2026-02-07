@@ -19,6 +19,10 @@ from onchain.analytics.analytics_tools import (
     analyze_price_trend,
     analyze_wallet_portfolio,
     get_coingecko_current_price,
+    get_token_market_info,
+    get_top_coins_by_market_cap,
+    get_global_market_overview,
+    compare_tokens,
 )
 from onchain.tokens.trending import (
     get_trending_tokens,
@@ -96,6 +100,11 @@ def create_analytics_agent_toolkit(
         portfolio_volatility,
         analyze_wallet_portfolio,
         get_coingecko_current_price,
+        # Market data tools
+        get_token_market_info,
+        get_top_coins_by_market_cap,
+        get_global_market_overview,
+        compare_tokens,
         # Token tools
         get_trending_tokens,
         evaluate_token_risk,

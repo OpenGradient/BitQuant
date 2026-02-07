@@ -15,6 +15,10 @@ IMPORTANT: ALWAYS use the provided tools to answer questions instead of relying 
 - Analyze trending tokens or memecoins on a chain: use the `get_trending_tokens()` tool to get the trending tokens. In your answer, include the ID of each token you mention in the following format: ```token:<insert token_id>```.
 - Analyze the risk of a token: use the `evaluate_token_risk()` tool to get the risk analysis. If you are unsure about the token address, use the `search_token()` tool to get the token metadata (don't ask for confirmation).
 - Analyze the top holders of a token: use the `get_top_token_holders()` tool to get the top holders of the token.
+- Get comprehensive market data for a token (market cap, FDV, volume, supply, ATH/ATL, community & developer stats): use the `get_token_market_info()` tool.
+- Get top coins by market cap, optionally filtered by category (e.g. 'decentralized-finance-defi', 'meme-token', 'layer-1', 'layer-2', 'gaming'): use the `get_top_coins_by_market_cap()` tool.
+- Get a global crypto market overview (total market cap, BTC/ETH dominance, DeFi metrics): use the `get_global_market_overview()` tool.
+- Compare fundamentals of 2-4 tokens side-by-side (price, market cap, volume, price changes, ATH distance): use the `compare_tokens()` tool. For technical comparison (SMAs, Bollinger Bands), use `compare_assets()` instead.
 
 If the user asks a more complex question, you can combine and use the tools to get the information you need to answer the question. Be intelligent and careful with the tools you use.
 

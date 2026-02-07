@@ -8,6 +8,10 @@ from onchain.analytics.analytics_tools import (
     max_drawdown_for_token,
     compare_assets,
     analyze_price_trend,
+    get_token_market_info,
+    get_top_coins_by_market_cap,
+    get_global_market_overview,
+    compare_tokens,
     CandleInterval,
 )
 
@@ -186,6 +190,122 @@ class TestFinancialAnalyticsTools(unittest.TestCase):
         self.assertIn("investment_insights", result)
 
         print(result)
+
+
+    # --- Tests for new market data tools ---
+
+    def test_get_token_market_info(self):
+        """Test fetching comprehensive market data for a token"""
+        result = get_token_market_info.invoke({"token_symbol": "BTC"})
+
+        self.assertNotIn("error", result)
+        self.assertEqual(result["token_id"], "bitcoin")
+        self.assertIn("market_data", result)
+        self.assertIn("current_price_usd", result["market_data"])
+        self.assertIn("market_cap_usd", result["market_data"])
+        self.assertIn("price_change_percentage", result["market_data"])
+        self.assertIn("ath", result["market_data"])
+        self.assertIn("atl", result["market_data"])
+        self.assertIn("supply", result["market_data"])
+        self.assertIsNotNone(result["market_data"]["current_price_usd"])
+        self.assertIsNotNone(result.get("market_cap_rank"))
+
+    def test_get_token_market_info_invalid(self):
+        """Test error handling for invalid token in market info"""
+        result = get_token_market_info.invoke(
+            {"token_symbol": "TOTALLYINVALIDTOKEN999"}
+        )
+        self.assertIn("error", result)
+
+    def test_get_top_coins_by_market_cap(self):
+        """Test fetching top coins by market cap"""
+        result = get_top_coins_by_market_cap.invoke(
+            {"vs_currency": "usd", "num_coins": 10}
+        )
+
+        self.assertNotIn("error", result)
+        self.assertIn("coins", result)
+        self.assertEqual(result["num_coins"], 10)
+        self.assertEqual(len(result["coins"]), 10)
+
+        # Verify first coin has expected fields
+        first_coin = result["coins"][0]
+        self.assertIn("rank", first_coin)
+        self.assertIn("name", first_coin)
+        self.assertIn("current_price", first_coin)
+        self.assertIn("market_cap", first_coin)
+        self.assertIn("price_change_percentage", first_coin)
+
+    def test_get_top_coins_by_market_cap_with_category(self):
+        """Test fetching top coins filtered by category"""
+        result = get_top_coins_by_market_cap.invoke(
+            {
+                "vs_currency": "usd",
+                "num_coins": 5,
+                "category": "decentralized-finance-defi",
+            }
+        )
+
+        self.assertNotIn("error", result)
+        self.assertIn("coins", result)
+        self.assertEqual(result["category"], "decentralized-finance-defi")
+        self.assertTrue(len(result["coins"]) > 0)
+
+    def test_get_global_market_overview(self):
+        """Test fetching global market overview"""
+        result = get_global_market_overview.invoke({})
+
+        self.assertNotIn("error", result)
+        self.assertIn("global_market", result)
+        self.assertIn("defi_market", result)
+
+        gm = result["global_market"]
+        self.assertIn("total_market_cap_usd", gm)
+        self.assertIn("btc_dominance", gm)
+        self.assertIn("eth_dominance", gm)
+        self.assertIn("active_cryptocurrencies", gm)
+        self.assertIsNotNone(gm["total_market_cap_usd"])
+
+        dm = result["defi_market"]
+        self.assertIn("defi_market_cap", dm)
+        self.assertIn("defi_to_eth_ratio", dm)
+
+    def test_compare_tokens(self):
+        """Test side-by-side fundamental comparison of tokens"""
+        result = compare_tokens.invoke(
+            {"token_symbols": ["BTC", "ETH", "SOL"]}
+        )
+
+        self.assertNotIn("error", result)
+        self.assertIn("tokens", result)
+        self.assertIn("relative_metrics", result)
+        self.assertEqual(len(result["tokens"]), 3)
+
+        # Verify relative metrics
+        rm = result["relative_metrics"]
+        self.assertIn("highest_market_cap", rm)
+        self.assertIn("best_24h_performer", rm)
+        self.assertIn("worst_24h_performer", rm)
+
+        # Verify per-token data
+        for token in result["tokens"]:
+            self.assertIn("current_price", token)
+            self.assertIn("market_cap", token)
+            self.assertIn("price_change_percentage", token)
+
+    def test_compare_tokens_too_few(self):
+        """Test that compare_tokens rejects fewer than 2 tokens"""
+        result = compare_tokens.invoke({"token_symbols": ["BTC"]})
+        self.assertIn("error", result)
+        self.assertIn("at least 2", result["error"])
+
+    def test_compare_tokens_too_many(self):
+        """Test that compare_tokens rejects more than 4 tokens"""
+        result = compare_tokens.invoke(
+            {"token_symbols": ["BTC", "ETH", "SOL", "ADA", "DOT"]}
+        )
+        self.assertIn("error", result)
+        self.assertIn("at most 4", result["error"])
 
 
 if __name__ == "__main__":
