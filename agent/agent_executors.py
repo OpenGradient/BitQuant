@@ -40,9 +40,6 @@ LIMITS = httpx.Limits(
 GOOGLE_GEMINI_20_FLASH_MODEL = (
     "gemini-2.0-flash"  # $0.1/M input tokens; $0.4/M output tokens
 )
-GOOGLE_GEMINI_FLASH_15_8B_MODEL = (
-    "gemini-2.5-flash-lite"  # $0.0375/M input tokens; $0.15/M output tokens
-)
 LLAMA_3_1_405B_MODEL = (
     "meta-llama/llama-3.1-405b-instruct"  # $0.8/M input tokens; $0.8/M output tokens
 )
@@ -63,23 +60,9 @@ x402_http_client = httpx.AsyncClient(
 
 # Select model based on configuration
 SUGGESTIONS_MODEL = GOOGLE_GEMINI_20_FLASH_MODEL
-ROUTING_MODEL = GOOGLE_GEMINI_FLASH_15_8B_MODEL
 REASONING_MODEL = GOOGLE_GEMINI_20_FLASH_MODEL
 BASE_URL = "https://generativelanguage.googleapis.com/v1beta/"
 API_KEY = os.getenv("GEMINI_API_KEY")
-
-
-def create_routing_model() -> BaseChatModel:
-    return ChatOpenAI(
-        model=ROUTING_MODEL,
-        temperature=0.0,
-        max_tokens=500,
-        api_key=config.DUMMY_X402_API_KEY,
-        http_async_client=x402_http_client,
-        stream_usage=True,
-        streaming=True,
-        base_url=config.LLM_SERVER_URL,
-    )
 
 
 def create_suggestions_model() -> BaseChatModel:
