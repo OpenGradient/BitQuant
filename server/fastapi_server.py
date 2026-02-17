@@ -160,8 +160,6 @@ def create_fastapi_app() -> FastAPI:
     @app.on_event("startup")
     async def startup_event():
         await protocol_registry.initialize()
-        await question_pool_manager.ensure_pool_ready()
-        logging.info("✅ Question pool initialized!")
 
     # Exception handlers
     @app.exception_handler(ValidationError)
