@@ -527,6 +527,8 @@ def create_fastapi_app() -> FastAPI:
             )
             raise HTTPException(status_code=500, detail="Internal server error")
 
+    return app
+
 
 async def handle_agent_chat_request(
     protocol_registry: ProtocolRegistry,
