@@ -53,7 +53,6 @@ from server.invitecode import InviteCodeManager
 from server.activity_tracker import ActivityTracker
 from server.utils import extract_patterns, convert_to_agent_msg
 from server.dynamodb_helpers import DatabaseManager
-from agent.integrations.sentient.sentient_agent import BitQuantSentientAgent
 from server.middleware import DatadogMetricsMiddleware
 from server.swap_tracker import SwapTracker
 from server.jup_validator import JUPValidator
