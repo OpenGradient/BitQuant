@@ -1366,3 +1366,125 @@ def portfolio_volatility(
             "error": f"Error calculating portfolio volatility: {str(e)}",
             "traceback": traceback.format_exc(),
         }
+
+
+# Fear & Greed Index API settings
+FEAR_GREED_API_URL = "https://api.alternative.me/fng/"
+
+# Cache for Fear & Greed data (10-minute TTL)
+fear_greed_cache = TTLCache(maxsize=100, ttl=600)
+
+
+@tool
+@track_tool_usage("get_fear_greed_index")
+def get_fear_greed_index(days: int = 1) -> Dict[str, Any]:
+    """
+    Get the Bitcoin Fear & Greed Index, a sentiment indicator that measures market emotions.
+
+    The index ranges from 0 to 100:
+    - 0-24: Extreme Fear (potential buying opportunity)
+    - 25-49: Fear
+    - 50: Neutral
+    - 51-74: Greed
+    - 75-100: Extreme Greed (potential selling signal)
+
+    Args:
+        days: Number of days of historical data to fetch (1-365). Default is 1 (current value only).
+
+    Returns:
+        Dictionary containing:
+        - current: Current Fear & Greed value and classification
+        - history: Historical values if days > 1
+        - interpretation: What the current value suggests
+    """
+    try:
+        # Validate input
+        days = max(1, min(days, 365))
+
+        # Check cache first
+        cache_key = f"fear_greed_{days}"
+        if cache_key in fear_greed_cache:
+            return fear_greed_cache[cache_key]
+
+        # Fetch data from Alternative.me API
+        response = requests.get(
+            FEAR_GREED_API_URL,
+            params={"limit": days},
+            timeout=10,
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        if data.get("metadata", {}).get("error"):
+            return {"error": f"API error: {data['metadata']['error']}"}
+
+        if not data.get("data"):
+            return {"error": "No data returned from Fear & Greed API"}
+
+        # Process the data
+        entries = data["data"]
+        current_entry = entries[0]
+        current_value = int(current_entry["value"])
+        current_classification = current_entry["value_classification"]
+
+        # Generate interpretation
+        if current_value <= 24:
+            interpretation = "Extreme Fear - Markets are very worried. This could be a buying opportunity as assets may be undervalued."
+        elif current_value <= 49:
+            interpretation = "Fear - Investors are fearful. Consider this in your risk assessment."
+        elif current_value == 50:
+            interpretation = "Neutral - Market sentiment is balanced."
+        elif current_value <= 74:
+            interpretation = "Greed - Investors are getting greedy. Be cautious of potential overvaluation."
+        else:
+            interpretation = "Extreme Greed - Markets may be due for a correction. Consider taking profits or reducing exposure."
+
+        result = {
+            "current": {
+                "value": current_value,
+                "classification": current_classification,
+                "timestamp": timestamp_to_date(int(current_entry["timestamp"])),
+            },
+            "interpretation": interpretation,
+            "scale": {
+                "0-24": "Extreme Fear",
+                "25-49": "Fear",
+                "50": "Neutral",
+                "51-74": "Greed",
+                "75-100": "Extreme Greed",
+            },
+        }
+
+        # Add historical data if requested
+        if days > 1 and len(entries) > 1:
+            history = []
+            for entry in entries[1:]:
+                history.append({
+                    "value": int(entry["value"]),
+                    "classification": entry["value_classification"],
+                    "date": timestamp_to_date(int(entry["timestamp"])),
+                })
+            result["history"] = history
+
+            # Calculate trend
+            values = [int(e["value"]) for e in entries]
+            avg_value = sum(values) / len(values)
+            trend = "increasing" if values[0] > avg_value else "decreasing" if values[0] < avg_value else "stable"
+            result["trend"] = {
+                "direction": trend,
+                "average": round(avg_value, 1),
+                "min": min(values),
+                "max": max(values),
+            }
+
+        # Cache the result
+        fear_greed_cache[cache_key] = result
+        return result
+
+    except requests.exceptions.RequestException as e:
+        return {"error": f"Failed to fetch Fear & Greed Index: {str(e)}"}
+    except Exception as e:
+        return {
+            "error": f"Error getting Fear & Greed Index: {str(e)}",
+            "traceback": traceback.format_exc(),
+        }
