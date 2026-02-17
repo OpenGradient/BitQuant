@@ -69,4 +69,4 @@ Requires `.env` with:
 - COINGECKO_API_KEY
 - AWS credentials for DynamoDB
 
-Set `ENVIRONMENT=development` for local, `subnet_mode=true` for Bittensor subnet mode.
+Set `ENVIRONMENT=development` for local.

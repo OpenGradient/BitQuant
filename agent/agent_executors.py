@@ -34,13 +34,6 @@ LIMITS = httpx.Limits(
 
 
 ##
-# Subnet LLM Configuration
-##
-
-LOCAL_LLM_MODEL = "meta-llama/Llama-3.1-70B-Instruct"
-LOCAL_LLM_BASE_URL = "http://localhost:8000/v1"
-
-##
 # OpenRouter LLM Configuration
 ##
 
@@ -68,20 +61,12 @@ x402_http_client = httpx.AsyncClient(
     auth=X402Auth(account=WALLET_ACCOUNT),  # type: ignore
 )
 
-
 # Select model based on configuration
-if not config.SUBNET_MODE:
-    SUGGESTIONS_MODEL = GOOGLE_GEMINI_20_FLASH_MODEL
-    ROUTING_MODEL = GOOGLE_GEMINI_FLASH_15_8B_MODEL
-    REASONING_MODEL = GOOGLE_GEMINI_20_FLASH_MODEL
-    BASE_URL = "https://generativelanguage.googleapis.com/v1beta/"
-    API_KEY = os.getenv("GEMINI_API_KEY")
-else:
-    SUGGESTIONS_MODEL = LOCAL_LLM_MODEL
-    ROUTING_MODEL = LOCAL_LLM_MODEL
-    REASONING_MODEL = LOCAL_LLM_MODEL
-    BASE_URL = LOCAL_LLM_BASE_URL
-    API_KEY = "dummy_key"
+SUGGESTIONS_MODEL = GOOGLE_GEMINI_20_FLASH_MODEL
+ROUTING_MODEL = GOOGLE_GEMINI_FLASH_15_8B_MODEL
+REASONING_MODEL = GOOGLE_GEMINI_20_FLASH_MODEL
+BASE_URL = "https://generativelanguage.googleapis.com/v1beta/"
+API_KEY = os.getenv("GEMINI_API_KEY")
 
 
 def create_routing_model() -> BaseChatModel:

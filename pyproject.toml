@@ -2,11 +2,11 @@
 name = "bitquant"
 version = "0.1.0"
 description = "OpenGradient BitQuant"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 
 [tool.black]
 line-length = 88
-target-version = ['py38']
+target-version = ['py39']
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -15,7 +15,7 @@ markers = [
 ]
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 disallow_untyped_defs = false
 disallow_incomplete_defs = true
 check_untyped_defs = false

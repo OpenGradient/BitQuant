@@ -53,7 +53,6 @@ api/        # Server API input/output types
 onchain/    # Classes for on-chain data (tokens, pools, etc.)
 server/     # Flask server exposing the API
 static/     # Static assets for web interface
-subnet/     # Bittensor Subnet-related functionality
 templates/  # LLM prompt templates for agent
 testclient/ # Client for testing the API
 testutils/  # Utility functions for testing
@@ -224,7 +223,6 @@ BitQuant is designed to support a wide range of quantitative and DeFi-focused AI
 ## 🔌 Integrations
 
 - **REST API**: Exposes endpoints for agent interaction
-- **Bittensor Subnet**: For decentralized compute
 - **Custom LLM Prompts**: In `templates/`
 
 ## 🧪 Testing

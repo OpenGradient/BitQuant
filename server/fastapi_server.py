@@ -4,7 +4,6 @@ import json
 import traceback
 import logging
 import asyncio
-from subnet.question_pool import question_pool_manager
 
 from fastapi import FastAPI, Request, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -49,8 +48,6 @@ from agent.tools import (
     create_investor_agent_toolkit,
     create_analytics_agent_toolkit,
 )
-from subnet.subnet_methods import subnet_evaluation
-from subnet.api_types import QuantQuery, QuantResponse
 from langchain_openai import ChatOpenAI
 from server.invitecode import InviteCodeManager
 from server.activity_tracker import ActivityTracker
@@ -530,137 +527,6 @@ def create_fastapi_app() -> FastAPI:
             logging.error(
                 f"Error processing swap: {e}\nTraceback:\n{traceback.format_exc()}"
             )
-            raise HTTPException(status_code=500, detail="Internal server error")
-
-    @app.post("/api/subnet/query")
-    async def subnet_query_endpoint(
-        request: Request,
-    ):
-        """
-        Handle subnet queries without authentication.
-
-        Expected request body:
-        {
-            "query": "string",
-            "userID": "string",
-            "metadata": {}
-        }
-
-        Returns:
-        {
-            "response": "string",
-            "signature": "bytes",
-            "proofs": [],
-            "metadata": {}
-        }
-        """
-        try:
-            request_data = await request.json()
-
-            # Validate required fields
-            if "query" not in request_data:
-                raise HTTPException(status_code=400, detail="Query is required")
-
-            # Parse the request data into QuantQuery object
-            quant_query = QuantQuery(**request_data)
-
-            # Convert QuantQuery to AgentChatRequest format
-            # Use userID as wallet address
-            wallet_address = quant_query.userID
-
-            # Create AgentChatRequest structure
-            agent_request = AgentChatRequest(
-                context=Context(
-                    address=wallet_address, conversationHistory=[], miner_token=None
-                ),
-                message=UserMessage(message=quant_query.query),
-                agent=None,  # Let router decide
-                captchaToken=None,  # No captcha for subnet
-            )
-
-            # Get portfolio for the wallet address
-            portfolio = await portfolio_fetcher.get_portfolio(
-                wallet_address=wallet_address
-            )
-
-            # Process the request using the same logic as run_agent
-            response = await handle_agent_chat_request(
-                token_metadata_repo=token_metadata_repo,
-                protocol_registry=protocol_registry,
-                request=agent_request,
-                portfolio=portfolio,
-                investor_agent=investor_agent,
-                analytics_agent=analytics_agent,
-                router_model=router_model,
-            )
-
-            # Convert response to QuantResponse format
-            quant_response = QuantResponse(
-                response=response.message,
-                signature=b"",  # Empty signature for now
-                proofs=[],  # Empty proofs for now
-                metadata={
-                    "pools": [pool.model_dump() for pool in response.pools],
-                    "tokens": [token.model_dump() for token in response.tokens],
-                },
-            )
-
-            return quant_response.model_dump()
-
-        except ValidationError as e:
-            logging.error(f"Validation error in subnet query: {e}")
-            raise HTTPException(status_code=400, detail=str(e))
-        except Exception as e:
-            logging.error(f"Error in subnet query: {e}")
-            logging.error(f"Traceback: {traceback.format_exc()}")
-            raise HTTPException(status_code=500, detail="Internal server error")
-
-    @app.get("/api/subnet/questions/pool")
-    async def get_question_pool():
-        """
-        Get the current pool of evaluation questions.
-        Pool refreshes every hour with N new questions.
-
-        Returns:
-        {
-            "questions": ["Should I buy BTC...", "Compare ETH..."],
-            "generated_at": "2025-10-06T12:00:00Z",
-            "expires_at": "2025-10-06T13:00:00Z",
-            "pool_size": 100,
-            "refresh_hours": 1
-        }
-        """
-        try:
-            pool_data = await question_pool_manager.get_pool()
-            logging.info(f"Serving question pool: {pool_data['pool_size']} questions")
-            statsd.increment("subnet.question_pool.served")
-            return pool_data
-        except Exception as e:
-            logging.error(f"Error getting question pool: {e}")
-            statsd.increment("subnet.question_pool.error")
-            raise HTTPException(status_code=500, detail="Internal server error")
-
-    @app.get("/api/subnet/questions/stats")
-    async def get_question_pool_stats():
-        """
-        Get statistics about the question pool.
-
-        Returns:
-        {
-            "pool_size": 100,
-            "generated_at": "2025-10-06T12:00:00Z",
-            "refresh_hours": 1,
-            "time_until_refresh_seconds": 2847.5,
-            "templates_count": 15,
-            "tokens_count": 32,
-            "chains_count": 7
-        }
-        """
-        try:
-            stats = await question_pool_manager.get_stats()
-            return stats
-        except Exception as e:
-            logging.error(f"Error getting question pool stats: {e}")
             raise HTTPException(status_code=500, detail="Internal server error")
 
 

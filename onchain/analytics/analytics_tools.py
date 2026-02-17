@@ -633,16 +633,12 @@ def analyze_price_trend(token_symbol: str, num_days: int = 90) -> Dict[str, Any]
                 "short_trend": (
                     "Bullish"
                     if sma7 and sma20 and sma7[-1] > sma20[-1]
-                    else "Bearish"
-                    if sma7 and sma20
-                    else "Neutral"
+                    else "Bearish" if sma7 and sma20 else "Neutral"
                 ),
                 "long_trend": (
                     "Bullish"
                     if sma50 and sma200 and sma50[-1] > sma200[-1]
-                    else "Bearish"
-                    if sma50 and sma200
-                    else "Neutral"
+                    else "Bearish" if sma50 and sma200 else "Neutral"
                 ),
             },
             "technical_indicators": {
@@ -1431,7 +1427,9 @@ def get_fear_greed_index(days: int = 1) -> Dict[str, Any]:
         if current_value <= 24:
             interpretation = "Extreme Fear - Markets are very worried. This could be a buying opportunity as assets may be undervalued."
         elif current_value <= 49:
-            interpretation = "Fear - Investors are fearful. Consider this in your risk assessment."
+            interpretation = (
+                "Fear - Investors are fearful. Consider this in your risk assessment."
+            )
         elif current_value == 50:
             interpretation = "Neutral - Market sentiment is balanced."
         elif current_value <= 74:
@@ -1459,17 +1457,23 @@ def get_fear_greed_index(days: int = 1) -> Dict[str, Any]:
         if days > 1 and len(entries) > 1:
             history = []
             for entry in entries[1:]:
-                history.append({
-                    "value": int(entry["value"]),
-                    "classification": entry["value_classification"],
-                    "date": timestamp_to_date(int(entry["timestamp"])),
-                })
+                history.append(
+                    {
+                        "value": int(entry["value"]),
+                        "classification": entry["value_classification"],
+                        "date": timestamp_to_date(int(entry["timestamp"])),
+                    }
+                )
             result["history"] = history
 
             # Calculate trend
             values = [int(e["value"]) for e in entries]
             avg_value = sum(values) / len(values)
-            trend = "increasing" if values[0] > avg_value else "decreasing" if values[0] < avg_value else "stable"
+            trend = (
+                "increasing"
+                if values[0] > avg_value
+                else "decreasing" if values[0] < avg_value else "stable"
+            )
             result["trend"] = {
                 "direction": trend,
                 "average": round(avg_value, 1),

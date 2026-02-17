@@ -134,7 +134,9 @@ def evaluate_token_risk(
             "category_scores (out of 100)": {
                 "pool_quality_score (honeypot risk, buy/sell tax, proxy contract, liquidity amount)": attributes.get(
                     "gt_score_details", {}
-                ).get("pool", 0),
+                ).get(
+                    "pool", 0
+                ),
                 "token_age_score": attributes.get("gt_score_details", {}).get(
                     "creation", 0
                 ),
