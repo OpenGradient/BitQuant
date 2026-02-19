@@ -12,7 +12,7 @@
 
 # 🚀 BitQuant by OpenGradient
 
-**BitQuant** is a open-source AI agent framework for building quantitative AI agents. It leverages specialized models for ML-powered analytics, trading, portfolio management, and more—all through a natural language interface. BitQuant exposes a REST API that turns user inputs like "What is the current risk profile on Bitcoin?" or "Optimize my portfolio for maximum risk-adjusted returns" into actionable insights.
+**BitQuant** is an open-source AI agent framework for building quantitative AI agents. It leverages specialized models for ML-powered analytics, trading, portfolio management, and more—all through a natural language interface. BitQuant exposes a REST API that turns user inputs like "What is the current risk profile on Bitcoin?" or "Optimize my portfolio for maximum risk-adjusted returns" into actionable insights.
 
 ---
 
