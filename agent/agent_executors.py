@@ -1,7 +1,8 @@
 import os
 import httpx
+import logging
 
-from openai import OpenAI
+from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -10,13 +11,35 @@ from agent.tools import create_investor_agent_toolkit, create_analytics_agent_to
 from onchain.tokens.metadata import TokenMetadataRepo
 from server import config
 from web3 import Web3
-from x402.clients.base import x402Client
-from x402.types import x402PaymentRequiredResponse
-from langchain_openai import ChatOpenAI
-from .x402 import X402Auth
+
+from x402v2 import x402Client as x402Clientv2
+from x402v2.http.clients import x402HttpxClient as x402HttpxClientv2
+from x402v2.mechanisms.evm import EthAccountSigner as EthAccountSignerv2
+from x402v2.mechanisms.evm.exact.register import (
+    register_exact_evm_client as register_exact_evm_clientv2,
+)
+from x402v2.mechanisms.evm.upto.register import (
+    register_upto_evm_client as register_upto_evm_clientv2,
+)
+
+logging.getLogger("x402.httpx").setLevel(logging.DEBUG)
 
 WEB3_CONFIG = Web3(Web3.HTTPProvider(config.OG_RPC_URL))
 WALLET_ACCOUNT = WEB3_CONFIG.eth.account.from_key(config.WALLET_PRIV_KEY)
+BASE_TESTNET_NETWORK = "eip155:84532"
+
+x402_client = x402Clientv2()
+register_exact_evm_clientv2(
+    x402_client,
+    EthAccountSignerv2(WALLET_ACCOUNT),
+    networks=[BASE_TESTNET_NETWORK],
+)
+register_upto_evm_clientv2(
+    x402_client,
+    EthAccountSignerv2(WALLET_ACCOUNT),
+    networks=[BASE_TESTNET_NETWORK],
+)
+
 
 TIMEOUT = httpx.Timeout(
     timeout=90.0,
@@ -48,14 +71,12 @@ DEEPSEEK_CHAT_V3_MODEL = (
 )
 GROK_MODEL = "x-ai/grok-2-1212"  # $2/M input tokens; $10/M output tokens
 
-x402_http_client = httpx.AsyncClient(
-    base_url=config.LLM_SERVER_URL,
-    headers={"Authorization": f"Bearer {config.DUMMY_X402_API_KEY}"},
+x402_http_client = x402HttpxClientv2(
+    x402_client,
     timeout=TIMEOUT,
     limits=LIMITS,
     http2=False,
     follow_redirects=False,
-    auth=X402Auth(account=WALLET_ACCOUNT),  # type: ignore
 )
 
 # Select model based on configuration
