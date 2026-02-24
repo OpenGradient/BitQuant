@@ -75,6 +75,57 @@ SOL_TOKEN = TokenMetadata(
     timestamp=int(time.time()),
 )
 
+# Ethereum hardcoded tokens
+ETH_TOKEN = TokenMetadata(
+    chain="ethereum",
+    address="0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+    name="Ethereum",
+    symbol="ETH",
+    image_url="https://assets.coingecko.com/coins/images/279/small/ethereum.png",
+    price=1.0,
+    dex_pool_address=None,
+    market_cap_usd=None,
+    timestamp=int(time.time()),
+)
+
+USDC_ETH_TOKEN = TokenMetadata(
+    chain="ethereum",
+    address="0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+    name="USD Coin",
+    symbol="USDC",
+    image_url="https://assets.coingecko.com/coins/images/6319/small/usdc.png",
+    price=1.0,
+    dex_pool_address=None,
+    market_cap_usd=None,
+    timestamp=int(time.time()),
+)
+
+USDT_ETH_TOKEN = TokenMetadata(
+    chain="ethereum",
+    address="0xdAC17F958D2ee523a2206206994597C13D831ec7",
+    name="Tether",
+    symbol="USDT",
+    image_url="https://assets.coingecko.com/coins/images/325/small/Tether.png",
+    price=1.0,
+    dex_pool_address=None,
+    market_cap_usd=None,
+    timestamp=int(time.time()),
+)
+
+DAI_ETH_TOKEN = TokenMetadata(
+    chain="ethereum",
+    address="0x6B175474E89094C44Da98b954EedeAC495271d0F",
+    name="Dai",
+    symbol="DAI",
+    image_url="https://assets.coingecko.com/coins/images/9956/small/Badge_Dai.png",
+    price=1.0,
+    dex_pool_address=None,
+    market_cap_usd=None,
+    timestamp=int(time.time()),
+)
+
+WETH_ADDRESS = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
+
 
 class TokenMetadataRepo:
     DEXSCREENER_API_URL = "https://api.dexscreener.com/tokens/v1/%s/%s"
@@ -138,6 +189,18 @@ class TokenMetadataRepo:
                 or token == SOL_TOKEN.address
             ):
                 return SOL_TOKEN
+
+        # Hardcoded Ethereum tokens
+        if chain == "ethereum":
+            token_lower = token.lower()
+            if token_lower in ("eth", "ethereum", "weth") or token_lower == ETH_TOKEN.address.lower():
+                return ETH_TOKEN
+            if token_lower in ("usdc", "usd coin") or token_lower == USDC_ETH_TOKEN.address.lower():
+                return USDC_ETH_TOKEN
+            if token_lower in ("usdt", "tether") or token_lower == USDT_ETH_TOKEN.address.lower():
+                return USDT_ETH_TOKEN
+            if token_lower in ("dai",) or token_lower == DAI_ETH_TOKEN.address.lower():
+                return DAI_ETH_TOKEN
 
         if chain is not None:
             # Check if token is a valid address
