@@ -41,7 +41,7 @@ Agent executes tools → LLM inference → Post-process response → Return Agen
 - **agent/**: Agent orchestration - `agent_executors.py` creates LangGraph ReAct agents, `tools.py` defines agent tools, `prompts.py` loads Jinja2 templates
 - **server/**: FastAPI app in `fastapi_server.py`, auth, validation, activity tracking
 - **onchain/**: Blockchain data layer - `pools/` for DeFi protocol abstraction, `tokens/` for metadata, `portfolio/` for wallet analysis, `analytics/` for metrics
-- **templates/**: Jinja2 prompt templates for agents (`analyst_agent.jinja2`, `investor_agent.jinja2`)
+- **templates/**: Jinja2 prompt templates for agents (`analytics_agent.jinja2`, `investor_agent.jinja2`)
 - **api/api_types.py**: All Pydantic models (Token, Pool, Portfolio, Message types)
 
 ### Protocol System
