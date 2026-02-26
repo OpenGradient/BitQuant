@@ -1020,7 +1020,7 @@ def max_drawdown_for_token(
             "period": f"{candle_interval} x {num_candles}",
             "max_drawdown": max_dd,
             "max_drawdown_percent": f"{max_dd * 100:.2f}%",
-            "explanation": "Maximum drawdown represents the largest percentage drop from a peak to a subsequent trough",
+            "explanation": "Maximum drawdown represents the largest percentage drop from a peak to a subsequent through",
         }
     except Exception as e:
         return {
