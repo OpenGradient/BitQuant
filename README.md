@@ -55,7 +55,6 @@ server/     # Flask server exposing the API
 static/     # Static assets for web interface
 templates/  # LLM prompt templates for agent
 testclient/ # Client for testing the API
-testutils/  # Utility functions for testing
 ```
 
 ### Agents
