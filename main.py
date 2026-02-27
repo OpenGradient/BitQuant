@@ -19,12 +19,16 @@ from server.fastapi_server import create_fastapi_app
 from onchain.pools.solana.orca_protocol import OrcaProtocol
 from onchain.pools.solana.save_protocol import SaveProtocol
 from onchain.pools.solana.kamino_protocol import KaminoProtocol
+from onchain.pools.ethereum.uniswap_v3_protocol import UniswapV3Protocol
+from onchain.pools.ethereum.aave_protocol import AaveProtocol
 
 # Define protocols enabled
 protocols = [
     OrcaProtocol.PROTOCOL_NAME,
     SaveProtocol.PROTOCOL_NAME,
     KaminoProtocol.PROTOCOL_NAME,
+    UniswapV3Protocol.PROTOCOL_NAME,
+    AaveProtocol.PROTOCOL_NAME,
 ]
 
 # Create the FastAPI app

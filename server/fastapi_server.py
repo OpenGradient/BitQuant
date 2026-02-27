@@ -17,8 +17,11 @@ from onchain.pools.protocol import ProtocolRegistry
 from onchain.pools.solana.orca_protocol import OrcaProtocol
 from onchain.pools.solana.save_protocol import SaveProtocol
 from onchain.pools.solana.kamino_protocol import KaminoProtocol
+from onchain.pools.ethereum.uniswap_v3_protocol import UniswapV3Protocol
+from onchain.pools.ethereum.aave_protocol import AaveProtocol
 from onchain.tokens.metadata import TokenMetadataRepo
 from onchain.portfolio.solana_portfolio import PortfolioFetcher
+from onchain.portfolio.ethereum_portfolio import EthereumPortfolioFetcher
 from api.api_types import (
     AgentChatRequest,
     AgentMessage,
@@ -112,6 +115,7 @@ def create_fastapi_app() -> FastAPI:
         database_manager.table_context_factory("token_metadata_v2")
     )
     portfolio_fetcher = PortfolioFetcher(token_metadata_repo)
+    eth_portfolio_fetcher = EthereumPortfolioFetcher(token_metadata_repo)
     swap_tracker = SwapTracker(
         database_manager.table_context_factory("twoligma_processed_swaps")
     )
@@ -123,6 +127,7 @@ def create_fastapi_app() -> FastAPI:
     app.state.invite_manager = invite_manager
     app.state.token_metadata_repo = token_metadata_repo
     app.state.portfolio_fetcher = portfolio_fetcher
+    app.state.eth_portfolio_fetcher = eth_portfolio_fetcher
     app.state.swap_tracker = swap_tracker
     app.state.jup_validator = jup_validator
     app.state.cow_validator = cow_validator
@@ -132,6 +137,7 @@ def create_fastapi_app() -> FastAPI:
         await protocol_registry.shutdown()
         await token_metadata_repo.close()
         await portfolio_fetcher.close()
+        await eth_portfolio_fetcher.close()
         await jup_validator.close()
         await cow_validator.close()
 
@@ -145,6 +151,8 @@ def create_fastapi_app() -> FastAPI:
     protocol_registry.register_protocol(OrcaProtocol())
     protocol_registry.register_protocol(SaveProtocol())
     protocol_registry.register_protocol(KaminoProtocol())
+    protocol_registry.register_protocol(UniswapV3Protocol())
+    protocol_registry.register_protocol(AaveProtocol())
 
     # Store agents in app state
     app.state.suggestions_model = suggestions_model
