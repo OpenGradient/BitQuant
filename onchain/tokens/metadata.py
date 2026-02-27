@@ -75,14 +75,16 @@ SOL_TOKEN = TokenMetadata(
     timestamp=int(time.time()),
 )
 
-# Ethereum hardcoded tokens
+# Ethereum hardcoded tokens — price=None for ETH (non-stablecoin).
+# search_token() fetches the live price from DexScreener for ETH;
+# stablecoins use price=1.0 which is accurate.
 ETH_TOKEN = TokenMetadata(
     chain="ethereum",
     address="0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
     name="Ethereum",
     symbol="ETH",
     image_url="https://assets.coingecko.com/coins/images/279/small/ethereum.png",
-    price=1.0,
+    price=None,
     dex_pool_address=None,
     market_cap_usd=None,
     timestamp=int(time.time()),
@@ -194,7 +196,9 @@ class TokenMetadataRepo:
         if chain == "ethereum":
             token_lower = token.lower()
             if token_lower in ("eth", "ethereum", "weth") or token_lower == ETH_TOKEN.address.lower():
-                return ETH_TOKEN
+                # Fetch live price from DexScreener; fall back to static token if unavailable
+                eth_meta = await self.get_token_metadata(WETH_ADDRESS, "ethereum")
+                return eth_meta if eth_meta else ETH_TOKEN
             if token_lower in ("usdc", "usd coin") or token_lower == USDC_ETH_TOKEN.address.lower():
                 return USDC_ETH_TOKEN
             if token_lower in ("usdt", "tether") or token_lower == USDT_ETH_TOKEN.address.lower():
