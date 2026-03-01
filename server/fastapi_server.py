@@ -25,6 +25,7 @@ from api.api_types import (
     AgentType,
     Portfolio,
     Message,
+    Suggestion,
     TokenMetadata,
     SolanaVerifyRequest,
     Context,
@@ -595,7 +596,7 @@ async def handle_suggestions_request(
     portfolio: Portfolio,
     token_metadata_repo: TokenMetadataRepo,
     suggestions_model: ChatOpenAI,
-) -> List[str]:
+) -> List[Suggestion]:
     # Get tools from agent config and format them
     tools = create_investor_agent_toolkit() + create_analytics_agent_toolkit(
         token_metadata_repo
@@ -621,21 +622,18 @@ async def handle_suggestions_request(
     content = content.strip()
 
     try:
-        # First try parsing as JSON
-        suggestions = json.loads(content)
-        if isinstance(suggestions, list):
+        parsed = json.loads(content)
+        if isinstance(parsed, list):
+            suggestions = []
+            for item in parsed:
+                if isinstance(item, dict) and "display" in item and "prompt" in item:
+                    suggestions.append(Suggestion(display=item["display"], prompt=item["prompt"]))
+                elif isinstance(item, str):
+                    # Graceful fallback: treat legacy string as both display and prompt
+                    suggestions.append(Suggestion(display=item, prompt=item))
             return suggestions
     except json.JSONDecodeError:
-        # If JSON parsing fails, try parsing as string array
-        try:
-            # Remove any JSON-like syntax and split by comma
-            cleaned = content.strip("[]")
-            # Split by comma and remove quotes
-            suggestions = [item.strip().strip("'\"") for item in cleaned.split(",")]
-            return suggestions
-        except Exception as e:
-            logging.error(f"Error parsing suggestions string: {e}")
-            return []
+        logging.error(f"Error parsing suggestions JSON: {content}")
 
     return []
 
