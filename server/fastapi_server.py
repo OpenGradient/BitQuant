@@ -4,6 +4,7 @@ import json
 import traceback
 import logging
 import asyncio
+import re
 
 from fastapi import FastAPI, Request, HTTPException, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -81,21 +82,51 @@ def create_fastapi_app() -> FastAPI:
     app = FastAPI()
 
     # Configure CORS
+    # FastAPI CORSMiddleware doesn't support regex patterns, so we list all allowed origins
+    allowed_origins = [
+        "https://bitquant.io",
+        "https://www.bitquant.io",
+        # Localhost ports for development
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:3002",
+        "http://localhost:4000",
+        "http://localhost:4200",
+        "http://localhost:5000",
+        "http://localhost:5173",
+        "http://localhost:8000",
+        "http://localhost:8080",
+        "http://localhost:8081",
+        "http://localhost:9000",
+    ]
+    
+    # Vercel preview deployments pattern (will be checked in custom middleware)
+    vercel_pattern = re.compile(r"^https://defi-chat-hub-git-[\w-]+-open-gradient\.vercel\.app$")
+    
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "https://bitquant.io",
-            "https://www.bitquant.io",
-            r"^http://localhost:(3000|3001|3002|4000|4200|5000|5173|8000|8080|8081|9000)$",
-            r"^https://defi-chat-hub-git-[\w-]+-open-gradient\.vercel\.app$",
-        ],
+        allow_origins=allowed_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
+    
     # Add Datadog metrics middleware
     app.add_middleware(DatadogMetricsMiddleware)
+    
+    # Add custom CORS check for Vercel preview deployments
+    # This middleware runs after CORSMiddleware to handle regex patterns
+    @app.middleware("http")
+    async def cors_vercel_middleware(request: Request, call_next):
+        origin = request.headers.get("origin")
+        if origin and vercel_pattern.match(origin):
+            response = await call_next(request)
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = "*"
+            response.headers["Access-Control-Allow-Headers"] = "*"
+            return response
+        return await call_next(request)
 
     # Initialize DynamoDB session
     database_manager = DatabaseManager()
