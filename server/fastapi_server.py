@@ -171,7 +171,23 @@ def create_fastapi_app() -> FastAPI:
         logging.error(f"500 Error: {str(exc)}")
         logging.error(f"Traceback: {error_traceback}")
         logging.error(f"Request Path: {request.url.path}")
-        logging.error(f"Request Body: {await request.body()}")
+        logging.error(f"Request Method: {request.method}")
+        
+        # Safely attempt to read request body for debugging
+        # Note: Request body may already be consumed, so we wrap in try-except
+        # Also limit body size to prevent logging large payloads
+        try:
+            body = await request.body()
+            # Only log body in development or if it's small (< 1KB)
+            # This prevents logging sensitive data and large payloads
+            max_body_log_size = 1024
+            if len(body) <= max_body_log_size:
+                logging.error(f"Request Body: {body.decode('utf-8', errors='ignore')}")
+            else:
+                logging.error(f"Request Body: [Too large to log ({len(body)} bytes)]")
+        except Exception as body_error:
+            # Request body may have already been consumed
+            logging.error(f"Could not read request body: {str(body_error)}")
 
         return JSONResponse(
             status_code=500,
