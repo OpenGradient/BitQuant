@@ -40,6 +40,12 @@ class OrcaProtocol(Protocol):
             self._session = aiohttp.ClientSession()
         return self._session
 
+    async def close(self):
+        """Close the protocol's session."""
+        if self._session:
+            await self._session.close()
+            self._session = None
+
     async def get_pools(self, token_metadata_repo: TokenMetadataRepo) -> List[Pool]:
         """
         Fetch pools from Orca API and convert to the internal Pool model
