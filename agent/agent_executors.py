@@ -77,6 +77,7 @@ x402_http_client = x402HttpxClientv2(
     limits=LIMITS,
     http2=False,
     follow_redirects=False,
+    verify=False,
 )
 
 # Select model based on configuration
