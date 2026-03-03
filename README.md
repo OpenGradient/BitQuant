@@ -210,7 +210,7 @@ BitQuant is designed to support a wide range of quantitative and DeFi-focused AI
   - Cross-chain portfolio management
   - Any custom DeFi or analytics workflow
 
-> **Tip:** Agents are modular and can be combined, routed, or extended to suit your specific use case. See the `agent/` directory and templates for examples and customization.
+> **Tip:** Agents are modular and can be combined or extended to suit your specific use case. See the `agent/` directory and templates for examples and customization.
 
 ---
 
