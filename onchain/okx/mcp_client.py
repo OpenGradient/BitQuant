@@ -58,7 +58,7 @@ class OKXMCPClient:
         self._client = MultiServerMCPClient(
             {
                 "okx": {
-                    "transport": "http",
+                    "transport": "streamable_http",
                     "url": OKX_MCP_URL,
                     "headers": {
                         "OK-ACCESS-KEY": self._api_key,
