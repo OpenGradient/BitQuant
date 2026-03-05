@@ -63,12 +63,6 @@ LIMITS = httpx.Limits(
 GOOGLE_GEMINI_20_FLASH_MODEL = (
     "gemini-2.0-flash"  # $0.1/M input tokens; $0.4/M output tokens
 )
-LLAMA_3_1_405B_MODEL = (
-    "meta-llama/llama-3.1-405b-instruct"  # $0.8/M input tokens; $0.8/M output tokens
-)
-DEEPSEEK_CHAT_V3_MODEL = (
-    "deepseek/deepseek-chat-v3-0324"  # $0.27/M input tokens; $1.1/M output tokens
-)
 GROK_MODEL = "x-ai/grok-2-1212"  # $2/M input tokens; $10/M output tokens
 
 x402_http_client = x402HttpxClientv2(
@@ -83,8 +77,6 @@ x402_http_client = x402HttpxClientv2(
 # Select model based on configuration
 SUGGESTIONS_MODEL = GOOGLE_GEMINI_20_FLASH_MODEL
 REASONING_MODEL = GOOGLE_GEMINI_20_FLASH_MODEL
-BASE_URL = "https://generativelanguage.googleapis.com/v1beta/"
-API_KEY = os.getenv("GEMINI_API_KEY")
 
 
 def create_suggestions_model() -> BaseChatModel:
