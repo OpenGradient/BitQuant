@@ -31,4 +31,4 @@ og-test-v2-x402==0.0.11.dev3
 eth-account>=0.13.4
 web3>=7.3.0
 cachetools>=6.2.4
-langchain-mcp-adapters>=0.1.0
+langchain-mcp-adapters==0.1.14
