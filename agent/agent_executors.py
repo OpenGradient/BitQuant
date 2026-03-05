@@ -118,7 +118,10 @@ def create_investor_executor() -> any:
     return agent_executor
 
 
-def create_analytics_executor(token_metadata_repo: TokenMetadataRepo) -> any:
+def create_analytics_executor(
+    token_metadata_repo: TokenMetadataRepo,
+    extra_tools: list = None,
+) -> any:
     openai_model = ChatOpenAI(
         model=REASONING_MODEL,
         temperature=0.0,
@@ -130,9 +133,13 @@ def create_analytics_executor(token_metadata_repo: TokenMetadataRepo) -> any:
         base_url=config.LLM_SERVER_URL,
     )
 
+    tools = create_analytics_agent_toolkit(token_metadata_repo)
+    if extra_tools:
+        tools.extend(extra_tools)
+
     analytics_executor = create_react_agent(
         model=openai_model,
-        tools=create_analytics_agent_toolkit(token_metadata_repo),
+        tools=tools,
     )
 
     return analytics_executor

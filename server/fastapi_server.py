@@ -19,6 +19,7 @@ from onchain.pools.solana.save_protocol import SaveProtocol
 from onchain.pools.solana.kamino_protocol import KaminoProtocol
 from onchain.tokens.metadata import TokenMetadataRepo
 from onchain.portfolio.solana_portfolio import PortfolioFetcher
+from onchain.okx.mcp_client import OKXMCPClient
 from api.api_types import (
     AgentChatRequest,
     AgentMessage,
@@ -127,15 +128,19 @@ def create_fastapi_app() -> FastAPI:
     app.state.jup_validator = jup_validator
     app.state.cow_validator = cow_validator
 
+    # Initialize OKX MCP client
+    okx_mcp_client = OKXMCPClient()
+
     @app.on_event("shutdown")
     async def shutdown_event():
+        await okx_mcp_client.disconnect()
         await protocol_registry.shutdown()
         await token_metadata_repo.close()
         await portfolio_fetcher.close()
         await jup_validator.close()
         await cow_validator.close()
 
-    # Initialize agents
+    # Initialize agents (analytics agent gets OKX tools after MCP connects at startup)
     suggestions_model = create_suggestions_model()
     analytics_agent = create_analytics_executor(token_metadata_repo)
     investor_agent = create_investor_executor()
@@ -155,6 +160,16 @@ def create_fastapi_app() -> FastAPI:
     @app.on_event("startup")
     async def startup_event():
         await protocol_registry.initialize()
+        try:
+            await okx_mcp_client.connect()
+            okx_tools = okx_mcp_client.get_tools()
+            if okx_tools:
+                app.state.analytics_agent = create_analytics_executor(
+                    token_metadata_repo, extra_tools=okx_tools
+                )
+                logging.info(f"Analytics agent augmented with {len(okx_tools)} OKX tools")
+        except Exception as e:
+            logging.warning(f"OKX MCP connection failed, continuing without OKX tools: {e}")
 
     # Exception handlers
     @app.exception_handler(ValidationError)
