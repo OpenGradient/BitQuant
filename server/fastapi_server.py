@@ -161,7 +161,9 @@ def create_fastapi_app() -> FastAPI:
         app.state.analytics_agent = create_analytics_executor(
             token_metadata_repo, extra_tools=okx_tools
         )
-        logging.info(f"Analytics agent created with {len(okx_tools)} OKX market data tools")
+        logging.info(
+            f"Analytics agent created with {len(okx_tools)} OKX market data tools"
+        )
 
     # Exception handlers
     @app.exception_handler(ValidationError)
@@ -322,7 +324,7 @@ def create_fastapi_app() -> FastAPI:
                 request=agent_request,
                 portfolio=portfolio,
                 investor_agent=investor_agent,
-                analytics_agent=analytics_agent,
+                analytics_agent=app.state.analytics_agent,
             )
 
             return (
