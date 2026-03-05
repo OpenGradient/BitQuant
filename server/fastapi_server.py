@@ -140,36 +140,28 @@ def create_fastapi_app() -> FastAPI:
         await jup_validator.close()
         await cow_validator.close()
 
-    # Initialize agents (analytics agent gets OKX tools after MCP connects at startup)
-    suggestions_model = create_suggestions_model()
-    analytics_agent = create_analytics_executor(token_metadata_repo)
-    investor_agent = create_investor_executor()
-
     # Initialize protocol registry
     protocol_registry = ProtocolRegistry(token_metadata_repo)
     protocol_registry.register_protocol(OrcaProtocol())
     protocol_registry.register_protocol(SaveProtocol())
     protocol_registry.register_protocol(KaminoProtocol())
 
-    # Store agents in app state
+    # Store in app state (agents created at startup after OKX MCP connects)
+    suggestions_model = create_suggestions_model()
+    investor_agent = create_investor_executor()
     app.state.suggestions_model = suggestions_model
-    app.state.analytics_agent = analytics_agent
     app.state.investor_agent = investor_agent
     app.state.protocol_registry = protocol_registry
 
     @app.on_event("startup")
     async def startup_event():
         await protocol_registry.initialize()
-        try:
-            await okx_mcp_client.connect()
-            okx_tools = okx_mcp_client.get_tools()
-            if okx_tools:
-                app.state.analytics_agent = create_analytics_executor(
-                    token_metadata_repo, extra_tools=okx_tools
-                )
-                logging.info(f"Analytics agent augmented with {len(okx_tools)} OKX tools")
-        except Exception as e:
-            logging.warning(f"OKX MCP connection failed, continuing without OKX tools: {e}")
+        await okx_mcp_client.connect()
+        okx_tools = okx_mcp_client.get_tools()
+        app.state.analytics_agent = create_analytics_executor(
+            token_metadata_repo, extra_tools=okx_tools
+        )
+        logging.info(f"Analytics agent created with {len(okx_tools)} OKX market data tools")
 
     # Exception handlers
     @app.exception_handler(ValidationError)
