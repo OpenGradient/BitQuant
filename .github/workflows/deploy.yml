@@ -16,12 +16,6 @@ jobs:
       IMAGE_TAG: latest
 
     steps:
-      - name: Ensure main branch
-        if: github.ref != 'refs/heads/main'
-        run: |
-          echo "::error::Deployments are only allowed from the main branch."
-          exit 1
-
       - name: Checkout repository
         uses: actions/checkout@v4
 
