@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import List
 
 from langchain_core.tools import BaseTool
@@ -6,9 +7,7 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 
 logger = logging.getLogger(__name__)
 
-# OKX MCP endpoint and default API key from their docs
 OKX_MCP_URL = "https://web3.okx.com/api/v1/onchainos-mcp"
-OKX_DEFAULT_API_KEY = "d573a84c-8e79-4a35-b0c6-427e9ad2478d"
 
 # Allowlist of OKX MCP tools to expose (read-only market data only)
 ALLOWED_TOOLS = {
@@ -49,8 +48,8 @@ ALLOWED_TOOLS = {
 class OKXMCPClient:
     """Manages the OKX MCP connection and exposes market data tools for the agent."""
 
-    def __init__(self, api_key: str = OKX_DEFAULT_API_KEY):
-        self._api_key = api_key
+    def __init__(self, api_key: str | None = None):
+        self._api_key = api_key or os.getenv("OKX_API_KEY", "")
         self._client = None
         self._tools: List[BaseTool] = []
 
