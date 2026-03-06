@@ -44,7 +44,7 @@ async def retrieve_solana_pools(
 
     # Create a query to filter pools
     query = PoolQuery(
-        chain=Chain.SOLANA,  # Currently only supporting Solana
+        chain=Chain.SOLANA,
         tokens=tokens or [],
         user_tokens=user_tokens,
     )
@@ -56,9 +56,37 @@ async def retrieve_solana_pools(
     return pools
 
 
+@tool
+@track_tool_usage("retrieve_ethereum_pools")
+async def retrieve_ethereum_pools(
+    tokens: List[str] = None,
+    config: RunnableConfig = None,
+) -> List[Pool]:
+    """
+    Retrieves Ethereum pools matching the specified criteria that the user can invest in.
+    Includes Uniswap V3 AMM pools and Aave V3 lending pools.
+    """
+    configurable = config["configurable"]
+    user_tokens: List[WalletTokenHolding] = configurable["tokens"]
+    protocol_registry: ProtocolRegistry = configurable["protocol_registry"]
+
+    query = PoolQuery(
+        chain=Chain.ETHEREUM,
+        tokens=tokens or [],
+        user_tokens=user_tokens,
+    )
+
+    pools = await protocol_registry.get_pools(query)
+    if len(pools) == 0:
+        return "No Ethereum pools found."
+
+    return pools
+
+
 def create_investor_agent_toolkit() -> List[BaseTool]:
     return [
         retrieve_solana_pools,
+        retrieve_ethereum_pools,
     ]
 
 
