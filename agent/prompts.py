@@ -105,5 +105,3 @@ def get_analytics_prompt(
     )
 
     return analytics_agent_prompt
-
-

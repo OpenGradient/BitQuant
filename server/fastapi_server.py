@@ -19,6 +19,7 @@ from onchain.pools.solana.save_protocol import SaveProtocol
 from onchain.pools.solana.kamino_protocol import KaminoProtocol
 from onchain.tokens.metadata import TokenMetadataRepo
 from onchain.portfolio.solana_portfolio import PortfolioFetcher
+from onchain.okx.mcp_client import OKXMCPClient
 from api.api_types import (
     AgentChatRequest,
     AgentMessage,
@@ -127,18 +128,17 @@ def create_fastapi_app() -> FastAPI:
     app.state.jup_validator = jup_validator
     app.state.cow_validator = cow_validator
 
+    # Initialize OKX MCP client
+    okx_mcp_client = OKXMCPClient()
+
     @app.on_event("shutdown")
     async def shutdown_event():
+        await okx_mcp_client.disconnect()
         await protocol_registry.shutdown()
         await token_metadata_repo.close()
         await portfolio_fetcher.close()
         await jup_validator.close()
         await cow_validator.close()
-
-    # Initialize agents
-    suggestions_model = create_suggestions_model()
-    analytics_agent = create_analytics_executor(token_metadata_repo)
-    investor_agent = create_investor_executor()
 
     # Initialize protocol registry
     protocol_registry = ProtocolRegistry(token_metadata_repo)
@@ -146,15 +146,24 @@ def create_fastapi_app() -> FastAPI:
     protocol_registry.register_protocol(SaveProtocol())
     protocol_registry.register_protocol(KaminoProtocol())
 
-    # Store agents in app state
+    # Store in app state (agents created at startup after OKX MCP connects)
+    suggestions_model = create_suggestions_model()
+    investor_agent = create_investor_executor()
     app.state.suggestions_model = suggestions_model
-    app.state.analytics_agent = analytics_agent
     app.state.investor_agent = investor_agent
     app.state.protocol_registry = protocol_registry
 
     @app.on_event("startup")
     async def startup_event():
         await protocol_registry.initialize()
+        await okx_mcp_client.connect()
+        okx_tools = okx_mcp_client.get_tools()
+        app.state.analytics_agent = create_analytics_executor(
+            token_metadata_repo, extra_tools=okx_tools
+        )
+        logging.info(
+            f"Analytics agent created with {len(okx_tools)} OKX market data tools"
+        )
 
     # Exception handlers
     @app.exception_handler(ValidationError)
@@ -315,7 +324,7 @@ def create_fastapi_app() -> FastAPI:
                 request=agent_request,
                 portfolio=portfolio,
                 investor_agent=investor_agent,
-                analytics_agent=analytics_agent,
+                analytics_agent=app.state.analytics_agent,
             )
 
             return (

@@ -63,12 +63,6 @@ LIMITS = httpx.Limits(
 GOOGLE_GEMINI_20_FLASH_MODEL = (
     "gemini-2.0-flash"  # $0.1/M input tokens; $0.4/M output tokens
 )
-LLAMA_3_1_405B_MODEL = (
-    "meta-llama/llama-3.1-405b-instruct"  # $0.8/M input tokens; $0.8/M output tokens
-)
-DEEPSEEK_CHAT_V3_MODEL = (
-    "deepseek/deepseek-chat-v3-0324"  # $0.27/M input tokens; $1.1/M output tokens
-)
 GROK_MODEL = "x-ai/grok-2-1212"  # $2/M input tokens; $10/M output tokens
 
 x402_http_client = x402HttpxClientv2(
@@ -83,8 +77,6 @@ x402_http_client = x402HttpxClientv2(
 # Select model based on configuration
 SUGGESTIONS_MODEL = GOOGLE_GEMINI_20_FLASH_MODEL
 REASONING_MODEL = GOOGLE_GEMINI_20_FLASH_MODEL
-BASE_URL = "https://generativelanguage.googleapis.com/v1beta/"
-API_KEY = os.getenv("GEMINI_API_KEY")
 
 
 def create_suggestions_model() -> BaseChatModel:
@@ -119,7 +111,10 @@ def create_investor_executor() -> any:
     return agent_executor
 
 
-def create_analytics_executor(token_metadata_repo: TokenMetadataRepo) -> any:
+def create_analytics_executor(
+    token_metadata_repo: TokenMetadataRepo,
+    extra_tools: list = None,
+) -> any:
     openai_model = ChatOpenAI(
         model=REASONING_MODEL,
         temperature=0.0,
@@ -131,9 +126,13 @@ def create_analytics_executor(token_metadata_repo: TokenMetadataRepo) -> any:
         base_url=config.LLM_SERVER_URL,
     )
 
+    tools = create_analytics_agent_toolkit(token_metadata_repo)
+    if extra_tools:
+        tools.extend(extra_tools)
+
     analytics_executor = create_react_agent(
         model=openai_model,
-        tools=create_analytics_agent_toolkit(token_metadata_repo),
+        tools=tools,
     )
 
     return analytics_executor
