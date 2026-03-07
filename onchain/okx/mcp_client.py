@@ -24,14 +24,13 @@ ALLOWED_TOOLS = {
     # Smart money signals
     "dex-okx-market-signal-list",
     "dex-okx-market-signal-supported-chains",
-    # Index prices
-    "dex-okx-index-current-price",
-    "dex-okx-index-historical-price",
     # Balance / portfolio (read-only)
     "dex-okx-balance-chains",
     "dex-okx-balance-total-token-balances",
     "dex-okx-balance-total-value",
     "dex-okx-balance-specific-token-balance",
+    # DEX
+    "dex-okx-dex-liquidity",
 }
 
 
