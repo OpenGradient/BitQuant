@@ -15,11 +15,9 @@ ALLOWED_TOOLS = {
     "dex-okx-market-price",
     "dex-okx-market-candlesticks",
     "dex-okx-market-candlesticks-history",
-    "dex-okx-market-trades",
     "dex-okx-market-price-chains",
     # Token discovery & analytics
     "dex-okx-market-token-search",
-    "dex-okx-market-token-price-info",
     "dex-okx-market-token-basic-info",
     "dex-okx-market-token-ranking",
     "dex-okx-market-token-holder",
@@ -29,14 +27,6 @@ ALLOWED_TOOLS = {
     # Index prices
     "dex-okx-index-current-price",
     "dex-okx-index-historical-price",
-    # Meme token analytics (read-only)
-    "dex-okx-market-memepump-token-details",
-    "dex-okx-market-memepump-token-list",
-    "dex-okx-market-memepump-token-bundle-info",
-    "dex-okx-market-memepump-token-dev-info",
-    "dex-okx-market-memepump-similar-token",
-    "dex-okx-market-memepump-aped-wallet",
-    "dex-okx-market-memepump-supported-chainsprotocol",
     # Balance / portfolio (read-only)
     "dex-okx-balance-chains",
     "dex-okx-balance-total-token-balances",
