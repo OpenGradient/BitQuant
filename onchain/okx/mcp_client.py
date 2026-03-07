@@ -31,6 +31,12 @@ ALLOWED_TOOLS = {
     "dex-okx-balance-specific-token-balance",
     # DEX
     "dex-okx-dex-liquidity",
+    # Meme
+    "dex-okx-market-memepump-token-dev-info",
+    "dex-okx-market-memepump-similar-token",
+    "dex-okx-market-memepump-aped-wallet",
+    "dex-okx-market-memepump-token-list",
+    "dex-okx-market-memepump-token-details "
 }
 
 
