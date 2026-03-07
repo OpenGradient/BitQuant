@@ -36,7 +36,7 @@ ALLOWED_TOOLS = {
     "dex-okx-market-memepump-similar-token",
     "dex-okx-market-memepump-aped-wallet",
     "dex-okx-market-memepump-token-list",
-    "dex-okx-market-memepump-token-details "
+    "dex-okx-market-memepump-token-details",
 }
 
 
