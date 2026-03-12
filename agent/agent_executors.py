@@ -60,9 +60,8 @@ LIMITS = httpx.Limits(
 # OpenRouter LLM Configuration
 ##
 
-GOOGLE_GEMINI_20_FLASH_MODEL = (
-    "gemini-2.5-flash"
-)
+GOOGLE_GEMINI_25_PRO_MODEL = "gemini-2.5-pro"
+GOOGLE_GEMINI_25_FLASH_MODEL = "gemini-2.5-flash"
 GROK_MODEL = "x-ai/grok-2-1212"  # $2/M input tokens; $10/M output tokens
 
 x402_http_client = x402HttpxClientv2(
@@ -75,8 +74,8 @@ x402_http_client = x402HttpxClientv2(
 )
 
 # Select model based on configuration
-SUGGESTIONS_MODEL = GOOGLE_GEMINI_20_FLASH_MODEL
-REASONING_MODEL = GOOGLE_GEMINI_20_FLASH_MODEL
+SUGGESTIONS_MODEL = GOOGLE_GEMINI_25_FLASH_MODEL
+REASONING_MODEL = GOOGLE_GEMINI_25_PRO_MODEL
 
 
 def create_suggestions_model() -> BaseChatModel:
@@ -95,13 +94,13 @@ def create_suggestions_model() -> BaseChatModel:
 def create_investor_executor() -> any:
     openai_model = ChatOpenAI(
         model=REASONING_MODEL,
-        temperature=0.0,
+        temperature=0.1,
         api_key=config.DUMMY_X402_API_KEY,
         http_async_client=x402_http_client,
         stream_usage=True,
         streaming=True,
         base_url=config.LLM_SERVER_URL,
-        max_tokens=4096,
+        max_tokens=16384,
     )
 
     agent_executor = create_react_agent(
@@ -117,8 +116,8 @@ def create_analytics_executor(
 ) -> any:
     openai_model = ChatOpenAI(
         model=REASONING_MODEL,
-        temperature=0.0,
-        max_tokens=4096,
+        temperature=0.1,
+        max_tokens=16384,
         api_key=config.DUMMY_X402_API_KEY,
         http_async_client=x402_http_client,
         stream_usage=True,

@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import ValidationError
 from langchain_core.runnables.config import RunnableConfig
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from datadog import initialize, statsd
 import aiohttp
 
@@ -574,9 +575,9 @@ async def handle_investor_chat_request(
 
     # Create messages for investor agent
     investor_messages = [
-        ("system", investor_system_prompt),
+        SystemMessage(content=investor_system_prompt),
         *message_history,
-        ("user", request.message.message),
+        HumanMessage(content=request.message.message),
     ]
 
     # Create config for the agent
@@ -677,7 +678,7 @@ async def run_main_agent(
         raise
 
 
-def convert_to_agent_message_history(messages: List[Message]) -> List[Tuple[str, str]]:
+def convert_to_agent_message_history(messages: List[Message]) -> List:
     # Get the last NUM_MESSAGES_TO_KEEP messages
     recent_messages = messages[-NUM_MESSAGES_TO_KEEP:]
 
@@ -692,8 +693,8 @@ def convert_to_agent_message_history(messages: List[Message]) -> List[Tuple[str,
             convert_to_agent_msg(recent_messages[-1], truncate=False)
         )
 
-    for _, message in converted_messages:
-        if not message:
+    for msg in converted_messages:
+        if not msg.content:
             logging.error(
                 f"Empty message.\nOriginal: {messages}\nConverted: {converted_messages}"
             )
@@ -721,9 +722,9 @@ async def handle_analytics_chat_request(
 
     # Create messages for analytics agent
     analytics_messages = [
-        ("system", analytics_system_prompt),
+        SystemMessage(content=analytics_system_prompt),
         *message_history,
-        ("user", request.message.message),
+        HumanMessage(content=request.message.message),
     ]
 
     # Create config for the agent

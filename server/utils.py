@@ -1,25 +1,21 @@
-from typing import Tuple, List
+from typing import Tuple, List, Union
 import re
 import json
 
+from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 from api.api_types import Message, UserMessage, AgentMessage
 
 
 def convert_to_agent_msg(
     message: Message, truncate=False, max_length=800
-) -> Tuple[str, str]:
+) -> BaseMessage:
     if isinstance(message, UserMessage):
-        return ("user", message.message)
+        return HumanMessage(content=message.message)
     elif isinstance(message, AgentMessage):
         if truncate and len(message.message) > max_length:
             message_to_return = message.message[:max_length] + "... [truncated]"
         else:
             message_to_return = message.message
-
-        # if len(message.pools) > 0:
-        #     message_to_return += "\n"
-        #     for pool in message.pools:
-        #         message_to_return += f"```pool:{pool.id}```\n"
 
         if len(message.tokens) > 0:
             message_to_return += "\nTokens:\n"
@@ -36,7 +32,7 @@ def convert_to_agent_msg(
                 token_strings.append(json.dumps(token_dict))
             message_to_return += "\n- ".join(token_strings)
 
-        return ("assistant", message_to_return)
+        return AIMessage(content=message_to_return)
 
 
 def extract_patterns(
