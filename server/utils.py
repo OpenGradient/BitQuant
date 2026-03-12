@@ -55,16 +55,34 @@ def extract_patterns(
     """
     pattern_ids = []
 
-    # Find all occurrences of ```pattern_type:ID``` patterns
+    # Find all occurrences of ```pattern_type:ID``` patterns (with or without backticks)
+    # Primary format: ```token:ID``` (triple backticks)
     pattern = f"```{pattern_type}:([^`]+)```"
     matches = re.finditer(pattern, text)
+
+    # Fallback: match bare pattern_type:chain:address without backticks
+    # This handles LLMs that don't wrap in backticks
+    fallback_pattern = (
+        f"(?<!`)\\b{pattern_type}:([a-zA-Z]+:[a-zA-Z0-9]{{20,}})\\b(?!`)"
+    )
+    fallback_matches = re.finditer(fallback_pattern, text)
 
     for match in matches:
         pattern_ids.append(match.group(1))
 
+    # Only use fallback if primary pattern found nothing
+    if not pattern_ids:
+        for match in fallback_matches:
+            pattern_ids.append(match.group(1))
+        fallback_used = True
+    else:
+        fallback_used = False
+
     if remove_pattern:
         # Remove all pattern markers from the text
         cleaned_text = re.sub(pattern, "", text)
+        if fallback_used and pattern_ids:
+            cleaned_text = re.sub(fallback_pattern, "", cleaned_text)
         return cleaned_text, pattern_ids
     else:
         return text, pattern_ids
