@@ -6,7 +6,7 @@ from api.api_types import Message, UserMessage, AgentMessage
 
 
 def convert_to_agent_msg(
-    message: Message, truncate=False, max_length=400
+    message: Message, truncate=False, max_length=800
 ) -> Tuple[str, str]:
     if isinstance(message, UserMessage):
         return ("user", message.message)
