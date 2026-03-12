@@ -61,7 +61,7 @@ LIMITS = httpx.Limits(
 ##
 
 GOOGLE_GEMINI_20_FLASH_MODEL = (
-    "gemini-2.0-flash"  # $0.1/M input tokens; $0.4/M output tokens
+    "gemini-2.5-flash"
 )
 GROK_MODEL = "x-ai/grok-2-1212"  # $2/M input tokens; $10/M output tokens
 
