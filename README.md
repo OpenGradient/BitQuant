@@ -12,7 +12,7 @@
 
 # 🚀 BitQuant by OpenGradient
 
-**BitQuant** is a open-source AI agent framework for building quantitative AI agents. It leverages specialized models for ML-powered analytics, trading, portfolio management, and more—all through a natural language interface. BitQuant exposes a REST API that turns user inputs like "What is the current risk profile on Bitcoin?" or "Optimize my portfolio for maximum risk-adjusted returns" into actionable insights.
+**BitQuant** is an open-source AI agent framework for building quantitative AI agents. It leverages specialized models for ML-powered analytics, trading, portfolio management, and more—all through a natural language interface. BitQuant exposes a REST API that turns user inputs like "What is the current risk profile on Bitcoin?" or "Optimize my portfolio for maximum risk-adjusted returns" into actionable insights.
 
 ---
 
@@ -53,10 +53,8 @@ api/        # Server API input/output types
 onchain/    # Classes for on-chain data (tokens, pools, etc.)
 server/     # Flask server exposing the API
 static/     # Static assets for web interface
-subnet/     # Bittensor Subnet-related functionality
 templates/  # LLM prompt templates for agent
 testclient/ # Client for testing the API
-testutils/  # Utility functions for testing
 ```
 
 ### Agents
@@ -212,7 +210,7 @@ BitQuant is designed to support a wide range of quantitative and DeFi-focused AI
   - Cross-chain portfolio management
   - Any custom DeFi or analytics workflow
 
-> **Tip:** Agents are modular and can be combined, routed, or extended to suit your specific use case. See the `agent/` directory and templates for examples and customization.
+> **Tip:** Agents are modular and can be combined or extended to suit your specific use case. See the `agent/` directory and templates for examples and customization.
 
 ---
 
@@ -224,7 +222,6 @@ BitQuant is designed to support a wide range of quantitative and DeFi-focused AI
 ## 🔌 Integrations
 
 - **REST API**: Exposes endpoints for agent interaction
-- **Bittensor Subnet**: For decentralized compute
 - **Custom LLM Prompts**: In `templates/`
 
 ## 🧪 Testing
@@ -261,7 +258,7 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 - Powered by [OpenGradient](https://opengradient.ai)
 - Try Bitquant at [bitquant.io](https://www.bitquant.io/)
 - OpenGradient Documentation: [OpenGradient Docs](https://docs.opengradient.ai/)
-- Join the discussion: [GitHub Discussions](https://github.com/OpenGradient/BitQuant/discussions)
+- Follow updates on [X (Twitter)](https://x.com/OpenGradient)
 - Support: [BitQuant Discord](https://discord.com/channels/1132794141403791483/1377340212576911410)
 
 ---

@@ -7,7 +7,7 @@ jobs:
   build-and-deploy:
     name: Build and Deploy
     runs-on: ubuntu-latest
-    environment: AWS_REGION
+    environment: production
 
     env:
       ECS_CLUSTER: Agents

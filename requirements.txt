@@ -11,7 +11,6 @@ requests>=2.32.0
 httpx>=0.25.0
 dotenv>=0.9.9
 flask-cors==5.0.0
-sentient-agent-framework==0.3.0
 DeFiLlama>=2.0.0
 langchain-openai==0.3.7
 binance-connector>=3.12.0
@@ -28,7 +27,8 @@ aioboto3>=1.38.0
 async_lru>=2.0.0
 aiolimiter>=1.2.0
 pytest-asyncio>=0.21.0
-og-test-x402==0.0.9
+og-test-v2-x402==0.0.11.dev3
 eth-account>=0.13.4
 web3>=7.3.0
 cachetools>=6.2.4
+langchain-mcp-adapters==0.1.14

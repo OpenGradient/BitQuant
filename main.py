@@ -30,13 +30,6 @@ protocols = [
 # Create the FastAPI app
 app = create_fastapi_app()
 
-
-# Add health check endpoint
-@app.get("/health")
-async def health_check():
-    return {"status": "ok", "service": "quant-agent-server", "protocols": protocols}
-
-
 if __name__ == "__main__":
     logging.getLogger().setLevel(logging.INFO)
     logging.info(f"Creating app with protocols enabled: {protocols}")

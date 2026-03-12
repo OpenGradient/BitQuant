@@ -37,7 +37,7 @@ def get_top_token_holders(
     token_id: str,
     config: RunnableConfig = None,
 ) -> List[TokenMetadata]:
-    """Get the top holders of a token on the given chain."""
+    """Get the top holders of a token on the given chain. Token ID is in the format <chain>:<address>. If you only have the token name or symbol, use search_token first to get the token ID."""
     if ":" not in token_id:
         return "ERROR: Token ID must be in the format <chain>:<address>"
 
@@ -113,7 +113,7 @@ def evaluate_token_risk(
     token_id: str,
     config: RunnableConfig = None,
 ) -> dict:
-    """Evaluate the risk of a token on the given chain, especially for memecoins. Token ID is in the format <chain>:<address>."""
+    """Evaluate the risk of a token on the given chain, especially for memecoins. Token ID is in the format <chain>:<address>. If you only have the token name or symbol, use search_token first to get the token ID."""
     if ":" not in token_id:
         return "ERROR: Token ID must be in the format <chain>:<address>"
 
@@ -134,7 +134,9 @@ def evaluate_token_risk(
             "category_scores (out of 100)": {
                 "pool_quality_score (honeypot risk, buy/sell tax, proxy contract, liquidity amount)": attributes.get(
                     "gt_score_details", {}
-                ).get("pool", 0),
+                ).get(
+                    "pool", 0
+                ),
                 "token_age_score": attributes.get("gt_score_details", {}).get(
                     "creation", 0
                 ),
