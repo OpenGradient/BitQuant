@@ -70,7 +70,7 @@ def create_analytics_agent_toolkit(
     async def search_token(
         token: str, chain: Optional[str] = None
     ) -> Optional[TokenMetadata]:
-        """Search for a token by name or symbol. Returns metadata for the first token found."""
+        """Look up a token by name or symbol (e.g. "jup", "SOL", "bonk") and return its metadata including the token ID. Use this to resolve token names before calling tools that require a token ID."""
         token: Optional[TokenMetadata] = await token_metadata_repo.search_token(
             token, chain
         )
