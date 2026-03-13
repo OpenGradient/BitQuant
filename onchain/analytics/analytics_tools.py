@@ -633,12 +633,16 @@ def analyze_price_trend(token_symbol: str, num_days: int = 90) -> Dict[str, Any]
                 "short_trend": (
                     "Bullish"
                     if sma7 and sma20 and sma7[-1] > sma20[-1]
-                    else "Bearish" if sma7 and sma20 else "Neutral"
+                    else "Bearish"
+                    if sma7 and sma20
+                    else "Neutral"
                 ),
                 "long_trend": (
                     "Bullish"
                     if sma50 and sma200 and sma50[-1] > sma200[-1]
-                    else "Bearish" if sma50 and sma200 else "Neutral"
+                    else "Bearish"
+                    if sma50 and sma200
+                    else "Neutral"
                 ),
             },
             "technical_indicators": {
@@ -1472,7 +1476,9 @@ def get_fear_greed_index(days: int = 1) -> Dict[str, Any]:
             trend = (
                 "increasing"
                 if values[0] > avg_value
-                else "decreasing" if values[0] < avg_value else "stable"
+                else "decreasing"
+                if values[0] < avg_value
+                else "stable"
             )
             result["trend"] = {
                 "direction": trend,

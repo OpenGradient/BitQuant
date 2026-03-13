@@ -57,7 +57,7 @@ from server.dynamodb_helpers import DatabaseManager
 from server.middleware import DatadogMetricsMiddleware
 from server.swap_tracker import SwapTracker
 from server.jup_validator import JUPValidator
-from server.cow_validator import COWValidator
+from server.evm_transaction_validator import EvmTransactionValidator
 
 from . import service
 from .auth import FirebaseIDTokenData, get_current_user
@@ -119,7 +119,7 @@ def create_fastapi_app() -> FastAPI:
         database_manager.table_context_factory("twoligma_processed_swaps")
     )
     jup_validator = JUPValidator(token_metadata_repo)
-    cow_validator = COWValidator(token_metadata_repo)
+    evm_transaction_validator = EvmTransactionValidator(token_metadata_repo)
 
     # Store services in app state for access in routes
     app.state.activity_tracker = activity_tracker
@@ -128,7 +128,7 @@ def create_fastapi_app() -> FastAPI:
     app.state.portfolio_fetcher = portfolio_fetcher
     app.state.swap_tracker = swap_tracker
     app.state.jup_validator = jup_validator
-    app.state.cow_validator = cow_validator
+    app.state.evm_transaction_validator = evm_transaction_validator
 
     # Initialize OKX MCP client
     okx_mcp_client = OKXMCPClient()
@@ -140,7 +140,7 @@ def create_fastapi_app() -> FastAPI:
         await token_metadata_repo.close()
         await portfolio_fetcher.close()
         await jup_validator.close()
-        await cow_validator.close()
+        await evm_transaction_validator.close()
 
     # Initialize protocol registry
     protocol_registry = ProtocolRegistry(token_metadata_repo)
@@ -455,7 +455,9 @@ def create_fastapi_app() -> FastAPI:
             # Get services from app state
             swap_tracker: SwapTracker = app.state.swap_tracker
             jup_validator: JUPValidator = app.state.jup_validator
-            cow_validator: COWValidator = app.state.cow_validator
+            evm_transaction_validator: EvmTransactionValidator = (
+                app.state.evm_transaction_validator
+            )
             activity_tracker: ActivityTracker = app.state.activity_tracker
 
             # Check if this swap has already been processed
@@ -490,20 +492,27 @@ def create_fastapi_app() -> FastAPI:
                 points_awarded = jup_validator.calculate_points_from_reward(
                     referral_reward_usdc
                 )
-            elif request.chain in ["ethereum", "base"]:
-                # Handle CoW protocol swaps
-                validation_result = await cow_validator.validate_swap_order(
-                    request.txid, request.chain
+            elif request.chain in [
+                "ethereum",
+                "base",
+                "arbitrum",
+                "optimism",
+                "polygon",
+            ]:
+                # Handle EVM transactions - reward = total USD value of assets sent
+                validation_result = (
+                    await evm_transaction_validator.validate_transaction(
+                        request.txid, request.chain
+                    )
                 )
                 if not validation_result or not validation_result.get("valid"):
                     return ProcessSwapResponse(
                         success=False,
                         points_awarded=0,
                         referral_reward=0.0,
-                        message="Invalid or non-CoW swap order",
+                        message="Invalid EVM transaction",
                     )
 
-                # Get the actual referral reward from the order in USD
                 referral_reward_usdc = validation_result.get(
                     "referral_reward_usdc", 0.0
                 )
