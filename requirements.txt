@@ -1,4 +1,3 @@
-opengradient>=0.4.11
 langgraph==0.5.3
 langchain-community==0.3.14
 fastapi>=0.110.0
@@ -27,8 +26,8 @@ aioboto3>=1.38.0
 async_lru>=2.0.0
 aiolimiter>=1.2.0
 pytest-asyncio>=0.21.0
-og-test-v2-x402==0.0.11.dev3
 eth-account>=0.13.4
 web3>=7.3.0
 cachetools>=6.2.4
 langchain-mcp-adapters==0.1.14
+opengradient @ git+https://github.com/OpenGradient/OpenGradient-SDK.git@12e6d3c5b275f4f1997c6748d853533e5592ee72
