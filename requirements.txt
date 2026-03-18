@@ -30,4 +30,4 @@ eth-account>=0.13.4
 web3>=7.3.0
 cachetools>=6.2.4
 langchain-mcp-adapters==0.1.14
-opengradient @ git+https://github.com/OpenGradient/OpenGradient-SDK.git@2e74a2cf340f005643c4000d48d57aedb345e34c
+opengradient @ git+https://github.com/OpenGradient/OpenGradient-SDK.git@6e719f9fcb7fd44a96c869c730f3ae852be8e7a4
