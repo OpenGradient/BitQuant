@@ -31,6 +31,9 @@ exclude = [
     '.venv/',  # Common alternative venv directory name
 ]
 
+[tool.uv]
+exclude-newer = "2026-03-25T00:00:00Z"
+
 [[tool.mypy.overrides]]
 module = [
     "opengradient",
