@@ -71,21 +71,19 @@ def create_analytics_agent_toolkit(
         token: str, chain: Optional[str] = None
     ) -> Optional[TokenMetadata]:
         """Look up a token by name or symbol (e.g. "jup", "SOL", "bonk") and return its metadata including the token ID. Use this to resolve token names before calling tools that require a token ID."""
-        token: Optional[TokenMetadata] = await token_metadata_repo.search_token(
-            token, chain
-        )
-        if not token:
-            return "No token found."
-
-        return {
-            "id": f"{token.chain}:{token.address}",
-            "address": token.address,
-            "name": token.name,
-            "symbol": token.symbol,
-            "price_usd": token.price,
-            "chain": token.chain,
-        }
-
+    result: Optional[TokenMetadata] = await token_metadata_repo.search_token(
+        token, chain
+    )
+    if not result:
+        return "No token found."
+    return {
+        "id": f"{result.chain}:{result.address}",
+        "address": result.address,
+        "name": result.name,
+        "symbol": result.symbol,
+        "price_usd": result.price,
+        "chain": result.chain,
+    }
     return [
         # TVL tools
         show_defi_llama_historical_global_tvl,
