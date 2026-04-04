@@ -84,13 +84,24 @@ def create_fastapi_app() -> FastAPI:
     app = FastAPI()
 
     # Configure CORS
-    app.add_middleware(
+     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
             "https://bitquant.io",
             "https://www.bitquant.io",
-            r"^http://localhost:(3000|3001|3002|4000|4200|5000|5173|8000|8080|8081|9000)$",
-            r"^https://defi-chat-hub-git-[\w-]+-open-gradient\.vercel\.app$",
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "http://localhost:3002",
+            "http://localhost:4000",
+            "http://localhost:4200",
+            "http://localhost:5000",
+            "http://localhost:5173",
+            "http://localhost:8000",
+            "http://localhost:8080",
+            "http://localhost:8081",
+            "http://localhost:9000",
+        ],
+        allow_origin_regex=r"^https://defi-chat-hub-git-[\w-]+-open-gradient\.vercel\.app$",
         ],
         allow_credentials=True,
         allow_methods=["*"],
