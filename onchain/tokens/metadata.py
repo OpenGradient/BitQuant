@@ -175,9 +175,9 @@ class TokenMetadataRepo:
 
                 # Filter by chain if specified
                 if chain:
-                    pairs = [pair for pair in pairs if pair["chainId"] == chain]
-                if len(pairs) == 0:
-                    return None
+        chain = chain.lower()
+        if chain not in SUPPORTED_CHAINS:
+            return None
 
                 token_address = pairs[0]["baseToken"]["address"]
                 token_chain = pairs[0]["chainId"]
