@@ -1315,8 +1315,9 @@ def portfolio_volatility(
     try:
         tokens: List[WalletTokenHolding] = config["configurable"]["tokens"]
 
-        # Fetch price data for each asset
+              # Fetch price data for each asset
         all_price_data = []
+        all_holding_qty = []
 
         for token in tokens:
             price_data = get_coingecko_price_data(
@@ -1333,10 +1334,11 @@ def portfolio_volatility(
             # Extract closing prices
             close_prices = [float(candle[4]) for candle in price_data["data"]]
             all_price_data.append(close_prices)
+            all_holding_qty.append(token.amount)
 
         # Convert to numpy arrays and transpose to get [time][asset] format
         prices = np.array(all_price_data).T
-        holding_qty = np.array(token.amount)
+        holding_qty = np.array(all_holding_qty)
 
         # Calculate portfolio values
         weighted_values = holding_qty * prices
