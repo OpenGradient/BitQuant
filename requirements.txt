@@ -30,4 +30,4 @@ eth-account>=0.13.4
 web3>=7.3.0
 cachetools>=6.2.4
 langchain-mcp-adapters==0.1.14
-opengradient==0.9.5
+opengradient==0.9.8
