@@ -37,6 +37,7 @@ class OPGTokenGate:
         Fail-closed: returns False on any error so users get default limits.
         """
         try:
+            # Validate EVM address
             checksum = AsyncWeb3.to_checksum_address(evm_address)
         except Exception:
             return False
