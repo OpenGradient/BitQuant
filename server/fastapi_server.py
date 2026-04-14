@@ -217,8 +217,8 @@ def create_fastapi_app() -> FastAPI:
                     logging.error(f"Captcha verification failed: {result}")
                     return False
 
-    async def _get_daily_limit(evm_address: str | None) -> int:
-        if evm_address and await opg_gate.is_opg_holder(evm_address):
+    async def _get_daily_limit(address: str | None) -> int:
+        if address and await opg_gate.is_opg_holder(address):
             return PointsConfig.OPG_HOLDER_DAILY_MESSAGE_LIMIT
         return PointsConfig.DAILY_MESSAGE_LIMIT
 
@@ -327,7 +327,7 @@ def create_fastapi_app() -> FastAPI:
             raise HTTPException(status_code=400, detail="Captcha token is required")
 
         # Increment message count, return 429 if limit reached
-        daily_limit = await _get_daily_limit(agent_request.context.evm_address)
+        daily_limit = await _get_daily_limit(agent_request.context.address)
         if not await activity_tracker.increment_message_count(
             agent_request.context.address, daily_limit=daily_limit
         ):
@@ -369,7 +369,7 @@ def create_fastapi_app() -> FastAPI:
         #     raise HTTPException(status_code=429, detail="Invalid captcha token")
 
         # Check if user has reached daily message limit (without incrementing)
-        daily_limit = await _get_daily_limit(agent_request.context.evm_address)
+        daily_limit = await _get_daily_limit(agent_request.context.address)
         stats = await activity_tracker.get_activity_stats(
             agent_request.context.address, daily_message_limit=daily_limit
         )
