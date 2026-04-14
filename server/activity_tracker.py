@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
-from typing import Callable, Dict
+from typing import Callable, Dict, Optional
 
 from server.dynamodb_helpers import TableContext
 
@@ -23,6 +23,7 @@ class PointsConfig:
     POINTS_PER_MESSAGE = 0
     POINTS_PER_SUCCESSFUL_INVITE = 0
     DAILY_MESSAGE_LIMIT = 20
+    OPG_HOLDER_DAILY_MESSAGE_LIMIT = 100
 
 
 class ActivityTracker:
@@ -63,7 +64,9 @@ class ActivityTracker:
         """
         self._blocked_cache[user_address] = self._get_today_end()
 
-    async def increment_message_count(self, user_address: str) -> bool:
+    async def increment_message_count(
+        self, user_address: str, daily_limit: int
+    ) -> bool:
         """
         Increment the message count for a user.
         Returns True if the message was counted, False if the daily limit was reached.
@@ -90,7 +93,7 @@ class ActivityTracker:
                     daily_message_count = 0
 
                 # Check if daily limit reached
-                if daily_message_count >= PointsConfig.DAILY_MESSAGE_LIMIT:
+                if daily_message_count >= daily_limit:
                     # Cache this blocked address
                     self._cache_blocked_address(user_address)
                     return False
@@ -145,7 +148,9 @@ class ActivityTracker:
                 },
             )
 
-    async def get_activity_stats(self, user_address: str) -> ActivityStats:
+    async def get_activity_stats(
+        self, user_address: str, daily_message_limit: int
+    ) -> ActivityStats:
         """
         Get the message count and successful invites count for a user.
         Returns ActivityStats with 0 for both counts if the user doesn't exist.
@@ -175,7 +180,7 @@ class ActivityTracker:
                     successful_invites=successful_invites,
                     points=points,
                     daily_message_count=daily_message_count,
-                    daily_message_limit=PointsConfig.DAILY_MESSAGE_LIMIT,
+                    daily_message_limit=daily_message_limit,
                     rank=-1,
                 )
 
@@ -186,6 +191,6 @@ class ActivityTracker:
                 successful_invites=0,
                 points=0,
                 daily_message_count=0,
-                daily_message_limit=PointsConfig.DAILY_MESSAGE_LIMIT,
+                daily_message_limit=daily_message_limit,
                 rank=-1,  # Return -1 for rank if there's an error
             )

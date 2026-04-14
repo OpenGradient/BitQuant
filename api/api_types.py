@@ -118,6 +118,7 @@ class Context(BaseModel):
     address: str  # wallet address
     conversationHistory: List[Message]
     miner_token: Optional[str] = None
+    evm_address: Optional[str] = None
 
 
 class AgentChatRequest(BaseModel):
