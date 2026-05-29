@@ -90,9 +90,15 @@ def create_fastapi_app() -> FastAPI:
         allow_origins=[
             "https://bitquant.io",
             "https://www.bitquant.io",
-            r"^http://localhost:(3000|3001|3002|4000|4200|5000|5173|8000|8080|8081|9000)$",
-            r"^https://defi-chat-hub-git-[\w-]+-open-gradient\.vercel\.app$",
         ],
+        # NOTE: regex patterns must go here, not in `allow_origins`.
+        # Starlette matches `allow_origins` entries as exact strings only.
+        allow_origin_regex=(
+            r"^(?:"
+            r"http://localhost:(?:3000|3001|3002|4000|4200|5000|5173|8000|8080|8081|9000)"
+            r"|https://defi-chat-hub-git-[\w-]+-open-gradient\.vercel\.app"
+            r")$"
+        ),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
