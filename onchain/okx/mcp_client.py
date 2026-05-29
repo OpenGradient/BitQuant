@@ -49,27 +49,51 @@ class OKXMCPClient:
         self._tools: List[BaseTool] = []
 
     async def connect(self) -> None:
-        """Connect to OKX MCP server and load market data tools."""
-        self._client = MultiServerMCPClient(
-            {
-                "okx": {
-                    "transport": "streamable_http",
-                    "url": OKX_MCP_URL,
-                    "headers": {
-                        "OK-ACCESS-KEY": self._api_key,
-                    },
+        """Connect to OKX MCP server and load market data tools.
+
+        A failure to reach the OKX MCP server (e.g. missing/invalid API key,
+        network issues, or the server terminating the session) is logged and
+        swallowed so that it never takes down the rest of the application. In
+        that case no OKX tools are loaded and ``get_tools()`` returns an empty
+        list.
+        """
+        if not self._api_key:
+            logger.warning(
+                "OKX MCP: OKX_API_KEY is not set; skipping OKX MCP connection. "
+                "No OKX market data tools will be available."
+            )
+            self._client = None
+            self._tools = []
+            return
+
+        try:
+            self._client = MultiServerMCPClient(
+                {
+                    "okx": {
+                        "transport": "streamable_http",
+                        "url": OKX_MCP_URL,
+                        "headers": {
+                            "OK-ACCESS-KEY": self._api_key,
+                        },
+                    }
                 }
-            }
-        )
+            )
 
-        all_tools = await self._client.get_tools()
-        self._tools = [t for t in all_tools if t.name in ALLOWED_TOOLS]
+            all_tools = await self._client.get_tools()
+            self._tools = [t for t in all_tools if t.name in ALLOWED_TOOLS]
 
-        blocked = [t.name for t in all_tools if t.name not in ALLOWED_TOOLS]
-        logger.info(
-            f"OKX MCP: loaded {len(self._tools)} market data tools, "
-            f"blocked {len(blocked)} execution tools: {blocked}"
-        )
+            blocked = [t.name for t in all_tools if t.name not in ALLOWED_TOOLS]
+            logger.info(
+                f"OKX MCP: loaded {len(self._tools)} market data tools, "
+                f"blocked {len(blocked)} execution tools: {blocked}"
+            )
+        except Exception:
+            logger.exception(
+                "OKX MCP: failed to connect or load tools; continuing without "
+                "OKX market data tools."
+            )
+            self._client = None
+            self._tools = []
 
     async def disconnect(self) -> None:
         """Disconnect from the MCP server."""
