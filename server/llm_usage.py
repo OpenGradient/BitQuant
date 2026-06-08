@@ -189,6 +189,11 @@ class OhttpUsageBatcher:
                     "p_cost_opg": str(cost_opg),
                 },
             ).execute()
+        except asyncio.CancelledError:
+            self._count += count
+            self._cost_usd += cost_usd
+            self._cost_opg += cost_opg
+            raise
         except Exception:
             logger.exception("Failed to flush BitQuant usage to ohttp_usage_daily")
             self._count += count
