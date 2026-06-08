@@ -8,6 +8,7 @@ jinja2>=3.0.2
 gunicorn==21.2.0
 requests>=2.32.0
 httpx>=0.25.0
+supabase>=2.15.1
 dotenv>=0.9.9
 flask-cors==5.0.0
 DeFiLlama>=2.0.0

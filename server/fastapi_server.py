@@ -36,6 +36,8 @@ from api.api_types import (
     ProcessSwapResponse,
 )
 from agent.agent_executors import (
+    REASONING_MODEL,
+    SUGGESTIONS_MODEL,
     create_investor_executor,
     create_suggestions_model,
     create_analytics_executor,
@@ -59,6 +61,12 @@ from server.swap_tracker import SwapTracker
 from server.jup_validator import JUPValidator
 from server.cow_validator import COWValidator
 from server.opg_token_gate import OPGTokenGate
+from server import config
+from server.llm_usage import (
+    OhttpUsageBatcher,
+    estimate_cost_from_message,
+    estimate_cost_from_messages,
+)
 
 from . import service
 from .auth import FirebaseIDTokenData, get_current_user
@@ -119,6 +127,10 @@ def create_fastapi_app() -> FastAPI:
     swap_tracker = SwapTracker(
         database_manager.table_context_factory("twoligma_processed_swaps")
     )
+    ohttp_usage_batcher = OhttpUsageBatcher(
+        supabase_url=config.OHTTP_USAGE_SUPABASE_URL,
+        service_role_key=config.OHTTP_USAGE_SUPABASE_SERVICE_ROLE_KEY,
+    )
     jup_validator = JUPValidator(token_metadata_repo)
     cow_validator = COWValidator(token_metadata_repo)
     opg_gate = OPGTokenGate()
@@ -131,6 +143,7 @@ def create_fastapi_app() -> FastAPI:
     app.state.swap_tracker = swap_tracker
     app.state.jup_validator = jup_validator
     app.state.cow_validator = cow_validator
+    app.state.ohttp_usage_batcher = ohttp_usage_batcher
 
     # Initialize OKX MCP client
     okx_mcp_client = OKXMCPClient()
@@ -143,6 +156,7 @@ def create_fastapi_app() -> FastAPI:
         await portfolio_fetcher.close()
         await jup_validator.close()
         await cow_validator.close()
+        await ohttp_usage_batcher.stop()
 
     # Initialize protocol registry
     protocol_registry = ProtocolRegistry(token_metadata_repo)
@@ -159,6 +173,7 @@ def create_fastapi_app() -> FastAPI:
 
     @app.on_event("startup")
     async def startup_event():
+        ohttp_usage_batcher.start()
         await protocol_registry.initialize()
         await okx_mcp_client.connect()
         okx_tools = okx_mcp_client.get_tools()
@@ -346,6 +361,7 @@ def create_fastapi_app() -> FastAPI:
                 portfolio=portfolio,
                 investor_agent=investor_agent,
                 analytics_agent=app.state.analytics_agent,
+                ohttp_usage_batcher=ohttp_usage_batcher,
             )
 
             return (
@@ -386,6 +402,7 @@ def create_fastapi_app() -> FastAPI:
             request=agent_request,
             portfolio=portfolio,
             suggestions_model=suggestions_model,
+            ohttp_usage_batcher=ohttp_usage_batcher,
         )
         return {"suggestions": suggestions}
 
@@ -564,14 +581,15 @@ async def handle_agent_chat_request(
     token_metadata_repo: TokenMetadataRepo,
     investor_agent: any,
     analytics_agent: any,
+    ohttp_usage_batcher: OhttpUsageBatcher,
 ) -> AgentMessage:
     if request.agent == AgentType.YIELD:
         return await handle_investor_chat_request(
-            request, portfolio, investor_agent, protocol_registry
+            request, portfolio, investor_agent, protocol_registry, ohttp_usage_batcher
         )
     else:
         return await handle_analytics_chat_request(
-            request, token_metadata_repo, portfolio, analytics_agent
+            request, token_metadata_repo, portfolio, analytics_agent, ohttp_usage_batcher
         )
 
 
@@ -580,6 +598,7 @@ async def handle_investor_chat_request(
     portfolio: Portfolio,
     investor_agent: any,
     protocol_registry: ProtocolRegistry,
+    ohttp_usage_batcher: OhttpUsageBatcher,
 ) -> AgentMessage:
     """Handle requests for the investor agent."""
     # Emit metric for investor agent usage
@@ -614,7 +633,11 @@ async def handle_investor_chat_request(
 
     # Run investor agent
     investor_result = await run_main_agent(
-        investor_agent, investor_messages, agent_config, protocol_registry
+        investor_agent,
+        investor_messages,
+        agent_config,
+        protocol_registry,
+        ohttp_usage_batcher,
     )
 
     return AgentMessage(
@@ -628,6 +651,7 @@ async def handle_suggestions_request(
     portfolio: Portfolio,
     token_metadata_repo: TokenMetadataRepo,
     suggestions_model: ChatOpenAI,
+    ohttp_usage_batcher: OhttpUsageBatcher,
 ) -> List[str]:
     # Get tools from agent config and format them
     tools = create_investor_agent_toolkit() + create_analytics_agent_toolkit(
@@ -644,6 +668,12 @@ async def handle_suggestions_request(
 
     # Run suggestions model directly
     response = await suggestions_model.ainvoke(suggestions_system_prompt)
+    ohttp_usage_batcher.add(
+        cost_usd=estimate_cost_from_message(
+            model=SUGGESTIONS_MODEL,
+            message=response,
+        )
+    )
     content = response.content
 
     # Clean the content by removing markdown code block syntax if present
@@ -678,10 +708,17 @@ async def run_main_agent(
     messages: List,
     config: RunnableConfig,
     protocol_registry: ProtocolRegistry,
+    ohttp_usage_batcher: OhttpUsageBatcher,
 ) -> Dict[str, Any]:
     try:
         # Run agent directly
         result = await agent.ainvoke({"messages": messages}, config=config, debug=False)
+        ohttp_usage_batcher.add(
+            cost_usd=estimate_cost_from_messages(
+                model=REASONING_MODEL,
+                messages=result["messages"],
+            )
+        )
         # Extract final state and last message
         last_message = result["messages"][-1]
 
@@ -730,6 +767,7 @@ async def handle_analytics_chat_request(
     token_metadata_repo: TokenMetadataRepo,
     portfolio: Portfolio,
     agent: any,
+    ohttp_usage_batcher: OhttpUsageBatcher,
 ) -> AgentMessage:
     # Emit metric for analytics agent usage
     statsd.increment("agent.usage", tags=["agent_type:analytics"])
@@ -760,7 +798,11 @@ async def handle_analytics_chat_request(
     )
 
     return await run_analytics_agent(
-        agent, token_metadata_repo, analytics_messages, agent_config
+        agent,
+        token_metadata_repo,
+        analytics_messages,
+        agent_config,
+        ohttp_usage_batcher,
     )
 
 
@@ -769,10 +811,17 @@ async def run_analytics_agent(
     token_metadata_repo: TokenMetadataRepo,
     messages: List,
     config: RunnableConfig,
+    ohttp_usage_batcher: OhttpUsageBatcher,
 ) -> AgentMessage:
     try:
         # Run agent directly
         result = await agent.ainvoke({"messages": messages}, config=config, debug=False)
+        ohttp_usage_batcher.add(
+            cost_usd=estimate_cost_from_messages(
+                model=REASONING_MODEL,
+                messages=result["messages"],
+            )
+        )
 
         # Extract final state and last message
         last_message = result["messages"][-1]

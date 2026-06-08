@@ -16,3 +16,14 @@ BASE_RPC_URL: str = os.getenv(
 )
 OPG_TOKEN_ADDRESS = "0xFbC2051AE2265686a469421b2C5A2D5462FbF5eB"
 OPG_HOLDER_THRESHOLD = 1000 * 10**18  # raw units, 18 decimals
+
+OHTTP_USAGE_SUPABASE_URL: str = (
+    os.getenv("OHTTP_USAGE_SUPABASE_URL")
+    or os.getenv("MEMSYNC_SUPABASE_URL")
+    or ""
+).rstrip("/")
+OHTTP_USAGE_SUPABASE_SERVICE_ROLE_KEY: str = (
+    os.getenv("OHTTP_USAGE_SUPABASE_SERVICE_ROLE_KEY")
+    or os.getenv("MEMSYNC_SUPABASE_SERVICE_ROLE_KEY")
+    or ""
+)
