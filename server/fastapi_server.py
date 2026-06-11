@@ -339,7 +339,7 @@ def create_fastapi_app() -> FastAPI:
         )
 
         # Restrict agent usage to funded wallets
-        if portfolio.total_value_usd < 0.1:
+        if portfolio.total_value_usd < 0.01:
             return AgentMessage(
                 message="Please use a funded wallet (at least $0.10) to start using the agent",
                 pools=[],
