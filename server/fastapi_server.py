@@ -338,14 +338,6 @@ def create_fastapi_app() -> FastAPI:
             wallet_address=agent_request.context.address
         )
 
-        # Restrict agent usage to funded wallets
-        if portfolio.total_value_usd < 0.01:
-            return AgentMessage(
-                message="Please use a funded wallet (at least $0.01) to start using the agent",
-                pools=[],
-                tokens=[],
-            )
-
         try:
             response = await handle_agent_chat_request(
                 token_metadata_repo=token_metadata_repo,
