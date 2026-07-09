@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict
 
 from server.dynamodb_helpers import TableContext
 

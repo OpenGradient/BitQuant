@@ -1,8 +1,7 @@
 from pydantic import BaseModel
-from typing import Annotated, Optional
+from typing import Optional
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-import logging
 import asyncio
 
 from .firebase import auth
@@ -35,15 +34,15 @@ async def _verify_firebase_id_token(token: str) -> FirebaseIDTokenData:
         auth.InvalidIdTokenError,
         auth.ExpiredIdTokenError,
         auth.RevokedIdTokenError,
-    ) as e:
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
         )
-    except auth.UserDisabledError as e:
+    except auth.UserDisabledError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User disabled"
         )
-    except (ValueError, auth.CertificateFetchError, auth.FirebaseError) as e:
+    except (ValueError, auth.CertificateFetchError, auth.FirebaseError):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error",

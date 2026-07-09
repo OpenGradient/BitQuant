@@ -1,4 +1,4 @@
-from typing import Optional, Callable, Awaitable
+from typing import Optional, Callable
 import secrets
 import logging
 from datetime import datetime

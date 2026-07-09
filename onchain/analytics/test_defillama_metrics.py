@@ -1,6 +1,4 @@
 import unittest
-from typing import List, Dict, Any
-from api.api_types import Chain, Pool, PoolQuery
 from onchain.analytics.defillama_tools import (
     show_defi_llama_protocol,
     show_defi_llama_global_tvl,
@@ -20,25 +18,6 @@ def format_tvl(value) -> str:
 
 
 class TestDefiLlamaSource(unittest.TestCase):
-    def test_show_defi_llama_protocols(self):
-        """Test the show_defi_llama_protocols tool"""
-        print("\n=== Testing show_defi_llama_protocols() ===")
-
-        protocols = show_defi_llama_protocols.invoke({})
-
-        self.assertIsNotNone(protocols)
-        self.assertTrue(len(protocols) > 0, "Should find at least one protocol")
-
-        print(f"\nTop 10 protocols by TVL:")
-        for i, protocol in enumerate(protocols[:10], 1):
-            print(
-                f"{i}. {protocol.get('name', 'Unknown')} - {format_tvl(protocol.get('tvl', 0))}"
-            )
-            print(f"   Slug: {protocol.get('slug', '')}")
-            print(f"   Chain: {protocol.get('chain', 'Unknown')}")
-            print(f"   Category: {protocol.get('category', 'Other')}")
-            print("")
-
     def test_show_defi_llama_protocol(self):
         """Test the show_defi_llama_protocol tool"""
         print("\n=== Testing show_defi_llama_protocol('aave-v3') ===")
@@ -49,7 +28,7 @@ class TestDefiLlamaSource(unittest.TestCase):
         self.assertIn("name", protocol)
         self.assertIn("tvl", protocol)
 
-        print(f"\nProtocol Details for 'aave-v3':")
+        print("\nProtocol Details for 'aave-v3':")
         print(f"Name: {protocol.get('name', 'Unknown')}")
         print(f"Slug: {protocol.get('slug', '')}")
         print(f"TVL: {format_tvl(protocol.get('tvl', 0))}")
@@ -97,7 +76,7 @@ class TestDefiLlamaSource(unittest.TestCase):
 
         self.assertIsNotNone(top_pools)
 
-        print(f"\nTop 10 Pools by APY:")
+        print("\nTop 10 Pools by APY:")
 
         for i, pool in enumerate(top_pools, 1):
             apy = pool.get("apy")

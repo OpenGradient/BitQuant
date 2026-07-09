@@ -1,7 +1,5 @@
 from typing import List, Optional, Dict, Any
-from enum import IntEnum
 
-from pydantic import BaseModel
 import aiohttp
 
 from api.api_types import Pool, Token, Chain, PoolType

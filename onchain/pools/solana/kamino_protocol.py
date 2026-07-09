@@ -1,5 +1,4 @@
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel
 import aiohttp
 from datetime import datetime, timedelta, UTC
 import statistics
@@ -208,10 +207,6 @@ class KaminoProtocol(Protocol):
         one_day_ago = now - timedelta(days=1)
         one_week_ago = now - timedelta(days=7)
         one_month_ago = now - timedelta(days=30)
-
-        # Format dates for API - get data from now until one month ago
-        end_date = now.strftime("%Y-%m-%dT%H:%M:%S.000Z")
-        month_start_date = one_month_ago.strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
         # Fetch a month's worth of data with hourly frequency
         metrics_data = await self._fetch_metrics(

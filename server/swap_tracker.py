@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
 from typing import Optional
-from server.dynamodb_helpers import TableContext
 
 
 class SwapTracker:
@@ -28,7 +27,7 @@ class SwapTracker:
             async with self.get_table() as table:
                 response = await table.get_item(Key={"txid": f"{chain}:{txid}"})
                 return "Item" in response
-        except Exception as e:
+        except Exception:
             # If there's an error checking, assume it's not processed
             # This prevents blocking on DynamoDB errors
             return False
@@ -65,7 +64,7 @@ class SwapTracker:
                     }
                 )
                 return True
-        except Exception as e:
+        except Exception:
             return False
 
     async def get_swap_details(self, chain: str, txid: str) -> Optional[dict]:

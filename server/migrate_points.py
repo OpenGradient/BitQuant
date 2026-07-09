@@ -1,6 +1,5 @@
 import boto3
 import os
-from typing import Dict, Any
 
 from activity_tracker import PointsConfig
 

@@ -1,4 +1,4 @@
-from typing import Tuple, List, Union
+from typing import Tuple, List
 import re
 import json
 

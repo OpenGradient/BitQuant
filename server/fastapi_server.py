@@ -1,4 +1,4 @@
-from typing import List, Any, Dict, Tuple
+from typing import List, Any, Dict
 import os
 import json
 import traceback
@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import ValidationError
 from langchain_core.runnables.config import RunnableConfig
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+from langchain_core.messages import SystemMessage, HumanMessage
 from datadog import initialize, statsd
 import aiohttp
 
@@ -30,8 +30,6 @@ from api.api_types import (
     TokenMetadata,
     SolanaVerifyRequest,
     EvmVerifyRequest,
-    Context,
-    UserMessage,
     ProcessSwapRequest,
     ProcessSwapResponse,
 )

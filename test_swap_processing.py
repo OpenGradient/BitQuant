@@ -8,7 +8,6 @@ import asyncio
 import json
 from server.swap_tracker import SwapTracker
 from server.jup_validator import JUPValidator
-from server.activity_tracker import ActivityTracker
 from server.dynamodb_helpers import DatabaseManager
 
 
@@ -40,7 +39,7 @@ async def test_swap_processing():
     print(f"   Validation result: {validation_result}")
 
     if validation_result and validation_result.get("valid"):
-        print(f"\n2. Testing referral reward from transaction")
+        print("\n2. Testing referral reward from transaction")
         referral_reward = validation_result.get("referral_reward", 0.0)
         print(f"   Actual referral reward from transaction: {referral_reward}")
 
@@ -48,18 +47,18 @@ async def test_swap_processing():
         points = jup_validator.calculate_points_from_reward(referral_reward)
         print(f"   Points to award: {points}")
     else:
-        print(f"\n2. Transaction validation failed - no referral reward to process")
+        print("\n2. Transaction validation failed - no referral reward to process")
         referral_reward = 0.0
         points = 0
 
-    print(f"\n3. Testing duplicate prevention")
+    print("\n3. Testing duplicate prevention")
 
     # Test duplicate check
     is_processed = await swap_tracker.is_swap_processed(test_txid)
     print(f"   Is already processed: {is_processed}")
 
     if not is_processed:
-        print(f"\n4. Simulating swap processing")
+        print("\n4. Simulating swap processing")
 
         # Mark as processed
         success = await swap_tracker.mark_swap_processed(
@@ -71,7 +70,7 @@ async def test_swap_processing():
         is_processed_after = await swap_tracker.is_swap_processed(test_txid)
         print(f"   Is now processed: {is_processed_after}")
 
-    print(f"\n5. Testing API request format")
+    print("\n5. Testing API request format")
 
     # Example API request
     api_request = {
@@ -85,7 +84,7 @@ async def test_swap_processing():
         },
     }
 
-    print(f"   Example request body:")
+    print("   Example request body:")
     print(json.dumps(api_request, indent=2))
 
     # Example API response
@@ -96,10 +95,10 @@ async def test_swap_processing():
         "message": f"Successfully processed swap and awarded {points} points",
     }
 
-    print(f"\n   Example response body:")
+    print("\n   Example response body:")
     print(json.dumps(api_response, indent=2))
 
-    print(f"\n" + "=" * 50)
+    print("\n" + "=" * 50)
     print("Test completed successfully!")
 
 

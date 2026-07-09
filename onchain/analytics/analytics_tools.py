@@ -8,7 +8,7 @@ import os
 import csv
 import requests
 from time import sleep
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, UTC
 from cachetools import TTLCache
 
 from agent.telemetry import track_tool_usage
@@ -633,12 +633,16 @@ def analyze_price_trend(token_symbol: str, num_days: int = 90) -> Dict[str, Any]
                 "short_trend": (
                     "Bullish"
                     if sma7 and sma20 and sma7[-1] > sma20[-1]
-                    else "Bearish" if sma7 and sma20 else "Neutral"
+                    else "Bearish"
+                    if sma7 and sma20
+                    else "Neutral"
                 ),
                 "long_trend": (
                     "Bullish"
                     if sma50 and sma200 and sma50[-1] > sma200[-1]
-                    else "Bearish" if sma50 and sma200 else "Neutral"
+                    else "Bearish"
+                    if sma50 and sma200
+                    else "Neutral"
                 ),
             },
             "technical_indicators": {
@@ -700,9 +704,6 @@ def compare_assets(
     """
     Compare performance of multiple crypto assets with simplified insights for average investors.
     """
-    # Generate a request ID for this comparison operation
-    comparison_id = f"compare_{datetime.now(UTC).strftime('%H%M%S')}"
-
     results = {}
     detailed_results = {}
     error_count = 0
@@ -1097,22 +1098,6 @@ def analyze_wallet_portfolio(
         # Calculate returns (daily, weekly, monthly)
         daily_returns = portfolio_values[1:] / portfolio_values[:-1] - 1
 
-        # Weekly returns (if we have sufficient data)
-        weekly_returns = None
-        if len(portfolio_values) >= 7:
-            weekly_indices = list(range(0, len(portfolio_values), 7))
-            if len(weekly_indices) >= 2:
-                weekly_values = portfolio_values[weekly_indices]
-                weekly_returns = weekly_values[1:] / weekly_values[:-1] - 1
-
-        # Monthly returns (if we have sufficient data)
-        monthly_returns = None
-        if len(portfolio_values) >= 30:
-            monthly_indices = list(range(0, len(portfolio_values), 30))
-            if len(monthly_indices) >= 2:
-                monthly_values = portfolio_values[monthly_indices]
-                monthly_returns = monthly_values[1:] / monthly_values[:-1] - 1
-
         # Calculate drawdown
         rolling_max = np.maximum.accumulate(portfolio_values)
         drawdowns = (rolling_max - portfolio_values) / rolling_max
@@ -1472,7 +1457,9 @@ def get_fear_greed_index(days: int = 1) -> Dict[str, Any]:
             trend = (
                 "increasing"
                 if values[0] > avg_value
-                else "decreasing" if values[0] < avg_value else "stable"
+                else "decreasing"
+                if values[0] < avg_value
+                else "stable"
             )
             result["trend"] = {
                 "direction": trend,

@@ -15,7 +15,7 @@ markers = [
 ]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.13"
 disallow_untyped_defs = false
 disallow_incomplete_defs = true
 check_untyped_defs = false
@@ -38,6 +38,11 @@ exclude-newer = "7d"
 module = [
     "opengradient",
     "opengradient.mltools",
-    "opengradient.llm"
+    "opengradient.llm",
+    "defillama",
+    "langchain_mcp_adapters.*",
+    "boto3",
+    "boto3.*",
+    "aioboto3",
 ]
 ignore_missing_imports = true

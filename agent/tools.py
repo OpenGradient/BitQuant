@@ -5,7 +5,6 @@ from langchain_core.tools import BaseTool, tool
 from agent.telemetry import track_tool_usage
 
 from onchain.tokens.metadata import TokenMetadataRepo, TokenMetadata
-from api.api_types import TokenMetadata as TokenMetadataApi
 
 from onchain.analytics.defillama_tools import (
     show_defi_llama_top_pools,
