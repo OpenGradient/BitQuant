@@ -14,8 +14,8 @@ from server import config
 ##
 
 # Select model based on configuration
-SUGGESTIONS_MODEL = og.TEE_LLM.GEMINI_2_5_FLASH
-REASONING_MODEL = og.TEE_LLM.GEMINI_2_5_PRO
+SUGGESTIONS_MODEL = og.TEE_LLM.GEMINI_3_1_FLASH_LITE_PREVIEW
+REASONING_MODEL = og.TEE_LLM.GEMINI_3_5_FLASH
 
 opengradient_client = og.LLM(
     private_key=config.WALLET_PRIV_KEY,
