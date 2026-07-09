@@ -34,3 +34,8 @@ sample:
 
 format:
 	ruff format .
+
+# Same checks that run in CI (.github/workflows/ci.yml)
+lint:
+	ruff check .
+	ruff format --check .
