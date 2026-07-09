@@ -3,7 +3,8 @@ import os
 
 from async_lru import alru_cache
 from solana.rpc.async_api import AsyncClient
-from solana.rpc.types import TokenAccountOpts, Pubkey
+from solana.rpc.models import TokenAccountOpts
+from solders.pubkey import Pubkey
 from solders.rpc.responses import RpcKeyedAccountJsonParsed
 
 from onchain.tokens.metadata import TokenMetadataRepo
