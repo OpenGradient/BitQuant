@@ -28,8 +28,11 @@ chat:
 	python3.13 testclient/client.py
 
 sample:
-	curl -XPOST http://127.0.0.1:8000/api/agent/run \
+	@echo "Set FIREBASE_ID_TOKEN or SKIP_TOKEN_AUTH_HEADER/SKIP_TOKEN_AUTH_KEY before running make sample."
+	curl -XPOST http://127.0.0.1:8000/api/v2/agent/run \
 	  -H "Content-Type: application/json" \
+	  $(if $(FIREBASE_ID_TOKEN),-H "Authorization: Bearer $(FIREBASE_ID_TOKEN)") \
+	  $(if $(and $(SKIP_TOKEN_AUTH_HEADER),$(SKIP_TOKEN_AUTH_KEY)),-H "$(SKIP_TOKEN_AUTH_HEADER): $(SKIP_TOKEN_AUTH_KEY)") \
 	  -d @sample-payload.json | jq
 
 format:
