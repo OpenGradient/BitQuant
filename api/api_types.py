@@ -99,6 +99,11 @@ class WalletPoolPosition(BaseModel):
     depositedTokens: Dict[str, float]  # address to token amount
 
 
+class Suggestion(BaseModel):
+    display: str  # short label shown in the UI (2-5 words)
+    prompt: str   # full detailed message sent to the agent when clicked
+
+
 class UserMessage(BaseModel):
     type: Literal["user"] = "user"
     message: str
